@@ -1,0 +1,1271 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../services/course_query_service.dart'; // 請確認路徑是否正確
+import 'package:http/http.dart' as http; // ✅ 新增這行：用來發送網路請求
+import 'package:url_launcher/url_launcher.dart'; // ✅ 新增：用於開啟外部連結
+
+class AssistantAddCoursePage extends StatefulWidget {
+  final VoidCallback? onCourseAdded; // 新增回呼，通知父層
+  final VoidCallback? onClose; // 新增回呼，由父層決定關閉行為
+  final bool isSubPane; // ★★★ 新增：是否以子區塊模式顯示 ★★★
+
+  const AssistantAddCoursePage({
+    Key? key,
+    this.onCourseAdded,
+    this.onClose,
+    this.isSubPane = false, // 預設不是子區塊
+  }) : super(key: key);
+
+  @override
+  State<AssistantAddCoursePage> createState() => _AssistantAddCoursePageState();
+}
+
+class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
+  bool _isQueryLoading = false;
+  List<CourseJsonData> _searchResults = [];
+  bool _hasSearched = false;
+  final Map<String, List<String>> _evaluationCache = {};
+  // 已存在助手課表中的課程 ID 集合 (用來防呆顯示已加入)
+  Set<String> _existingAssistantCourseIds = {};
+
+  final TextEditingController _mergedQueryCtrl = TextEditingController();
+  Set<String> _selectedGrades = {};
+  Set<String> _selectedDays = {};
+  Set<String> _selectedPeriods = {};
+  String? _selectedClass;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingAssistantCourses();
+  }
+
+  @override
+  void dispose() {
+    _mergedQueryCtrl.dispose();
+    super.dispose();
+  }
+
+  // 讀取已經加到助手的課程，用來在畫面上顯示 "已加入"
+  Future<void> _loadExistingAssistantCourses() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? jsonStr = prefs.getString('assistant_courses');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        List<dynamic> decoded = jsonDecode(jsonStr);
+        setState(() {
+          _existingAssistantCourseIds = decoded
+              .map((v) => v['code'].toString())
+              .toSet();
+        });
+      }
+    } catch (e) {
+      print("讀取既有助手課表失敗: $e");
+    }
+  }
+
+  // 將 CourseJsonData 轉換為 Course 模型並存入快取
+  // 將 CourseJsonData 轉換為 Course 模型並存入快取
+  Future<void> _addCourseToAssistant(CourseJsonData courseData) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<dynamic> currentList = [];
+      String? jsonStr = prefs.getString('assistant_courses');
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        currentList = jsonDecode(jsonStr);
+      }
+
+      // 檢查是否重複
+      if (currentList.any((c) => c['code'] == courseData.id)) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("此課程已經在助手中了！")));
+        return;
+      }
+
+      // ✅ 修改這裡：將時間字串精準拆分 (支援 "234" 或 "2,3,4" 等格式)
+      List<Map<String, dynamic>> parsedTimes = [];
+      for (int i = 0; i < courseData.classTime.length; i++) {
+        String dayPeriods = courseData.classTime[i];
+        if (dayPeriods.isNotEmpty) {
+          // 去除逗號與空白，確保剩下純節次字元 (例如 "2, 3, 4" 或 "234" 都變成 "234")
+          String cleaned = dayPeriods.replaceAll(',', '').replaceAll(' ', '');
+
+          // 逐字元拆開 (中山的節次皆為單一字元: 1~9, A~F)
+          for (int j = 0; j < cleaned.length; j++) {
+            parsedTimes.add({'day': i + 1, 'period': cleaned[j]});
+          }
+        }
+      }
+
+      // 建立存檔用 Map
+      Map<String, dynamic> newCourse = {
+        'name': courseData.name.split('\n')[0],
+        'code': courseData.id,
+        'professor': courseData.teacher,
+        'location': courseData.room,
+        'timeString': "",
+        'credits': courseData.credit,
+        'required': "",
+        'detailUrl': "",
+        'parsedTimes': parsedTimes,
+        'english': courseData.english,
+        'restrict': courseData.restrict,
+        'select': courseData.select,
+        'selected': courseData.selected,
+        'remaining': courseData.remaining,
+        'tags': courseData.tags,
+        'department': courseData.department,
+        'description': courseData.description,
+      };
+
+      currentList.add(newCourse);
+      await prefs.setString('assistant_courses', jsonEncode(currentList));
+
+      setState(() {
+        _existingAssistantCourseIds.add(courseData.id);
+      });
+
+      // ★★★ 新增：呼叫回呼，讓旁邊的課表自動更新 ★★★
+      widget.onCourseAdded?.call();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("已排入模擬課表：${courseData.name.split('\n')[0]}"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("加入失敗：$e")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final semStr = CourseQueryService.instance.currentSemester;
+    String semDisplay = "";
+    if (semStr.length == 4) {
+      final syear = semStr.substring(0, 3); // 前三碼 (114)
+      final sem = semStr.substring(3, 4); // 最後一碼 (2)
+      semDisplay = "$syear-${sem}";
+    }
+    final content = Column(
+      children: [
+        if (!widget.isSubPane)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: Colors.white,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: ElevatedButton.icon(
+                onPressed: _showSearchSheet,
+                icon: const Icon(Icons.search),
+                label: const Text("開啟搜尋面板"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[50],
+                  foregroundColor: Colors.blue[800],
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          )
+        else
+          // 桌面版內嵌搜尋表單
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: _buildDesktopSearchForm(),
+          ),
+        const Divider(height: 1),
+        Expanded(child: _buildSearchResults()),
+      ],
+    );
+
+    if (widget.isSubPane) {
+      return Container(color: Colors.white, child: content);
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("$semDisplay 新增課程"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0.5,
+        // ★★★ 新增：如果由分割畫面呼叫，顯示關閉按鈕 ★★★
+        leading: widget.onClose != null
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: widget.onClose,
+              )
+            : null,
+      ),
+      body: content,
+    );
+  }
+
+  Widget _buildSearchResults() {
+    if (_isQueryLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("搜尋中 (可能需要下載課程資料)...", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    if (!_hasSearched) {
+      return Center(
+        child: Text(
+          "點擊上方按鈕搜尋想加入的課程",
+          style: TextStyle(color: Colors.grey[400]),
+        ),
+      );
+    }
+
+    if (_searchResults.isEmpty) {
+      return const Center(child: Text("找不到符合條件的課程"));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: _searchResults.length,
+      itemBuilder: (context, index) {
+        final course = _searchResults[index];
+        bool isAdded = _existingAssistantCourseIds.contains(course.id);
+
+        return Card(
+          elevation: 1,
+          margin: const EdgeInsets.only(bottom: 8),
+          clipBehavior: Clip.antiAlias,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              title: Row(
+                children: [
+                  Expanded(child: _HoverableCourseName(course: course)),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 減少間距
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      _buildMiniInfoChip(Icons.person_outline, course.teacher),
+                      _buildMiniInfoChip(
+                        Icons.grade_outlined,
+                        "${course.credit} 學分",
+                      ),
+                      _buildMiniInfoChip(
+                        Icons.class_outlined,
+                        "${course.grade}年${course.className}",
+                      ),
+                      _buildMiniInfoChip(
+                        Icons.room_outlined,
+                        _parseRoomLocation(course.room),
+                      ),
+                      _buildMiniInfoChip(
+                        Icons.access_time,
+                        _formatClassTime(course.classTime),
+                      ),
+                      if (course.english)
+                        _buildMiniInfoChip(Icons.language, "英語授課"),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: isAdded
+                  ? const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 32,
+                    )
+                  : MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: ElevatedButton(
+                        onPressed: () => _addCourseToAssistant(course),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(60, 32),
+                        ),
+                        child: const Text("加入排課"),
+                      ),
+                    ),
+              children: [
+                const Divider(height: 1, thickness: 1, color: Colors.black12),
+                Container(
+                  color: Colors.blue[50]!.withOpacity(0.3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    children: [
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "評分方式",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 使用 FutureBuilder 動態載入
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FutureBuilder<List<String>>(
+                          future: _getCourseEvaluation(course.id),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              );
+                            }
+                            if (snapshot.hasError ||
+                                !snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return const Text(
+                                "尚無詳細評分資料",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                ),
+                              );
+                            }
+                            // 渲染抓取到的評分清單
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: snapshot.data!
+                                  .map(
+                                    (e) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 6.0,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(
+                                            Icons.check_circle_outline,
+                                            size: 16,
+                                            color: Colors.blue,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              e,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.black12,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 課程狀態與標籤
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "課程資訊",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueGrey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildInfoRow("名額", "${course.restrict}"),
+                                _buildInfoRow(
+                                  "餘額",
+                                  "${course.remaining}",
+                                  valueColor: course.remaining > 0
+                                      ? Colors.green[700]
+                                      : Colors.red,
+                                ),
+                                _buildInfoRow(
+                                  "選上機率",
+                                  _calculateProbability(course),
+                                  isBold: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 7,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "對應學程",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueGrey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                if (course.tags.isEmpty)
+                                  const Text(
+                                    "無相關學程",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  )
+                                else
+                                  Wrap(
+                                    spacing: 4,
+                                    runSpacing: 4,
+                                    children: course.tags
+                                        .map(
+                                          (t) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue[50],
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: Colors.blue[100]!,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              t,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (course.description.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "備註",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            course.description,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+                      const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.black12,
+                      ),
+                      const SizedBox(height: 8),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "外部連結與評價",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _buildActionButton(
+                            icon: Icons.person_search,
+                            label: "教授評價",
+                            color: Colors.orange[700]!,
+                            onTap: () =>
+                                _launchEvaluationSearch(course.teacher),
+                          ),
+                          _buildActionButton(
+                            icon: Icons.forum_outlined,
+                            label: "課程評價",
+                            color: Colors.purple[700]!,
+                            onTap: () => _launchEvaluationSearch(
+                              course.name.split('\n')[0],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSearchSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return SingleChildScrollView(
+              controller: scrollController,
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(
+                    child: Text(
+                      "課程查詢條件",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                    "關鍵字搜尋 (課名、教師、系所、學程)",
+                    _mergedQueryCtrl,
+                    hint: "可用空白區隔多個關鍵字，如：資工 周",
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMultiSelectDropdown(
+                          label: "年級 (D2)",
+                          values: _selectedGrades,
+                          options: {
+                            "1": "一年級",
+                            "2": "二年級",
+                            "3": "三年級",
+                            "4": "四年級",
+                            "5": "五年級",
+                          },
+                          onChanged: (newSet) =>
+                              setState(() => _selectedGrades = newSet),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDropdown(
+                          label: "班級 (CLASS)",
+                          value: _selectedClass,
+                          items: const [
+                            DropdownMenuItem(value: null, child: Text("全部")),
+                            DropdownMenuItem(value: "0", child: Text("不分班")),
+                            DropdownMenuItem(value: "1", child: Text("甲班")),
+                            DropdownMenuItem(value: "2", child: Text("乙班")),
+                            DropdownMenuItem(value: "5", child: Text("全英班")),
+                          ],
+                          onChanged: (v) => _selectedClass = v,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "上課時間",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMultiSelectDropdown(
+                          label: "星期",
+                          values: _selectedDays,
+                          options: {
+                            "1": "週一",
+                            "2": "週二",
+                            "3": "週三",
+                            "4": "週四",
+                            "5": "週五",
+                            "6": "週六",
+                            "7": "週日",
+                          },
+                          onChanged: (newSet) =>
+                              setState(() => _selectedDays = newSet),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildMultiSelectDropdown(
+                          label: "節次",
+                          values: _selectedPeriods,
+                          options: {
+                            "A": "A (07:00)",
+                            "1": "1 (08:10)",
+                            "2": "2 (09:10)",
+                            "3": "3 (10:10)",
+                            "4": "4 (11:10)",
+                            "5": "5 (13:10)",
+                            "6": "6 (14:10)",
+                            "7": "7 (15:10)",
+                            "8": "8 (16:10)",
+                            "9": "9 (17:10)",
+                            "B": "B (12:10)",
+                            "C": "C (18:20)",
+                          },
+                          onChanged: (newSet) =>
+                              setState(() => _selectedPeriods = newSet),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _performSearch();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text(
+                          "開始查詢",
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: TextButton(
+                      onPressed: _clearSearchFields,
+                      child: const Text(
+                        "重設條件",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ✅ 核心變更：加入了 await CourseQueryService.instance.getCourses()
+  Future<void> _performSearch() async {
+    setState(() {
+      _isQueryLoading = true;
+      _hasSearched = true;
+    });
+
+    try {
+      // 1. 確保資料已經透過 API 下載完畢 (初次點擊時會下載 all.json，之後就有 cache)
+      await CourseQueryService.instance.getCourses();
+
+      // 2. 處理班級下拉選單對應的中文字 (因為 API JSON 的 class 欄位是中文字)
+      String? classText;
+      if (_selectedClass == "0") classText = "不分班";
+      if (_selectedClass == "1") classText = "甲班";
+      if (_selectedClass == "2") classText = "乙班";
+      if (_selectedClass == "5") classText = "全英班";
+
+      // 3. 呼叫 Search 邏輯
+      final results = CourseQueryService.instance.search(
+        query: _mergedQueryCtrl.text.trim(),
+        grades: _selectedGrades.toList(),
+        classType: classText,
+        days: _selectedDays.toList(),
+        periods: _selectedPeriods.toList(),
+      );
+
+      setState(() {
+        _searchResults = results;
+        _isQueryLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isQueryLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("搜尋失敗或資料載入錯誤: $e")));
+      }
+    }
+  }
+
+  Widget _buildDesktopSearchForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildTextField(
+                "合併關鍵字搜尋 (名稱、教師、系所、學程)",
+                _mergedQueryCtrl,
+                hint: "可用空白區隔多個關鍵字，如：資工 物件",
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _buildMultiSelectDropdown(
+                label: "年級",
+                values: _selectedGrades,
+                options: {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5"},
+                onChanged: (newSet) => setState(() => _selectedGrades = newSet),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _buildMultiSelectDropdown(
+                label: "星期",
+                values: _selectedDays,
+                options: {
+                  "1": "一",
+                  "2": "二",
+                  "3": "三",
+                  "4": "四",
+                  "5": "五",
+                  "6": "六",
+                  "7": "日",
+                },
+                onChanged: (newSet) => setState(() => _selectedDays = newSet),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: _buildMultiSelectDropdown(
+                label: "節次",
+                values: _selectedPeriods,
+                options: {
+                  "A": "A",
+                  "1": "1",
+                  "2": "2",
+                  "3": "3",
+                  "4": "4",
+                  "5": "5",
+                  "6": "6",
+                  "7": "7",
+                  "8": "8",
+                  "9": "9",
+                  "B": "B",
+                  "C": "C",
+                },
+                onChanged: (newSet) =>
+                    setState(() => _selectedPeriods = newSet),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 50,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 15),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: ElevatedButton(
+                    onPressed: _performSearch,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 38),
+                    ),
+                    child: const Icon(Icons.search, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _clearSearchFields() {
+    _mergedQueryCtrl.clear();
+    setState(() {
+      _selectedGrades = {};
+      _selectedClass = null;
+      _selectedDays = {};
+      _selectedPeriods = {};
+    });
+    Navigator.pop(context);
+  }
+
+  Widget _buildDropdown({
+    required String label,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+        const SizedBox(height: 2),
+        DropdownButtonFormField<String>(
+          value: value,
+          items: items,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 4,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            isDense: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ 新增：複選下拉選單
+  Widget _buildMultiSelectDropdown({
+    required String label,
+    required Set<String> values,
+    required Map<String, String> options,
+    required Function(Set<String>) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+        const SizedBox(height: 2),
+        InkWell(
+          onTap: () async {
+            final Set<String>? newValues = await showDialog<Set<String>>(
+              context: context,
+              builder: (ctx) {
+                Set<String> tempSet = Set.from(values);
+                return StatefulBuilder(
+                  builder: (ctx, setInnerState) {
+                    return AlertDialog(
+                      title: Text("選擇$label"),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: options.entries.map((e) {
+                            return CheckboxListTile(
+                              title: Text(e.value),
+                              value: tempSet.contains(e.key),
+                              onChanged: (val) {
+                                setInnerState(() {
+                                  if (val == true)
+                                    tempSet.add(e.key);
+                                  else
+                                    tempSet.remove(e.key);
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text("取消"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, tempSet),
+                          child: const Text("確定"),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+            if (newValues != null) onChanged(newValues);
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    values.isEmpty
+                        ? "全部"
+                        : values.map((e) => options[e]).join(', '),
+                    style: const TextStyle(fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ 新增：輔助元件顯示詳細資訊列
+  Widget _buildInfoRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool isBold = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: valueColor ?? Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _calculateProbability(CourseJsonData course) {
+    if (course.remaining <= 0) return "0% (已滿)";
+    double prob = course.remaining / course.select;
+    if (course.select <= 0 || prob > 1) return "100%"; // 無人選
+    return "${(prob * 100).toStringAsFixed(1)}%";
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        ),
+        const SizedBox(height: 2),
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: hint,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 8,
+            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            isDense: true,
+          ),
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  String _parseRoomLocation(String rawRoom) {
+    if (rawRoom.isEmpty) return "不明";
+    final RegExp regex = RegExp(r'[(\uff08]([^)\uff09]*)[)\uff09]');
+    final match = regex.firstMatch(rawRoom);
+    if (match != null) {
+      String content = match.group(1)?.trim() ?? "";
+      return content.isNotEmpty ? content : "不明";
+    }
+    return "不明";
+  }
+
+  // ✅ 核心方法：抓取評分方式
+  Future<List<String>> _getCourseEvaluation(String courseId) async {
+    if (_evaluationCache.containsKey(courseId))
+      return _evaluationCache[courseId]!;
+    final semStr = CourseQueryService.instance.currentSemester;
+    if (semStr.length != 4) return ["無法取得學期資訊"];
+    final syear = semStr.substring(0, 3);
+    final sem = semStr.substring(3, 4);
+    final url = Uri.parse(
+      'https://selcrs.nsysu.edu.tw/menu5/showoutline.asp?SYEAR=$syear&SEM=$sem&CrsDat=$courseId',
+    );
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        String html = utf8.decode(response.bodyBytes, allowMalformed: true);
+        final RegExp exp = RegExp(
+          r'SS4_\d+1[^>]*>([^<]*)</span>[^<]*<span[^>]*SS4_\d+2[^>]*>([^<]*)</span>',
+          caseSensitive: false,
+        );
+        final matches = exp.allMatches(html);
+        List<String> evals = [];
+        int index = 1;
+        for (var match in matches) {
+          String item = match.group(1)?.trim() ?? "";
+          String pct = match.group(2)?.trim() ?? "";
+          if (item.isNotEmpty) {
+            evals.add('$index. $item：${pct.isNotEmpty ? pct : "0"}%');
+            index++;
+          }
+        }
+        if (evals.isEmpty) evals.add("尚無評分方式資料");
+        _evaluationCache[courseId] = evals;
+        return evals;
+      }
+    } catch (e) {
+      return ["載入失敗"];
+    }
+    return ["查無資料"];
+  }
+
+  String _formatClassTime(List<String> times) {
+    if (times.length < 7) return times.join(', ');
+    final dayNames = ["一", "二", "三", "四", "五", "六", "日"];
+    List<String> formattedParts = [];
+    for (int i = 0; i < 7; i++) {
+      String p = times[i].trim();
+      if (p.isNotEmpty) {
+        // 如果節數包含多位，如 456 -> 4,5,6
+        String periods = p.split('').join(',');
+        formattedParts.add("${dayNames[i]}$periods");
+      }
+    }
+    return formattedParts.isEmpty ? "未排課" : formattedParts.join(' ');
+  }
+
+  void _launchEvaluationSearch(String keyword) async {
+    if (keyword.isEmpty) return;
+    final query = '中山大學 "$keyword" DCard | PTT';
+    final url = Uri.parse(
+      'https://www.google.com/search?q=${Uri.encodeComponent(query)}',
+    );
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniInfoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.blueGrey),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ✅ 新增：支援 Hover 效果與點擊開網址的課程名稱組件
+class _HoverableCourseName extends StatefulWidget {
+  final CourseJsonData course;
+  const _HoverableCourseName({Key? key, required this.course})
+    : super(key: key);
+
+  @override
+  State<_HoverableCourseName> createState() => _HoverableCourseNameState();
+}
+
+class _HoverableCourseNameState extends State<_HoverableCourseName> {
+  bool _isHovering = false;
+
+  Future<void> _launchCourseOutline() async {
+    final semStr = CourseQueryService.instance.currentSemester;
+    if (semStr.length != 4) return;
+
+    final syear = semStr.substring(0, 3);
+    final sem = semStr.substring(3, 4);
+    final courseId = widget.course.id;
+    final url = Uri.parse(
+      'https://selcrs.nsysu.edu.tw/menu5/showoutline.asp?SYEAR=$syear&SEM=$sem&CrsDat=$courseId',
+    );
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _isHovering = true),
+          onExit: (_) => setState(() => _isHovering = false),
+          child: GestureDetector(
+            onTap: _launchCourseOutline,
+            child: Text(
+              widget.course.name.split('\n')[0],
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: _isHovering ? Colors.blue[700] : Colors.black87,
+                decoration: _isHovering
+                    ? TextDecoration.underline
+                    : TextDecoration.none,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -1,0 +1,698 @@
+[ +382 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[   +3 ms] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +1 ms] executing: [C:\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[ +139 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2026-03-17 16:14:01 -0700
+[  +14 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +80 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +16 ms] Skipping pub get: version match.
+[  +37 ms] Found plugin path_provider at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +5 ms] Found plugin path_provider_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[  +23 ms] Found plugin path_provider_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +5 ms] Found plugin path_provider_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +31 ms] Found plugin path_provider_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.23\
+[  +50 ms] Found plugin url_launcher at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +4 ms] Found plugin url_launcher_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +3 ms] Found plugin url_launcher_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.2\
+[   +4 ms] Found plugin url_launcher_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +2 ms] Found plugin url_launcher_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +2 ms] Found plugin url_launcher_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +3 ms] Found plugin url_launcher_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.29\
+[   +4 ms] Found plugin tflite_flutter at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\tflite_flutter-0.12.1\
+[   +8 ms] Found plugin shared_preferences at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +2 ms] Found plugin shared_preferences_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +4 ms] Found plugin shared_preferences_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin shared_preferences_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +2 ms] Found plugin shared_preferences_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.23\
+[   +1 ms] Found plugin permission_handler at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler-11.4.0\
+[   +1 ms] Found plugin permission_handler_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_windows-0.2.1\
+[   +2 ms] Found plugin permission_handler_html at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_html-0.1.3+5\
+[   +1 ms] Found plugin permission_handler_apple at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_apple-9.4.7\
+[   +1 ms] Found plugin permission_handler_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_android-12.1.0\
+[   +1 ms] Found plugin package_info_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\package_info_plus-8.3.1\
+[   +7 ms] Found plugin open_filex at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\open_filex-4.7.0\
+[   +7 ms] Found plugin flutter_local_notifications at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications-18.0.1\
+[   +3 ms] Found plugin flutter_local_notifications_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications_linux-5.0.0\
+[   +3 ms] Found plugin flutter_inappwebview at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview-6.1.5\
+[   +1 ms] Found plugin flutter_inappwebview_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_windows-0.6.0\
+[   +3 ms] Found plugin flutter_inappwebview_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_web-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_macos-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_ios-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_android-1.1.3\
+[   +2 ms] Found plugin firebase_messaging at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.2.10\
+[   +1 ms] Found plugin firebase_messaging_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.10\
+[   +2 ms] Found plugin firebase_core at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.2\
+[   +1 ms] Found plugin firebase_core_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.1\
+[  +12 ms] Found plugin connectivity_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\connectivity_plus-5.0.2\
+[  +33 ms] Found plugin path_provider at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +1 ms] Found plugin path_provider_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[  +13 ms] Found plugin path_provider_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +2 ms] Found plugin path_provider_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +15 ms] Found plugin path_provider_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.23\
+[  +24 ms] Found plugin url_launcher at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +2 ms] Found plugin url_launcher_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.2\
+[   +2 ms] Found plugin url_launcher_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.29\
+[   +1 ms] Found plugin tflite_flutter at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\tflite_flutter-0.12.1\
+[   +4 ms] Found plugin shared_preferences at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +1 ms] Found plugin shared_preferences_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +2 ms] Found plugin shared_preferences_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[   +1 ms] Found plugin shared_preferences_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[   +1 ms] Found plugin shared_preferences_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[   +1 ms] Found plugin shared_preferences_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.23\
+[   +1 ms] Found plugin permission_handler at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler-11.4.0\
+[   +1 ms] Found plugin permission_handler_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_windows-0.2.1\
+[   +2 ms] Found plugin permission_handler_html at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_html-0.1.3+5\
+[   +1 ms] Found plugin permission_handler_apple at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_apple-9.4.7\
+[   +1 ms] Found plugin permission_handler_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_android-12.1.0\
+[   +1 ms] Found plugin package_info_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\package_info_plus-8.3.1\
+[   +4 ms] Found plugin open_filex at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\open_filex-4.7.0\
+[   +4 ms] Found plugin flutter_local_notifications at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications-18.0.1\
+[   +1 ms] Found plugin flutter_local_notifications_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications_linux-5.0.0\
+[   +1 ms] Found plugin flutter_inappwebview at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview-6.1.5\
+[   +1 ms] Found plugin flutter_inappwebview_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_windows-0.6.0\
+[   +3 ms] Found plugin flutter_inappwebview_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_web-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_macos-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_ios-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_android-1.1.3\
+[   +1 ms] Found plugin firebase_messaging at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.2.10\
+[   +1 ms] Found plugin firebase_messaging_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.10\
+[   +2 ms] Found plugin firebase_core at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.2\
+[   +1 ms] Found plugin firebase_core_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.1\
+[  +11 ms] Found plugin connectivity_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\connectivity_plus-5.0.2\
+[  +17 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[   +9 ms] Found plugin path_provider at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider-2.1.5\
+[   +2 ms] Found plugin path_provider_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_windows-2.3.0\
+[  +11 ms] Found plugin path_provider_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_linux-2.2.1\
+[   +1 ms] Found plugin path_provider_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_foundation-2.6.0\
+[  +13 ms] Found plugin path_provider_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\path_provider_android-2.2.23\
+[  +22 ms] Found plugin url_launcher at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher-6.3.2\
+[   +1 ms] Found plugin url_launcher_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_windows-3.1.5\
+[   +1 ms] Found plugin url_launcher_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_web-2.4.2\
+[   +2 ms] Found plugin url_launcher_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_macos-3.2.5\
+[   +1 ms] Found plugin url_launcher_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_linux-3.2.2\
+[   +1 ms] Found plugin url_launcher_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_ios-6.4.1\
+[   +1 ms] Found plugin url_launcher_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\url_launcher_android-6.3.29\
+[   +1 ms] Found plugin tflite_flutter at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\tflite_flutter-0.12.1\
+[   +4 ms] Found plugin shared_preferences at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences-2.5.5\
+[   +1 ms] Found plugin shared_preferences_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_windows-2.4.1\
+[   +1 ms] Found plugin shared_preferences_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_web-2.4.3\
+[        ] Found plugin shared_preferences_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_linux-2.4.1\
+[        ] Found plugin shared_preferences_foundation at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_foundation-2.5.6\
+[        ] Found plugin shared_preferences_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\shared_preferences_android-2.4.23\
+[   +1 ms] Found plugin permission_handler at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler-11.4.0\
+[   +1 ms] Found plugin permission_handler_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_windows-0.2.1\
+[   +1 ms] Found plugin permission_handler_html at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_html-0.1.3+5\
+[   +1 ms] Found plugin permission_handler_apple at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_apple-9.4.7\
+[   +1 ms] Found plugin permission_handler_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\permission_handler_android-12.1.0\
+[   +1 ms] Found plugin package_info_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\package_info_plus-8.3.1\
+[   +4 ms] Found plugin open_filex at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\open_filex-4.7.0\
+[   +3 ms] Found plugin flutter_local_notifications at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications-18.0.1\
+[   +1 ms] Found plugin flutter_local_notifications_linux at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications_linux-5.0.0\
+[   +1 ms] Found plugin flutter_inappwebview at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview-6.1.5\
+[   +1 ms] Found plugin flutter_inappwebview_windows at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_windows-0.6.0\
+[   +3 ms] Found plugin flutter_inappwebview_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_web-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_macos at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_macos-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_ios at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_ios-1.1.2\
+[   +1 ms] Found plugin flutter_inappwebview_android at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_inappwebview_android-1.1.3\
+[   +1 ms] Found plugin firebase_messaging at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging-15.2.10\
+[   +1 ms] Found plugin firebase_messaging_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_messaging_web-3.10.10\
+[   +1 ms] Found plugin firebase_core at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-3.15.2\
+[        ] Found plugin firebase_core_web at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-2.24.1\
+[  +11 ms] Found plugin connectivity_plus at C:\Users\jawei\AppData\Local\Pub\Cache\hosted\pub.dev\connectivity_plus-5.0.2\
+[  +57 ms] Generating C:\Users\jawei\NSYSU\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[   +6 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +6 ms] Skipping generating GeneratedPluginRegistrant.h because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.m because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.swift because it is up-to-date.
+[ +109 ms] executing: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[  +96 ms] Exit code 0 from: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[        ] [
+             {
+               "instanceId": "48ba2f41",
+               "installDate": "2026-04-01T01:57:15Z",
+               "installationName": "VisualStudio/18.4.3+11626.88",
+               "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "installationVersion": "18.4.11626.88",
+               "productId": "Microsoft.VisualStudio.Product.Community",
+               "productPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\devenv.exe",
+               "state": 4294967295,
+               "isComplete": true,
+               "isLaunchable": true,
+               "isPrerelease": false,
+               "isRebootRequired": false,
+               "displayName": "Visual Studio Community 2026",
+               "description": "建置新式應用程式所需的一切 – 免費提供給您，專為發揮影響力而打造。",
+               "channelId": "VisualStudio.18.Release",
+               "channelUri": "https://aka.ms/vs/18/stable/channel",
+               "enginePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\resources\\app\\ServiceHub\\Services\\Microsoft.VisualStudio.Setup.Service",
+               "expirationDate": "2026-06-24T17:00:00+00:00",
+               "installedChannelId": "VisualStudio.18.Release",
+               "installedChannelUri": "https://aka.ms/vs/18/stable/channel",
+               "releaseNotes": "https://docs.microsoft.com/en-us/visualstudio/releases/18/release-notes-v18.4#18.4.3",
+               "resolvedInstallationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "retirementDate": "2026-09-22T17:00:00+00:00",
+               "thirdPartyNotices": "https://go.microsoft.com/fwlink/?LinkId=661480",
+               "updateDate": "2026-04-01T01:57:15.5687655Z",
+               "catalog": {
+                 "buildBranch": "stable",
+                 "buildVersion": "18.4.11626.88",
+                 "featureReleaseMonth": "03",
+                 "featureReleaseYear": "2026",
+                 "id": "VisualStudio/18.4.3+11626.88",
+                 "includeBuildVersionInDisplayVersion": "False",
+                 "localBuild": "build-lab",
+                 "manifestName": "VisualStudio",
+                 "manifestType": "installer",
+                 "productDisplayVersion": "18.4.3",
+                 "productLine": "Dev18",
+                 "productLineVersion": "18",
+                 "productMilestone": "RTW",
+                 "productMilestoneIsPreRelease": "False",
+                 "productName": "Visual Studio",
+                 "productPatchVersion": "3",
+                 "productPreReleaseMilestoneSuffix": "1.0",
+                 "productRelease": "RTW",
+                 "productSemanticVersion": "18.4.3+11626.88",
+                 "requiredEngineVersion": "4.4.38.63497"
+               },
+               "properties": {
+                 "appLocalWPF": "false",
+                 "campaignId": "2500:acdf6a4db2b44e73be43e5887cdb3367",
+                 "channelManifestId": "VisualStudio.18.Release/18.4.3+11626.88",
+                 "includeRecommended": "1",
+                 "nickname": "",
+                 "setupEngineFilePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe"
+               }
+             }
+           ]
+[   +6 ms] Building Windows application...
+[   +5 ms] executing: C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe -S C:\Users\jawei\NSYSU\windows -B C:\Users\jawei\NSYSU\build\windows\x64 -G Visual Studio 18 2026 -A x64 -DFLUTTER_TARGET_PLATFORM=windows-x64
+[  +98 ms] -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+[  +32 ms] -- Using cached Firebase SDK zip file
+[        ] -- Using cached extracted Firebase SDK
+[   +3 ms] CMake Deprecation Warning at C:/Users/jawei/NSYSU/build/windows/x64/extracted/firebase_cpp_sdk_windows/CMakeLists.txt:17 (cmake_minimum_required):
+[   +1 ms]   Compatibility with CMake < 3.10 will be removed from a future version of
+[        ]   CMake.
+[        ]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[        ]   to tell CMake that the project requires at least <min> but has been updated
+[        ]   to work with policies introduced by <max> or earlier.
+[  +16 ms] -- Could NOT find PkgConfig (missing: PKG_CONFIG_EXECUTABLE) 
+[   +3 ms] CMake Warning (dev) at flutter/ephemeral/.plugin_symlinks/flutter_inappwebview_windows/windows/CMakeLists.txt:31 (add_custom_command):
+[        ]   The following keywords are not supported when using
+[        ]   add_custom_command(TARGET): DEPENDS.
+[        ]   Policy CMP0175 is not set: add_custom_command() rejects invalid arguments.
+[        ]   Run "cmake --help-policy CMP0175" for policy details.  Use the cmake_policy
+[        ]   command to set the policy and suppress this warning.
+[        ] This warning is for project developers.  Use -Wno-dev to suppress it.
+[        ] -- Building with D3D texture support.
+[ +144 ms] 警告: 無法載入檔案或組件 'Windows.Devices.Printers.Extensions.dll' 或其相依性的其中之一。 模組應該含有組件資訊清單。
+[ +803 ms] Feeds used:
+[        ]   C:\Users\jawei\.nuget\packages\
+[        ]   https://api.nuget.org/v3/index.json
+[  +80 ms] 已安裝封裝 'Microsoft.Windows.CppWinRT.2.0.210806.1'。
+[ +789 ms] -- Configuring done (1.9s)
+[ +209 ms] -- Generating done (0.2s)
+[   +2 ms] -- Build files have been written to: C:/Users/jawei/NSYSU/build/windows/x64
+[  +30 ms] executing: C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe --build C:\Users\jawei\NSYSU\build\windows\x64 --config Release --target INSTALL --verbose
+[ +122 ms] Change Dir: 'C:/Users/jawei/NSYSU/build/windows/x64'
+[        ] Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" INSTALL.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=18.0 /v:n
+[ +198 ms] .NET Framework 的 MSBuild 版本 18.4.0+6e61e96ac
+[ +122 ms] 已經開始建置於 2026/4/1 上午 11:08:08。
+[ +256 ms] 節點 1 (預設目標) 上的專案 "C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj"。
+[        ] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj" (1) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\ZERO_CHECK.vcxproj" (2)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[  +15 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild"。
+[  +26 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +44 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\ZERO_CHECK.lastbuildstate"。
+[  +11 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\ZERO_CHECK.vcxproj" (預設目標) 建置完成。
+[ +108 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj" (1) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\ALL_BUILD.vcxproj" (3)。
+[        ] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\ALL_BUILD.vcxproj" (3) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD.vcxproj" (4)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +4 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "x64\Release\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD\flutter_.35825E3B.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD\flutter_.35825E3B.tlog\unsuccessfulbuild"。
+[   +5 ms] PreBuildEvent:
+[        ]   setlocal
+[        ]   C:\Windows\System32\nuget.exe install Microsoft.Windows.ImplementationLibrary -Version 1.0.231216.1 -ExcludeVersion -OutputDirectory C:/Users/jawei/NSYSU/build/windows/x64/packages
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   C:\Windows\System32\nuget.exe install Microsoft.Web.WebView2 -Version 1.0.2792.45 -ExcludeVersion -OutputDirectory C:/Users/jawei/NSYSU/build/windows/x64/packages
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   C:\Windows\System32\nuget.exe install nlohmann.json -Version 3.11.2 -ExcludeVersion -OutputDirectory C:/Users/jawei/NSYSU/build/windows/x64/packages
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   exit /b %1
+[        ]   :cmDone
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[        ]   :VCEnd
+[ +257 ms]   警告: 無法載入檔案或組件 'Windows.Devices.Printers.Extensions.dll' 或其相依性的其中之一。 模組應該含有組件資訊清單。
+[+1149 ms]   Feeds used:
+[        ]     C:\Users\jawei\.nuget\packages\
+[        ]     https://api.nuget.org/v3/index.json
+[ +185 ms]   已安裝封裝 'Microsoft.Windows.ImplementationLibrary.1.0.231216.1'。
+[ +266 ms]   警告: 無法載入檔案或組件 'Windows.Devices.Printers.Extensions.dll' 或其相依性的其中之一。 模組應該含有組件資訊清單。
+[+1397 ms]   Feeds used:
+[   +1 ms]     C:\Users\jawei\.nuget\packages\
+[        ]     https://api.nuget.org/v3/index.json
+[ +170 ms]   已安裝封裝 'Microsoft.Web.WebView2.1.0.2792.45'。
+[ +241 ms]   警告: 無法載入檔案或組件 'Windows.Devices.Printers.Extensions.dll' 或其相依性的其中之一。 模組應該含有組件資訊清單。
+[+1374 ms]   Feeds used:
+[   +1 ms]     C:\Users\jawei\.nuget\packages\
+[        ]     https://api.nuget.org/v3/index.json
+[ +162 ms]   已安裝封裝 'nlohmann.json.3.11.2'。
+[  +43 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +22 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "x64\Release\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD\flutter_.35825E3B.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD\flutter_.35825E3B.tlog\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD.lastbuildstate"。
+[   +2 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_DEPENDENCIES_DOWNLOAD.vcxproj" (預設目標) 建置完成。
+[ +140 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\ALL_BUILD.vcxproj" (3) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5)。
+[        ] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_assemble.vcxproj" (6)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +8 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild"。
+[  +18 ms] CustomBuild:
+[        ]   "'C:\Users\jawei\NSYSU\build\windows\x64\CMakeFiles\3cdb8242d50cb8ddf62aaf4aa7fa2314\flutter_assemble.rule' 的組建相依於 'C:\USERS\JAWEI\NSYSU\WINDOWS\FLUTTER\EPHEMERAL\FLUTTER_WINDOWS.DLL'，而這是由 'C:\Users\jawei\NSYSU\build\windows\x64\CMakeFiles\bcd6f3af33b4c73e1abcde347eb3e0d7\flutter_windows.dll.rule' 的組建所產生。項目無法平行建置。"
+[ +273 ms]   Generating C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_windows.dll, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_export.h, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_windows.h, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_messenger.h, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_plugin_registrar.h, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/flutter_texture_registrar.h, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/cpp_client_wrapper/core_implementations.cc, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/cpp_client_wrapper/standard_codec.cc, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/cpp_client_wrapper/plugin_registrar.cc, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/cpp_client_wrapper/flutter_engine.cc, C:/Users/jawei/NSYSU/windows/flutter/ephemeral/cpp_client_wrapper/flutter_view_controller.cc, _phony_
+[+2879 ms]   [ +254 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[   +1 ms]   [   +3 ms] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [   +2 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +6 ms]   [  +23 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +4 ms]   [   +5 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[ +129 ms]   [ +127 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +3 ms]   [   +4 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[ +106 ms]   [ +107 ms] Initializing file store
+[  +60 ms]   [  +61 ms] Done initializing file store
+[ +223 ms]   [ +222 ms] Skipping target: dart_build
+[   +5 ms]   [   +4 ms] Skipping target: gen_dart_plugin_registrant
+[+6600 ms]   [+6599 ms] Skipping target: unpack_windows
+[        ]   [   +2 ms] Skipping target: install_code_assets
+[        ]   [        ] Skipping target: gen_localizations
+[+2139 ms]   [+2139 ms] Skipping target: kernel_snapshot_program
+[ +138 ms]   [ +138 ms] Skipping target: aot_elf_release
+[ +114 ms]   [ +114 ms] Skipping target: windows_aot_bundle
+[ +118 ms]   [ +118 ms] Skipping target: release_bundle_windows-x64_assets
+[   +1 ms]   [   +2 ms] Persisting file store
+[  +51 ms]   [  +50 ms] Done persisting file store
+[  +83 ms]   [  +83 ms] build succeeded.
+[   +2 ms]   [   +2 ms] "flutter assemble" took 9,812ms.
+[ +190 ms]   [ +190 ms] Running 1 shutdown hook
+[   +2 ms]   [   +2 ms] Shutdown hooks complete
+[ +173 ms]   [ +173 ms] exiting with code 0
+[ +171 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild"。
+[   +1 ms]   正在變更時間戳記 "x64\Release\flutter_assemble\flutter_assemble.tlog\flutter_assemble.lastbuildstate"。
+[   +4 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_assemble.vcxproj" (預設目標) 建置完成。
+[ +137 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\connectivity_plus\connectivity_plus_plugin.vcxproj" (7)。
+[        ] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\connectivity_plus\connectivity_plus_plugin.vcxproj" (7) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" (8)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +9 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "flutter_wrapper_plugin.dir\Release\flutter_.3AD49902.tlog\unsuccessfulbuild"。
+[   +1 ms]   正在變更時間戳記 "flutter_wrapper_plugin.dir\Release\flutter_.3AD49902.tlog\unsuccessfulbuild"。
+[   +6 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[ +141 ms] ClCompile:
+[   +1 ms]   所有輸出都是最新的。
+[  +80 ms] Lib:
+[        ]   所有輸出都是最新的。
+[   +3 ms]   flutter_wrapper_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\flutter\Release\flutter_wrapper_plugin.lib
+[  +41 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "flutter_wrapper_plugin.dir\Release\flutter_.3AD49902.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_wrapper_plugin.dir\Release\flutter_.3AD49902.tlog\flutter_wrapper_plugin.lastbuildstate"。
+[   +1 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" (預設目標) 建置完成。
+[  +23 ms] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +8 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "connectivity_plus_plugin.dir\Release\connecti.70CEA666.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "connectivity_plus_plugin.dir\Release\connecti.70CEA666.tlog\unsuccessfulbuild"。
+[   +5 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +37 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +61 ms] Link:
+[        ]   所有輸出都是最新的。
+[   +5 ms]   connectivity_plus_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\connectivity_plus\Release\connectivity_plus_plugin.dll
+[  +20 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "connectivity_plus_plugin.dir\Release\connecti.70CEA666.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "connectivity_plus_plugin.dir\Release\connecti.70CEA666.tlog\connectivity_plus_plugin.lastbuildstate"。
+[   +2 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\connectivity_plus\connectivity_plus_plugin.vcxproj" (預設目標) 建置完成。
+[  +72 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\firebase_core\firebase_core_plugin.vcxproj" (9)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +7 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "firebase_core_plugin.dir\Release\firebase.2C4961E6.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "firebase_core_plugin.dir\Release\firebase.2C4961E6.tlog\unsuccessfulbuild"。
+[   +4 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +39 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +10 ms] Lib:
+[        ]   所有輸出都是最新的。
+[        ]   firebase_core_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\firebase_core\Release\firebase_core_plugin.lib
+[  +29 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "firebase_core_plugin.dir\Release\firebase.2C4961E6.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "firebase_core_plugin.dir\Release\firebase.2C4961E6.tlog\firebase_core_plugin.lastbuildstate"。
+[   +1 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\firebase_core\firebase_core_plugin.vcxproj" (預設目標) 建置完成。
+[  +95 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_plugin.vcxproj" (10)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[  +21 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "flutter_inappwebview_windows_plugin.dir\Release\flutter_.53B1DF13.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_inappwebview_windows_plugin.dir\Release\flutter_.53B1DF13.tlog\unsuccessfulbuild"。
+[   +5 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[ +141 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +58 ms] Link:
+[        ]   所有輸出都是最新的。
+[   +5 ms]   flutter_inappwebview_windows_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\Release\flutter_inappwebview_windows_plugin.dll
+[  +30 ms] _CopyOutOfDateSourceItemsToOutputDirectoryAlways:
+[        ]   正在將檔案從 "C:\Users\jawei\NSYSU\build\windows\x64\packages\Microsoft.Web.WebView2\build\native\x64\WebView2Loader.dll" 複製到 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\Release\WebView2Loader.dll"。
+[  +14 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "flutter_inappwebview_windows_plugin.dir\Release\flutter_.53B1DF13.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_inappwebview_windows_plugin.dir\Release\flutter_.53B1DF13.tlog\flutter_inappwebview_windows_plugin.lastbuildstate"。
+[   +6 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\flutter_inappwebview_windows\flutter_inappwebview_windows_plugin.vcxproj" (預設目標) 建置完成。
+[  +79 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" (11)。
+[   +1 ms] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[  +13 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "flutter_wrapper_app.dir\Release\flutter_.287A0EBD.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_wrapper_app.dir\Release\flutter_.287A0EBD.tlog\unsuccessfulbuild"。
+[   +5 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +34 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[   +8 ms] Lib:
+[        ]   所有輸出都是最新的。
+[        ]   flutter_wrapper_app.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\flutter\Release\flutter_wrapper_app.lib
+[  +21 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "flutter_wrapper_app.dir\Release\flutter_.287A0EBD.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_wrapper_app.dir\Release\flutter_.287A0EBD.tlog\flutter_wrapper_app.lastbuildstate"。
+[   +3 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" (預設目標) 建置完成。
+[  +79 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\permission_handler_windows\permission_handler_windows_plugin.vcxproj" (12)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +8 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "permission_handler_windows_plugin.dir\Release\permissi.4AB2FCAE.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "permission_handler_windows_plugin.dir\Release\permissi.4AB2FCAE.tlog\unsuccessfulbuild"。
+[   +7 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +62 ms] ComputeStdModulesCompileInputs:
+[        ]   正在讀取為程式庫 'microsoft/STL' 提供資料的 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\modules\modules.json' 的資訊清單檔案。
+[        ]   正在從程式庫 'microsoft/STL' 新增模組來源 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\modules\std.ixx'，以與此專案一起建置。
+[        ]   正在從程式庫 'microsoft/STL' 新增模組來源 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\modules\std.compat.ixx'，以與此專案一起建置。
+[  +62 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +17 ms] Link:
+[        ]   所有輸出都是最新的。
+[        ]   permission_handler_windows_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\permission_handler_windows\Release\permission_handler_windows_plugin.dll
+[  +22 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "permission_handler_windows_plugin.dir\Release\permissi.4AB2FCAE.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "permission_handler_windows_plugin.dir\Release\permissi.4AB2FCAE.tlog\permission_handler_windows_plugin.lastbuildstate"。
+[   +1 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\permission_handler_windows\permission_handler_windows_plugin.vcxproj" (預設目標) 建置完成。
+[  +75 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (5) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj" (13)。
+[   +1 ms] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +9 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "url_launcher_windows_plugin.dir\Release\url_laun.9E145747.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "url_launcher_windows_plugin.dir\Release\url_laun.9E145747.tlog\unsuccessfulbuild"。
+[   +4 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +26 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +13 ms] Link:
+[        ]   所有輸出都是最新的。
+[        ]   url_launcher_windows_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\url_launcher_windows\Release\url_launcher_windows_plugin.dll
+[  +24 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "url_launcher_windows_plugin.dir\Release\url_laun.9E145747.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "url_launcher_windows_plugin.dir\Release\url_laun.9E145747.tlog\url_launcher_windows_plugin.lastbuildstate"。
+[   +3 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\url_launcher_windows\url_launcher_windows_plugin.vcxproj" (預設目標) 建置完成。
+[  +48 ms] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +8 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "NSYSU.dir\Release\NSYSU.tlog\unsuccessfulbuild"。
+[   +1 ms]   正在變更時間戳記 "NSYSU.dir\Release\NSYSU.tlog\unsuccessfulbuild"。
+[   +5 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +42 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +15 ms] ResourceCompile:
+[        ]   所有輸出都是最新的。
+[  +58 ms] Link:
+[        ]   所有輸出都是最新的。
+[        ]   NSYSU.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\runner\Release\NSYSU.exe
+[  +26 ms] _CopyOutOfDateSourceItemsToOutputDirectoryAlways:
+[   +1 ms]   正在將檔案從 "C:\Users\jawei\NSYSU\build\windows\x64\packages\Microsoft.Web.WebView2\build\native\x64\WebView2Loader.dll" 複製到 "C:\Users\jawei\NSYSU\build\windows\x64\runner\Release\WebView2Loader.dll"。
+[  +12 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "NSYSU.dir\Release\NSYSU.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "NSYSU.dir\Release\NSYSU.tlog\NSYSU.lastbuildstate"。
+[   +3 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\runner\NSYSU.vcxproj" (預設目標) 建置完成。
+[  +75 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\ALL_BUILD.vcxproj" (3) 正在節點 1 (預設目標) 上建置 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\tflite_flutter\flutter_tflite_plugin.vcxproj" (14)。
+[        ] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +8 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "flutter_tflite_plugin.dir\Release\flutter_.209106FC.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "flutter_tflite_plugin.dir\Release\flutter_.209106FC.tlog\unsuccessfulbuild"。
+[   +3 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +29 ms] ClCompile:
+[        ]   所有輸出都是最新的。
+[  +15 ms] Link:
+[        ]   所有輸出都是最新的。
+[        ]   flutter_tflite_plugin.vcxproj -> C:\Users\jawei\NSYSU\build\windows\x64\plugins\tflite_flutter\Release\flutter_tflite_plugin.dll
+[  +56 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "flutter_tflite_plugin.dir\Release\flutter_.209106FC.tlog\unsuccessfulbuild"。
+[   +1 ms]   正在變更時間戳記 "flutter_tflite_plugin.dir\Release\flutter_.209106FC.tlog\flutter_tflite_plugin.lastbuildstate"。
+[   +2 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\plugins\tflite_flutter\flutter_tflite_plugin.vcxproj" (預設目標) 建置完成。
+[  +41 ms] PrepareForBuild:
+[        ]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[  +10 ms] InitializeBuildStatus:
+[        ]   由於指定了 "AlwaysCreate"，因此正在建立 "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild"。
+[        ]   正在變更時間戳記 "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild"。
+[   +4 ms] CustomBuild:
+[        ]   所有輸出都是最新的。
+[  +41 ms] FinalizeBuildStatus:
+[        ]   正在刪除檔案 "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild"。
+[   +2 ms]   正在變更時間戳記 "x64\Release\ALL_BUILD\ALL_BUILD.tlog\ALL_BUILD.lastbuildstate"。
+[   +3 ms] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\ALL_BUILD.vcxproj" (預設目標) 建置完成。
+[  +20 ms] PrepareForBuild:
+[   +1 ms]   結構化輸出已啟用。編譯器診斷的格式化將反映錯誤階層。如需詳細資料，請參閱 https://aka.ms/cpp/structured-output。
+[   +7 ms] InitializeBuildStatus:
+[        ]   正在變更時間戳記 "x64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild"。
+[ +149 ms] CustomBuild:
+[   +1 ms]   1>
+[  +42 ms] PostBuildEvent:
+[        ]   setlocal
+[        ]   "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   exit /b %1
+[        ]   :cmDone
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[        ]   :VCEnd
+[ +189 ms]   -- Install configuration: "Release"
+[   +5 ms]   -- Up-to-date: C:/Program Files/test_app/NSYSU.exe
+[        ]   -- Up-to-date: C:/Program Files/test_app/data/icudtl.dat
+[   +1 ms]   -- Up-to-date: C:/Program Files/test_app/flutter_windows.dll
+[   +1 ms]   -- Up-to-date: C:/Program Files/test_app/connectivity_plus_plugin.dll
+[        ]   -- Up-to-date: C:/Program Files/test_app/firebase_core_plugin.lib
+[   +1 ms]   -- Up-to-date: C:/Program Files/test_app/flutter_inappwebview_windows_plugin.dll
+[        ]   -- Up-to-date: C:/Program Files/test_app/permission_handler_windows_plugin.dll
+[        ]   -- Up-to-date: C:/Program Files/test_app/url_launcher_windows_plugin.dll
+[        ]   CMake Error at cmake_install.cmake:194 (file):
+[        ]     file INSTALL cannot find
+[        ]     "C:/Users/jawei/NSYSU/build/native_assets/windows": No error.
+[  +27 ms] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: "setlocal [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[   +1 ms] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :VCEnd" 命令以返回碼 1 結束。 [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] 專案 "C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj" (預設目標) 建置完成 -- 失敗。
+[   +8 ms] 建置失敗。
+[        ] "C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj" (預設目標) (1) ->
+[        ] (PostBuildEvent 目標) -> 
+[        ]   C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: "setlocal [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :cmEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmErrorLevel [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: exit /b %1 [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :cmDone [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: if %errorlevel% neq 0 goto :VCEnd [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ] C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Microsoft\VC\v180\Microsoft.CppCommon.targets(166,5): error MSB3073: :VCEnd" 命令以返回碼 1 結束。 [C:\Users\jawei\NSYSU\build\windows\x64\INSTALL.vcxproj]
+[        ]     0 個警告
+[        ]     1 個錯誤
+[        ] 經過時間 00:00:22.20
+[  +62 ms] Building Windows application... (completed in 24.9s)
+[   +1 ms] "flutter windows" took 25,915ms.
+[ +193 ms] Build process failed.
+[        ] 
+           #0      throwToolExit (package:flutter_tools/src/base/common.dart:34:3)
+           #1      _runBuild (package:flutter_tools/src/windows/build_windows.dart:262:5)
+           <asynchronous suspension>
+           #2      buildWindows (package:flutter_tools/src/windows/build_windows.dart:118:5)
+           <asynchronous suspension>
+           #3      BuildWindowsCommand.runCommand (package:flutter_tools/src/commands/build_windows.dart:72:5)
+           <asynchronous suspension>
+           #4      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1590:27)
+           <asynchronous suspension>
+           #5      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #6      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+           <asynchronous suspension>
+           #7      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+           <asynchronous suspension>
+           #8      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #9      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+           <asynchronous suspension>
+           #10     FlutterCommandRunner.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+           <asynchronous suspension>
+           #11     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+           <asynchronous suspension>
+           #12     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #13     main (package:flutter_tools/executable.dart:103:3)
+           <asynchronous suspension>
+
+
+[        ] Running 1 shutdown hook
+[   +3 ms] Shutdown hooks complete
+[  +80 ms] exiting with code 1
