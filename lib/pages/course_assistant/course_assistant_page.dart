@@ -342,6 +342,8 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
             ).copyWith(scrollbars: false),
             child: SingleChildScrollView(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (!isWideScreen)
                     Container(
@@ -434,6 +436,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                   Expanded(
                     flex: 350,
                     child: Container(
+                      alignment: Alignment.topCenter,
                       color: colorScheme.pageBackground,
                       child: timetableContent,
                     ),
@@ -508,7 +511,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
 
   Widget _buildDesktopHeader() {
     return Padding(
-      padding: const EdgeInsets.only(left: 10, right: 20, top: 25, bottom: 5),
+      padding: const EdgeInsets.only(left: 10, right: 20, top: 10, bottom: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -657,7 +660,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     List<String> visibleWeekDays = _fullWeekDays.sublist(0, maxDay);
 
     bool hasPeriodA = false;
-    int maxPeriodIndex = _periods.indexOf('7');
+    int maxPeriodIndex = _periods.indexOf('8');
 
     for (var c in _assistantCourses) {
       for (var t in c.parsedTimes) {

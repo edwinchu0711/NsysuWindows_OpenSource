@@ -484,7 +484,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             padding: const EdgeInsets.only(
               left: 10,
               right: 20,
-              top: 25,
+              top: 10,
               bottom: 5,
             ),
             child: Row(

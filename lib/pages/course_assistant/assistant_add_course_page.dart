@@ -12,7 +12,7 @@ class AssistantAddCoursePage extends StatefulWidget {
   final bool isSubPane; // ★★★ 新增：是否以子區塊模式顯示 ★★★
 
   final List<dynamic>? initialCourses; // 既有課程 (來自父層)
-  final List<dynamic>? initialEvents;  // 既有行程 (來自父層)
+  final List<dynamic>? initialEvents; // 既有行程 (來自父層)
 
   const AssistantAddCoursePage({
     Key? key,
@@ -167,7 +167,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 icon: const Icon(Icons.search),
                 label: const Text("開啟搜尋面板"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondaryCardBackground,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.secondaryCardBackground,
                   foregroundColor: Theme.of(context).colorScheme.accentBlue,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -188,7 +190,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
 
     if (widget.isSubPane) {
-      return Container(color: Theme.of(context).colorScheme.pageBackground, child: content);
+      return Container(
+        color: Theme.of(context).colorScheme.pageBackground,
+        child: content,
+      );
     }
 
     return Scaffold(
@@ -219,13 +224,15 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             const SizedBox(height: 16),
             Text(
               "搜尋中 (可能需要下載課程資料)...",
-              style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.subtitleText,
+              ),
             ),
           ],
         ),
       );
     }
-    
+
     if (!_hasSearched) {
       return Center(
         child: Text(
@@ -300,7 +307,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               trailing: isAdded
                   ? Icon(
                       Icons.check_circle,
-                      color: Theme.of(context).colorScheme.isDark ? Colors.greenAccent[400] : Colors.green[600],
+                      color: Theme.of(context).colorScheme.isDark
+                          ? Colors.greenAccent[400]
+                          : Colors.green[600],
                       size: 32,
                     )
                   : MouseRegion(
@@ -308,7 +317,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       child: ElevatedButton(
                         onPressed: () => _addCourseToAssistant(course),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.isDark ? Colors.green[800] : Colors.green[600],
+                          backgroundColor: Theme.of(context).colorScheme.isDark
+                              ? Colors.green[800]
+                              : Colors.green[600],
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -320,7 +331,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               children: [
                 const Divider(height: 1, thickness: 1),
                 Container(
-                  color: Theme.of(context).colorScheme.secondaryCardBackground.withOpacity(0.5),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondaryCardBackground.withOpacity(0.5),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
@@ -364,7 +377,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                               return Text(
                                 "尚無詳細評分資料",
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.subtitleText,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.subtitleText,
                                   fontSize: 13,
                                 ),
                               );
@@ -382,18 +397,22 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                            Icon(
-                                              Icons.check_circle_outline,
-                                              size: 16,
-                                              color: Theme.of(context).colorScheme.accentBlue,
-                                            ),
+                                          Icon(
+                                            Icons.check_circle_outline,
+                                            size: 16,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.accentBlue,
+                                          ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
                                               e,
                                               style: TextStyle(
                                                 fontSize: 13,
-                                                color: Theme.of(context).colorScheme.primaryText,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.primaryText,
                                               ),
                                             ),
                                           ),
@@ -407,10 +426,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Divider(
-                        height: 1,
-                        thickness: 1,
-                      ),
+                      const Divider(height: 1, thickness: 1),
                       const SizedBox(height: 12),
 
                       // 課程狀態與標籤
@@ -426,7 +442,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   "課程資訊",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.subtitleText,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.subtitleText,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -436,7 +454,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   "餘額",
                                   "${course.remaining}",
                                   valueColor: course.remaining > 0
-                                      ? (Theme.of(context).colorScheme.isDark ? Colors.green[200] : Colors.green[700])
+                                      ? (Theme.of(context).colorScheme.isDark
+                                            ? Colors.green[200]
+                                            : Colors.green[700])
                                       : Colors.redAccent,
                                 ),
                                 _buildInfoRow(
@@ -457,7 +477,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   "對應學程",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.subtitleText,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.subtitleText,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -467,7 +489,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                     "無相關學程",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Theme.of(context).colorScheme.subtitleText,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.subtitleText,
                                     ),
                                   )
                                 else
@@ -482,18 +506,24 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Theme.of(context).colorScheme.secondaryCardBackground,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .secondaryCardBackground,
                                               borderRadius:
                                                   BorderRadius.circular(4),
                                               border: Border.all(
-                                                color: Theme.of(context).colorScheme.borderColor,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.borderColor,
                                               ),
                                             ),
                                             child: Text(
                                               t,
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: Theme.of(context).colorScheme.accentBlue,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.accentBlue,
                                               ),
                                             ),
                                           ),
@@ -533,10 +563,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       ],
 
                       const SizedBox(height: 16),
-                      const Divider(
-                        height: 1,
-                        thickness: 1,
-                      ),
+                      const Divider(height: 1, thickness: 1),
                       const SizedBox(height: 8),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -630,11 +657,17 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       const SizedBox(width: 12),
                       Column(
                         children: [
-                          const Text("過濾衝堂", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          const Text(
+                            "過濾衝堂",
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
                           Switch(
                             value: _filterConflict,
-                            onChanged: (v) => setState(() => _filterConflict = v),
-                            activeColor: Theme.of(context).colorScheme.accentBlue,
+                            onChanged: (v) =>
+                                setState(() => _filterConflict = v),
+                            activeColor: Theme.of(
+                              context,
+                            ).colorScheme.accentBlue,
                           ),
                         ],
                       ),
@@ -740,7 +773,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                           _performSearch();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.accentBlue,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.accentBlue,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text(
@@ -830,7 +865,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("過濾衝堂", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                const Text(
+                  "過濾衝堂",
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
                 SizedBox(
                   height: 32,
                   child: Switch(
@@ -962,17 +1000,24 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.borderColor,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.borderColor,
+              ),
             ),
             filled: true,
             fillColor: Theme.of(context).colorScheme.secondaryCardBackground,
             isDense: true,
           ),
-          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.primaryText),
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.primaryText,
+          ),
         ),
       ],
     );
@@ -1043,7 +1088,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.secondaryCardBackground,
-              border: Border.all(color: Theme.of(context).colorScheme.borderColor),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.borderColor,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -1054,11 +1101,17 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                     values.isEmpty
                         ? "全部"
                         : values.map((e) => options[e]).join(', '),
-                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.primaryText),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.primaryText,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.subtitleText),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: Theme.of(context).colorScheme.subtitleText,
+                ),
               ],
             ),
           ),
@@ -1081,7 +1134,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.subtitleText),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.subtitleText,
+            ),
           ),
           Text(
             value,
@@ -1120,18 +1176,26 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.5)),
+            hintStyle: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.subtitleText.withOpacity(0.5),
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 8,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.borderColor,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.borderColor,
+              ),
             ),
             filled: true,
             fillColor: Theme.of(context).colorScheme.secondaryCardBackground,
@@ -1142,7 +1206,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
       ],
     );
   }
-
 
   // ✅ 核心方法：抓取評分方式
   Future<List<String>> _getCourseEvaluation(String courseId) async {
@@ -1255,17 +1318,23 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Theme.of(context).colorScheme.subtitleText),
+          Icon(
+            icon,
+            size: 12,
+            color: Theme.of(context).colorScheme.subtitleText,
+          ),
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primaryText),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.primaryText,
+            ),
           ),
         ],
       ),
     );
   }
-
 }
 
 // ✅ 新增：支援 Hover 效果與點擊開網址的課程名稱組件
@@ -1313,7 +1382,9 @@ class _HoverableCourseNameState extends State<_HoverableCourseName> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: _isHovering ? Theme.of(context).colorScheme.accentBlue : Theme.of(context).colorScheme.primaryText,
+                color: _isHovering
+                    ? Theme.of(context).colorScheme.accentBlue
+                    : Theme.of(context).colorScheme.primaryText,
                 decoration: _isHovering
                     ? TextDecoration.underline
                     : TextDecoration.none,
