@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../theme/app_theme.dart';
 
 class CourseQueryTab extends StatefulWidget {
   final List<CourseSelectionData> currentCourses;
@@ -32,6 +33,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   bool _hasSearched = false;
   bool _showEditListMode = false;
   bool _showImportCodeMode = false;
+  bool _filterConflict = false; // 新傳：過濾衝堂
   final TextEditingController _importCodeController = TextEditingController();
 
   final List<PendingTransaction> _pendingItems = [];
@@ -101,8 +103,8 @@ class _CourseQueryTabState extends State<CourseQueryTab>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        color: Theme.of(context).colorScheme.cardBackground,
+        border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.borderColor)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -122,7 +124,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               icon: Icons.shopping_cart_checkout_rounded,
               label: "加退選選單(${_pendingItems.length})",
               isSelected: _showEditListMode,
-              activeColor: Colors.orange[800]!,
+               activeColor: Theme.of(context).colorScheme.isDark ? Colors.orange[300]! : Colors.orange[800]!,
               onPressed: () => setState(() {
                 _showEditListMode = true;
                 _showImportCodeMode = false;
@@ -133,7 +135,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               icon: Icons.code_rounded,
               label: "代碼匯入",
               isSelected: _showImportCodeMode,
-              activeColor: Colors.purple[700]!,
+               activeColor: Theme.of(context).colorScheme.isDark ? Colors.purple[200]! : Colors.purple[700]!,
               onPressed: () => setState(() {
                 _showImportCodeMode = true;
                 _showEditListMode = false;
@@ -169,13 +171,13 @@ class _CourseQueryTabState extends State<CourseQueryTab>
             Icon(
               icon,
               size: 20,
-              color: isSelected ? activeColor : Colors.grey[600],
+               color: isSelected ? activeColor : Theme.of(context).colorScheme.subtitleText,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? activeColor : Colors.grey[600],
+                 color: isSelected ? activeColor : Theme.of(context).colorScheme.subtitleText,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -189,7 +191,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   Widget _buildDesktopSearchPanel() {
     return Container(
       width: double.infinity,
-      color: Colors.white,
+       color: Theme.of(context).colorScheme.cardBackground,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
         children: [
@@ -260,6 +262,24 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 ),
               ),
               const SizedBox(width: 8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   Text("過濾衝堂", style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.subtitleText)),
+                   SizedBox(
+                     height: 32,
+                     child: Switch(
+                        value: _filterConflict,
+                        activeColor: Theme.of(context).colorScheme.accentBlue,
+                        onChanged: (v) {
+                          setState(() => _filterConflict = v);
+                          _performSearch();
+                        },
+                     ),
+                   ),
+                ],
+              ),
+              const SizedBox(width: 8),
               SizedBox(
                 width: 80,
                 child: Padding(
@@ -269,7 +289,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     icon: const Icon(Icons.search, size: 16),
                     label: const Text("搜尋"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700],
+                       backgroundColor: Theme.of(context).colorScheme.accentBlue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       minimumSize: const Size(0, 36),
@@ -288,6 +308,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   }
 
   Widget _buildSearchResults() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (_isQueryLoading)
       return const Center(child: CircularProgressIndicator());
     if (!_hasSearched) {
@@ -295,9 +316,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.manage_search_rounded, size: 64, color: Colors.blue[50]),
+             Icon(Icons.manage_search_rounded, size: 64, color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.1)),
             const SizedBox(height: 16),
-            const Text("設定搜尋條件並點擊搜尋按鈕開始", style: TextStyle(color: Colors.grey)),
+            Text("設定搜尋條件並點擊搜尋按鈕開始", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
           ],
         ),
       );
@@ -317,10 +338,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.cardBackground,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
-            boxShadow: [
+            border: Border.all(color: colorScheme.borderColor),
+            boxShadow: colorScheme.isDark ? [] : [
               BoxShadow(
                 color: Colors.black.withOpacity(0.02),
                 blurRadius: 8,
@@ -330,17 +351,17 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           ),
           clipBehavior: Clip.antiAlias,
           child: ExpansionTile(
-            backgroundColor: Colors.blue[50]?.withOpacity(0.1),
+            backgroundColor: colorScheme.secondaryCardBackground.withOpacity(0.5),
             tilePadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 8,
             ),
             title: Text(
               course.name.split('\n')[0],
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: Colors.black87,
+                color: colorScheme.primaryText,
               ),
             ),
             subtitle: Padding(
@@ -358,6 +379,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     Icons.account_balance_rounded,
                     course.department,
                   ),
+                  _buildMiniInfoChip(
+                    Icons.room_outlined,
+                    _extractRoomLocation(course.room),
+                  ),
                   if (course.english)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -365,7 +390,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: colorScheme.secondaryCardBackground,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -383,14 +408,14 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.orange[50],
+                      color: colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.3) : Colors.orange[50],
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       "機率: ${_calculateProbability(course)}",
                       style: TextStyle(
                         fontSize: 10,
-                        color: Colors.orange[800],
+                        color: colorScheme.isDark ? Colors.orange[200] : Colors.orange[800],
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -405,7 +430,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green[50],
+                      color: colorScheme.isDark ? Colors.green[900]!.withOpacity(0.3) : Colors.green[50],
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -458,7 +483,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                             "學分: ${course.credit} 學分",
                             "名額: ${course.restrict} 人",
                             "已選: ${course.selected} 人 (餘 ${course.remaining})",
-                            "地點: ${course.room.isEmpty ? "未定" : course.room}",
+                            "地點: ${course.room.isEmpty ? "地點不明" : _extractRoomLocation(course.room)}",
                           ]),
                         ),
                         const SizedBox(width: 20),
@@ -477,25 +502,25 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: Colors.blueGrey,
+                          color: Colors.blueAccent, // 更醒目的顏色
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         course.description,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: Colors.black54,
+                          color: colorScheme.subtitleText,
                         ),
                       ),
                       const SizedBox(height: 16),
                     ],
-                    const Text(
+                    Text(
                       "評分比例",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
-                        color: Colors.blueGrey,
+                        color: colorScheme.subtitleText,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -509,9 +534,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                             child: CircularProgressIndicator(strokeWidth: 2),
                           );
                         if (!snapshot.hasData || snapshot.data!.isEmpty)
-                          return const Text(
+                          return Text(
                             "尚無評分細節",
-                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                            style: TextStyle(fontSize: 13, color: colorScheme.subtitleText),
                           );
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,9 +546,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                                   padding: const EdgeInsets.only(bottom: 4),
                                   child: Text(
                                     "• $e",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
-                                      color: Colors.black87,
+                                      color: colorScheme.primaryText,
                                     ),
                                   ),
                                 ),
@@ -543,15 +568,16 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   }
 
   Widget _buildDetailCol(String title, List<String> items) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 13,
-            color: Colors.blueGrey,
+            color: colorScheme.subtitleText,
           ),
         ),
         const SizedBox(height: 8),
@@ -560,7 +586,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               it,
-              style: const TextStyle(fontSize: 13, color: Colors.black87),
+              style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
             ),
           ),
         ),
@@ -569,6 +595,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   }
 
   Widget _buildEditListMode() {
+    final colorScheme = Theme.of(context).colorScheme;
     final activeExistingCourses = widget.currentCourses.where((c) {
       if (_pendingItems.any(
         (p) => p.id == c.code && p.type == TransactionType.drop,
@@ -588,10 +615,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
             Icon(
               Icons.playlist_remove_rounded,
               size: 64,
-              color: Colors.grey[200],
+              color: colorScheme.subtitleText.withOpacity(0.1),
             ),
             const SizedBox(height: 16),
-            const Text("您的選課清單是空的", style: TextStyle(color: Colors.grey)),
+            Text("您的選課清單是空的", style: TextStyle(color: colorScheme.subtitleText)),
           ],
         ),
       );
@@ -620,11 +647,11 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isAdd
-                          ? Colors.orange[50]!.withOpacity(0.5)
-                          : Colors.red[50]!.withOpacity(0.5),
+                          ? colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.2) : Colors.orange[50]!.withOpacity(0.5)
+                          : colorScheme.isDark ? Colors.red[900]!.withOpacity(0.2) : Colors.red[50]!.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isAdd ? Colors.orange[200]! : Colors.red[100]!,
+                        color: isAdd ? (colorScheme.isDark ? Colors.orange[700]! : Colors.orange[200]!) : (colorScheme.isDark ? Colors.red[700]! : Colors.red[100]!),
                       ),
                     ),
                     child: Column(
@@ -656,17 +683,17 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                                   children: [
                                     TextSpan(
                                       text: item.name,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                        color: colorScheme.primaryText,
                                       ),
                                     ),
                                     TextSpan(
                                       text: " / ${item.id}",
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: Colors.grey[600],
+                                        color: colorScheme.subtitleText,
                                         fontWeight: FontWeight.normal,
                                       ),
                                     ),
@@ -720,12 +747,12 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               ],
               if (activeExistingCourses.isNotEmpty) ...[
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   "目前已選上之課程",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: Colors.grey,
+                    color: colorScheme.subtitleText,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -738,9 +765,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colorScheme.cardBackground,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(color: colorScheme.borderColor),
                     ),
                     child: Row(
                       children: [
@@ -759,10 +786,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                             children: [
                               Text(
                                 course.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: colorScheme.primaryText,
                                 ),
                               ),
                               Text(
@@ -794,8 +821,8 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[100]!)),
+              color: colorScheme.cardBackground,
+              border: Border(top: BorderSide(color: colorScheme.borderColor)),
             ),
             child: SizedBox(
               width: double.infinity,
@@ -803,7 +830,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               child: ElevatedButton(
                 onPressed: _submitSelection,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[800],
+                  backgroundColor: colorScheme.accentBlue,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -837,6 +864,8 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         days: _selectedDays.toList(),
         periods: _selectedPeriods.toList(),
         classType: _selectedClass,
+        filterConflict: _filterConflict,
+        existingCourses: _parseSelectedCoursesForConflict(),
       );
       setState(() {
         _searchResults = results;
@@ -858,6 +887,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
     required Map<String, String> options,
     required Function(Set<String>) onChanged,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -915,7 +945,8 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              color: colorScheme.secondaryCardBackground,
+              border: Border.all(color: colorScheme.borderColor),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -926,11 +957,11 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     values.isEmpty
                         ? "全部"
                         : values.map((e) => options[e]).join(', '),
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down, color: Colors.grey, size: 18),
+                Icon(Icons.arrow_drop_down, color: colorScheme.subtitleText, size: 18),
               ],
             ),
           ),
@@ -944,6 +975,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
     TextEditingController controller, {
     String? hint,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -956,7 +988,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12),
+            hintStyle: TextStyle(fontSize: 12, color: colorScheme.subtitleText.withOpacity(0.5)),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 10,
@@ -964,27 +996,28 @@ class _CourseQueryTabState extends State<CourseQueryTab>
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             isDense: true,
           ),
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
         ),
       ],
     );
   }
 
   Widget _buildMiniInfoChip(IconData icon, String label) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: colorScheme.secondaryCardBackground,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.blueGrey),
+          Icon(icon, size: 12, color: colorScheme.subtitleText),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
+            style: TextStyle(fontSize: 11, color: colorScheme.primaryText),
           ),
         ],
       ),
@@ -1294,6 +1327,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
 
   // ✅ 新增：從程式碼匯入面板
   Widget _buildImportCodePanel() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -1302,8 +1336,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.purple[50],
+              color: colorScheme.isDark ? Colors.purple[900]!.withOpacity(0.2) : Colors.purple[50],
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.isDark ? Colors.purple[700]! : Colors.purple[100]!),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1312,24 +1347,24 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      color: Colors.purple[700],
+                      color: colorScheme.isDark ? Colors.purple[200] : Colors.purple[700],
                       size: 20,
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      "快速匯入說明",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple[900],
+                      Text(
+                        "快速匯入說明",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.isDark ? Colors.purple[200] : Colors.purple[900],
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "請貼上從「選課助手」匯出的程式碼內容。系統會解析其中的課程代碼並自動加入您的待加選清單中。",
                   style: TextStyle(
-                    color: Colors.purple[800],
+                    color: colorScheme.isDark ? colorScheme.subtitleText : Colors.purple[800],
                     fontSize: 13,
                     height: 1.5,
                   ),
@@ -1341,11 +1376,11 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "程式碼內容：",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
+                  color: colorScheme.subtitleText,
                 ),
               ),
               TextButton.icon(
@@ -1353,7 +1388,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 icon: const Icon(Icons.paste_rounded, size: 18),
                 label: const Text("剪貼簿貼上"),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.purple[700],
+                  foregroundColor: colorScheme.isDark ? Colors.purple[200] : Colors.purple[700],
                 ),
               ),
             ],
@@ -1371,9 +1406,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: colorScheme.secondaryCardBackground,
               ),
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: colorScheme.primaryText),
             ),
           ),
           const SizedBox(height: 20),
@@ -1388,7 +1423,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple[700],
+                backgroundColor: colorScheme.isDark ? Colors.purple[800] : Colors.purple[700],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1490,5 +1525,49 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         context,
       ).showSnackBar(SnackBar(content: Text("解析失敗: $e")));
     }
+  }
+
+  // ✅ 新增：解析已選課程的時間格式以供衝堂過濾
+  List<Map<String, dynamic>> _parseSelectedCoursesForConflict() {
+    List<Map<String, dynamic>> results = [];
+    final dayNames = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7};
+
+    for (var c in widget.currentCourses) {
+      // timeRoom 範例: "一1234(B101) 二56(B102)"
+      String tr = c.timeRoom;
+      List<Map<String, dynamic>> pTimes = [];
+      
+      // 使用 Regex 分解時間與教室
+      // 匹配「星期」接著「節次」，後面可能有括號教室
+      final reg = RegExp(r'([一二三四五六日])([A1-9BC]+)');
+      final matches = reg.allMatches(tr);
+      
+      for (var m in matches) {
+        int? day = dayNames[m.group(1)];
+        String periods = m.group(2) ?? "";
+        if (day != null) {
+          for (int i = 0; i < periods.length; i++) {
+            pTimes.add({'day': day, 'period': periods[i]});
+          }
+        }
+      }
+      
+      results.add({
+        'id': c.code,
+        'parsedTimes': pTimes,
+      });
+    }
+    return results;
+  }
+
+  String _extractRoomLocation(String rawRoom) {
+    if (rawRoom.isEmpty) return "地點不明";
+    final regex = RegExp(r'[\(\uff08](.*?)[\)\uff09]');
+    final match = regex.firstMatch(rawRoom);
+    if (match != null) {
+      String content = match.group(1)?.trim() ?? "";
+      return content.isNotEmpty ? content : "地點不明";
+    }
+    return "地點不明";
   }
 }

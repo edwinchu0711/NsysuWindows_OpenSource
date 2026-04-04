@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/graduation_model.dart';
 import '../services/graduation_service.dart';
+import '../theme/app_theme.dart';
 
 class GraduationPage extends StatefulWidget {
   const GraduationPage({Key? key}) : super(key: key);
@@ -36,8 +37,9 @@ class _GraduationPageState extends State<GraduationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       appBar: null, // 移除 AppBar
       body: Column(
         children: [
@@ -50,13 +52,13 @@ class _GraduationPageState extends State<GraduationPage> {
               future: _dataFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(strokeWidth: 3),
-                        SizedBox(height: 16),
-                        Text("正在連線教務處資料庫...", style: TextStyle(color: Colors.grey)),
+                        CircularProgressIndicator(strokeWidth: 3, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(height: 16),
+                        Text("正在連線教務處資料庫...", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
                       ],
                     ),
                   );
@@ -69,7 +71,7 @@ class _GraduationPageState extends State<GraduationPage> {
                         children: [
                           const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
                           const SizedBox(height: 16),
-                          Text("讀取失敗：\n${snapshot.error}", textAlign: TextAlign.center),
+                          Text("讀取失敗：\n${snapshot.error}", textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.primaryText)),
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: _handleRefresh,
@@ -113,13 +115,13 @@ class _GraduationPageState extends State<GraduationPage> {
                               children: [
                                 Text(
                                   "最後更新時間：${data.checkTime}",
-                                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontSize: 13),
                                 ),
                                 const SizedBox(height: 12),
-                                const Text(
+                                Text(
                                   "此頁面資料僅供參考，請務必以官方查詢結果為準",
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w500),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
@@ -139,6 +141,7 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildDesktopHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1200),
@@ -154,7 +157,7 @@ class _GraduationPageState extends State<GraduationPage> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 8),
-                  const Text("畢業檢核", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  Text("畢業檢核", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
                 ],
               ),
               _buildRefreshButton(),
@@ -166,6 +169,7 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildRefreshButton() {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: _isRefreshing ? null : _handleRefresh,
       mouseCursor: _isRefreshing ? SystemMouseCursors.basic : SystemMouseCursors.click,
@@ -173,17 +177,17 @@ class _GraduationPageState extends State<GraduationPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.cardBackground,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: colorScheme.borderColor),
         ),
         child: Row(
           children: [
             _isRefreshing 
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) 
-              : Icon(Icons.refresh_rounded, size: 18, color: Colors.purple[700]),
+              : Icon(Icons.refresh_rounded, size: 18, color: Theme.of(context).colorScheme.accentBlue),
             const SizedBox(width: 8),
-            Text(_isRefreshing ? "同步中" : "重新整理", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.purple[700])),
+            Text(_isRefreshing ? "同步中" : "重新整理", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.accentBlue)),
           ],
         ),
       ),
@@ -191,21 +195,22 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildStudentCard(GraduationData data) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: Colors.purple[50],
+            backgroundColor: Theme.of(context).colorScheme.secondaryCardBackground,
             child: Text(
               data.studentName.isNotEmpty ? data.studentName[0] : "生",
-              style: TextStyle(color: Colors.purple[700], fontWeight: FontWeight.bold, fontSize: 24),
+              style: TextStyle(color: Theme.of(context).colorScheme.accentBlue, fontWeight: FontWeight.bold, fontSize: 24),
             ),
           ),
           const SizedBox(width: 20),
@@ -213,9 +218,9 @@ class _GraduationPageState extends State<GraduationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(data.studentName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text(data.studentName, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
                 const SizedBox(height: 4),
-                Text("${data.department} • ${data.studentId}", style: TextStyle(color: Colors.grey[600], fontSize: 15)),
+                Text("${data.department} • ${data.studentId}", style: TextStyle(color: colorScheme.subtitleText, fontSize: 15)),
               ],
             ),
           )
@@ -225,20 +230,21 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildCreditProgress(GraduationData data) {
+    final colorScheme = Theme.of(context).colorScheme;
     double progress = data.currentCredits / data.minCredits;
     if (progress > 1.0) progress = 1.0;
     
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("畢業學分達成進度", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+          const Text("畢業學分達成進度", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Stack(
             children: [
@@ -247,9 +253,9 @@ class _GraduationPageState extends State<GraduationPage> {
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 24,
-                  backgroundColor: Colors.grey[100],
+                  backgroundColor: Theme.of(context).colorScheme.secondaryCardBackground,
                   valueColor: AlwaysStoppedAnimation(
-                    progress >= 1.0 ? Colors.green[600] : Colors.orange[600],
+                    progress >= 1.0 ? Colors.green[600] : (Theme.of(context).colorScheme.isDark ? Colors.orange[400] : Colors.orange[600]),
                   ),
                 ),
               ),
@@ -257,7 +263,12 @@ class _GraduationPageState extends State<GraduationPage> {
                 child: Center(
                   child: Text(
                     "${(progress * 100).toStringAsFixed(1)}%",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, shadows: [Shadow(color: Colors.black26, blurRadius: 2)]),
+                    style: TextStyle(
+                      color: Colors.white, 
+                      fontWeight: FontWeight.bold, 
+                      fontSize: 13, 
+                      shadows: [Shadow(color: Theme.of(context).colorScheme.isDark ? Colors.black : Colors.black26, blurRadius: 2)]
+                    ),
                   ),
                 ),
               )
@@ -270,23 +281,26 @@ class _GraduationPageState extends State<GraduationPage> {
               Text.rich(
                 TextSpan(
                   children: [
-                    TextSpan(text: "已獲得 ", style: TextStyle(color: Colors.grey[600])),
-                    TextSpan(text: "${data.currentCredits}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.black87)),
-                    TextSpan(text: " 學分", style: TextStyle(color: Colors.grey[600])),
+                    TextSpan(text: "已獲得 ", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
+                    TextSpan(text: "${data.currentCredits}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Theme.of(context).colorScheme.primaryText)),
+                    TextSpan(text: " 學分", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
                   ]
                 )
               ),
-              Text("應修 ${data.minCredits}", style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500)),
+              Text("應修 ${data.minCredits}", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontWeight: FontWeight.w500)),
             ],
           ),
           if (data.currentCredits < data.minCredits)
             Container(
               margin: const EdgeInsets.only(top: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.isDark ? Colors.red[900]?.withOpacity(0.2) : Colors.red[50], 
+                borderRadius: BorderRadius.circular(8)
+              ),
               child: Text(
                 "尚缺 ${data.minCredits - data.currentCredits} 學分即可達標",
-                style: TextStyle(color: Colors.red[700], fontSize: 13, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Theme.of(context).colorScheme.isDark ? Colors.red[200] : Colors.red[700], fontSize: 13, fontWeight: FontWeight.bold),
               ),
             )
         ],
@@ -295,11 +309,12 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildMissingRequiredCard(GraduationData data) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -309,7 +324,7 @@ class _GraduationPageState extends State<GraduationPage> {
         children: data.missingRequiredCourses.map((course) => ListTile(
           dense: true,
           leading: const Icon(Icons.close_rounded, size: 18, color: Colors.red),
-          title: Text(course, style: const TextStyle(fontSize: 16, color: Colors.black87)),
+          title: Text(course, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.primaryText)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
         )).toList(),
       ),
@@ -317,11 +332,12 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildGenEdCard(GraduationData data) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -333,11 +349,13 @@ class _GraduationPageState extends State<GraduationPage> {
             margin: const EdgeInsets.only(left: 8),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
-              color: isOk ? Colors.green[50] : Colors.red[50],
+              color: isOk 
+                  ? (Theme.of(context).colorScheme.isDark ? Colors.green[900]?.withOpacity(0.2) : Colors.green[50]) 
+                  : (Theme.of(context).colorScheme.isDark ? Colors.red[900]?.withOpacity(0.2) : Colors.red[50]),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: isOk ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2)),
+              border: Border.all(color: isOk ? Colors.green.withOpacity(0.5) : Colors.red.withOpacity(0.5)),
             ),
-            child: Text(item.status, style: TextStyle(color: isOk ? Colors.green[700] : Colors.red[700], fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(item.status, style: TextStyle(color: isOk ? (Theme.of(context).colorScheme.isDark ? Colors.green[200] : Colors.green[700]) : (Theme.of(context).colorScheme.isDark ? Colors.red[200] : Colors.red[700]), fontSize: 12, fontWeight: FontWeight.bold)),
           );
 
           if (item.details.isNotEmpty) {
@@ -346,18 +364,18 @@ class _GraduationPageState extends State<GraduationPage> {
               leading: Icon(isOk ? Icons.check_circle_rounded : Icons.cancel_rounded, color: isOk ? Colors.green : Colors.redAccent, size: 22),
               title: Row(
                 children: [
-                  Flexible(child: Text(item.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
+                  Flexible(child: Text(item.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primaryText))),
                   statusBadge,
                 ],
               ),
-              subtitle: item.description.isNotEmpty ? Text(item.description, style: const TextStyle(color: Colors.red, fontSize: 13)) : null,
+              subtitle: item.description.isNotEmpty ? Text(item.description, style: const TextStyle(color: Colors.redAccent, fontSize: 13)) : null,
               children: item.details.map((detail) => Container(
-                color: Colors.grey[50],
+                color: Theme.of(context).colorScheme.secondaryCardBackground,
                 child: ListTile(
                   dense: true,
                   contentPadding: const EdgeInsets.only(left: 64, right: 24),
-                  leading: const Icon(Icons.subdirectory_arrow_right_rounded, size: 16, color: Colors.grey),
-                  title: Text(detail, style: TextStyle(color: Colors.grey[800], fontSize: 14)),
+                  leading: Icon(Icons.subdirectory_arrow_right_rounded, size: 16, color: Theme.of(context).colorScheme.subtitleText),
+                  title: Text(detail, style: TextStyle(color: Theme.of(context).colorScheme.primaryText, fontSize: 14)),
                 ),
               )).toList(),
             );
@@ -367,11 +385,11 @@ class _GraduationPageState extends State<GraduationPage> {
               leading: Icon(isOk ? Icons.check_circle_rounded : Icons.cancel_rounded, color: isOk ? Colors.green : Colors.redAccent, size: 22),
               title: Row(
                 children: [
-                  Flexible(child: Text(item.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
+                  Flexible(child: Text(item.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.primaryText))),
                   statusBadge,
                 ],
               ),
-              subtitle: item.description.isNotEmpty ? Text(item.description, style: const TextStyle(color: Colors.red, fontSize: 13)) : null,
+              subtitle: item.description.isNotEmpty ? Text(item.description, style: const TextStyle(color: Colors.redAccent, fontSize: 13)) : null,
             );
           }
         }).toList(),
@@ -380,11 +398,12 @@ class _GraduationPageState extends State<GraduationPage> {
   }
 
   Widget _buildElectivesCard(GraduationData data) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -399,8 +418,8 @@ class _GraduationPageState extends State<GraduationPage> {
               itemBuilder: (ctx, i) {
                 return ListTile(
                   dense: true,
-                  leading: Icon(Icons.bookmark_added_rounded, size: 18, color: Colors.indigo[300]),
-                  title: Text(data.takenElectiveCourses[i], style: const TextStyle(fontSize: 15)),
+                  leading: Icon(Icons.bookmark_added_rounded, size: 18, color: Theme.of(context).colorScheme.accentBlue),
+                  title: Text(data.takenElectiveCourses[i], style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.primaryText)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 24),
                 );
               },

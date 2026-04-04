@@ -7,8 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import '../services/elearn_bulletin_service.dart';
+import '../theme/app_theme.dart';
 
 class AnnouncementPage extends StatefulWidget {
   const AnnouncementPage({Key? key}) : super(key: key);
@@ -139,11 +139,12 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
     
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -247,7 +248,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                                       ? Center(
                                           child: Text(
                                             "請從左側選擇公告以檢視詳細內容", 
-                                            style: TextStyle(color: Colors.grey[500], fontSize: 16)
+                                            style: TextStyle(color: colorScheme.subtitleText, fontSize: 16)
                                           )
                                         )
                                       : AnnouncementDetailPage(
@@ -274,6 +275,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   }
 
   Widget _buildBulletinCard(ElearnBulletin item, bool isWide) {
+    final colorScheme = Theme.of(context).colorScheme;
     DateTime showTime = item.effectiveTime;
     String timeStr = DateFormat('yyyy/MM/dd HH:mm').format(showTime);
     bool isUnread = !_readBulletinIds.contains(item.id.toString());
@@ -286,9 +288,9 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? _themeColor.withOpacity(0.05) : Colors.white,
+        color: isSelected ? _themeColor.withOpacity(0.05) : colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isSelected ? _themeColor.withOpacity(0.5) : Colors.grey[200]!),
+        border: Border.all(color: isSelected ? _themeColor.withOpacity(0.5) : colorScheme.borderColor),
         boxShadow: isSelected ? [] : [
           BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
         ]
@@ -327,16 +329,16 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                     Row(
                        children: [
                           Expanded(
-                            child: Text(item.courseName, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            child: Text(item.courseName, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(width: 8),
-                          Text(timeStr, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                          Text(timeStr, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText)),
                        ]
                     ),
                     const SizedBox(height: 8),
                     Text(
                       item.title, 
-                      style: TextStyle(fontSize: 15, fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500, color: Colors.black87),
+                      style: TextStyle(fontSize: 15, fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500, color: colorScheme.primaryText),
                     ),
                     if (item.uploads.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -426,6 +428,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     // 每次畫面重繪時，重置所有狀態
     _seenContentSignature.clear();
     _parsedTextBuffer.clear();
@@ -438,7 +441,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
         children: [
           SelectableText(
             widget.bulletin.title,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.primaryText),
           ),
           const SizedBox(height: 10),
           Text(widget.bulletin.courseName,
@@ -448,17 +451,17 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
           // 內容區
           SelectableText.rich(
             TextSpan(
-              style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.black87),
+              style: TextStyle(fontSize: 16, height: 1.6, color: colorScheme.primaryText),
               children: _parseNode(parser.parse(widget.bulletin.contentRaw).body),
             ),
           ),
 
           if (widget.bulletin.uploads.isNotEmpty) ...[
             const Divider(height: 30),
-            const Text("附件", style: TextStyle(fontWeight: FontWeight.bold)),
-            ...widget.bulletin.uploads.map((f) => ListTile(
-                  leading: const Icon(Icons.file_present),
-                  title: Text(f.name),
+            Text("附件", style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
+                        ...widget.bulletin.uploads.map((f) => ListTile(
+                  leading: Icon(Icons.file_present, color: colorScheme.subtitleText),
+                  title: Text(f.name, style: TextStyle(color: colorScheme.primaryText)),
                   trailing: IconButton(
                     icon: Icon(Icons.download, color: widget.themeColor),
                     onPressed: _downloading ? null : () => _downloadAndOpen(f.referenceId, f.name),
@@ -471,7 +474,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 
     if (widget.isEmbedded) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.cardBackground,
         body: content,
       );
     } else {
@@ -481,6 +484,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
           backgroundColor: widget.themeColor,
           iconTheme: const IconThemeData(color: Colors.white),
         ),
+        backgroundColor: colorScheme.cardBackground,
         body: content,
       );
     }

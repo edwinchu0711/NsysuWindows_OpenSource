@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../services/storage_service.dart';
 import '../../utils/utils.dart'; // 請確保此路徑能正確引入包含 base64md5 的 Utils 類別
+import '../../theme/app_theme.dart';
 import 'course_search_picker_page.dart'; // 確保路徑正確引入課程搜尋頁面
 import 'course_exception_download_page.dart';
 
@@ -326,7 +327,7 @@ class _CourseExceptionHandlingPageState
     bool isWide = screenWidth > 900;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).colorScheme.pageBackground,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -367,12 +368,12 @@ class _CourseExceptionHandlingPageState
                   tooltip: "返回",
                 ),
                 const SizedBox(width: 4),
-                const Text(
+                Text(
                   "異常處理申請",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.primaryText,
                   ),
                 ),
               ],
@@ -450,12 +451,12 @@ class _CourseExceptionHandlingPageState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (pendingCourses.isNotEmpty) ...[
-                const Text(
+                Text(
                   "課程",
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 30, 184, 255),
+                    color: Theme.of(context).colorScheme.accentBlue,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -485,12 +486,12 @@ class _CourseExceptionHandlingPageState
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               "自填課程",
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: Colors.blueGrey,
+                color: Theme.of(context).colorScheme.subtitleText,
               ),
             ),
             if (_manualCourses.length < 2)
@@ -567,6 +568,7 @@ class _CourseExceptionHandlingPageState
         : course.courseName;
 
     return Card(
+      color: Theme.of(context).colorScheme.cardBackground,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: course.isSelected ? 3 : 1,
@@ -575,11 +577,19 @@ class _CourseExceptionHandlingPageState
           CheckboxListTile(
             title: Text(
               displayName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primaryText,
+              ),
             ),
-            subtitle: Text("學分：${course.credits} | 教師：${course.teacher}"),
+            subtitle: Text(
+              "學分：${course.credits} | 教師：${course.teacher}",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.subtitleText,
+              ),
+            ),
             value: course.isSelected,
-            activeColor: Colors.blue, // 勾選後為藍色
+            activeColor: Theme.of(context).colorScheme.accentBlue, // 勾選後為藍色
             onChanged: (val) {
               setState(() {
                 course.isSelected = val ?? false;
@@ -625,6 +635,7 @@ class _CourseExceptionHandlingPageState
     bool isWide,
   ) {
     return Card(
+      color: Theme.of(context).colorScheme.cardBackground,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -637,9 +648,9 @@ class _CourseExceptionHandlingPageState
               children: [
                 Text(
                   "自填項目 ${index + 1}",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.subtitleText,
                   ),
                 ),
                 IconButton(
@@ -675,7 +686,9 @@ class _CourseExceptionHandlingPageState
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.borderColor,
+                        ),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(
@@ -687,8 +700,8 @@ class _CourseExceptionHandlingPageState
                                   : manualCourse.courseNo,
                               style: TextStyle(
                                 color: manualCourse.courseNo.isEmpty
-                                    ? Colors.grey
-                                    : Colors.black87,
+                                    ? Theme.of(context).colorScheme.subtitleText
+                                    : Theme.of(context).colorScheme.primaryText,
                               ),
                             ),
                           ),
@@ -722,12 +735,19 @@ class _CourseExceptionHandlingPageState
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: '加/退選',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.subtitleText,
+        ),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
       ),
-      value: value,
+      dropdownColor: Theme.of(context).colorScheme.secondaryCardBackground,
+      style: TextStyle(color: Theme.of(context).colorScheme.primaryText),
       items: const [
         DropdownMenuItem(value: "加選", child: Text("加選")),
         DropdownMenuItem(value: "退選", child: Text("退選")),
@@ -744,14 +764,19 @@ class _CourseExceptionHandlingPageState
     return DropdownButtonFormField<String>(
       isExpanded: true,
       // 移除固定高度限制，讓內容決定高度
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: '選擇原因',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.subtitleText,
+        ),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 15,
         ), // 增加垂直間距
       ),
+      dropdownColor: Theme.of(context).colorScheme.secondaryCardBackground,
+      style: TextStyle(color: Theme.of(context).colorScheme.primaryText),
       value: value,
       items: _reasons.map((reason) {
         // 移除 [ ] 及其中的內容

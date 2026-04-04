@@ -9,6 +9,7 @@ import 'course_selection/course_selection_page.dart';
 import 'course_exception/course_exception_handling_page.dart'; // 引入異常處理頁面
 import '../services/storage_service.dart';
 import '../../services/course_query_service.dart'; // 請確認路徑是否正確
+import '../theme/app_theme.dart';
 
 bool test = false;
 
@@ -190,14 +191,12 @@ class _CourseSelectionSchedulePageState
       // 5. 判斷選課是否開放
       // 如果連結包含 query/result.asp，代表是「查詢系統」(未開放)
       // 如果連結包含 select_bar.asp 或其他，代表是「選課系統」(開放中)
-      bool isOpen = !firstLink.contains("query/result.asp");
+      bool isOpen = !firstLink.contains("query/result.asp") || test;
 
       if (mounted) {
         setState(() {
           _isSystemOpen = isOpen;
-          _systemStatusMessage = isOpen || test
-              ? "選課系統開放中"
-              : "目前非選課時段（選課時段會開啟選課功能）";
+          _systemStatusMessage = isOpen ? "選課系統開放中" : "目前非選課時段（選課時段會開啟選課功能）";
           _isCheckingSystem = false;
         });
       }
@@ -497,6 +496,7 @@ class _CourseSelectionSchedulePageState
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final semStr = CourseQueryService.instance.currentSemester;
     String semDisplay = "";
     if (semStr.length == 4) {
@@ -509,7 +509,7 @@ class _CourseSelectionSchedulePageState
     bool isWide = screenWidth > 900;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.pageBackground,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -518,7 +518,7 @@ class _CourseSelectionSchedulePageState
               children: [
                 _buildDesktopHeader(semDisplay),
                 if (_isLoading)
-                  const Expanded(
+                  Expanded(
                     child: Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -527,7 +527,7 @@ class _CourseSelectionSchedulePageState
                           SizedBox(height: 16),
                           Text(
                             "載入資料中...",
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(color: colorScheme.subtitleText),
                           ),
                         ],
                       ),
@@ -550,8 +550,8 @@ class _CourseSelectionSchedulePageState
                                     Expanded(
                                       flex: 5,
                                       child: ListView(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 8,
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
                                         ),
                                         children: _mainList
                                             .map(
@@ -560,33 +560,54 @@ class _CourseSelectionSchedulePageState
                                             .toList(),
                                       ),
                                     ),
-                                    const VerticalDivider(
+                                    VerticalDivider(
                                       width: 1,
-                                      color: Colors.black12,
+                                      color: colorScheme.borderColor,
                                     ),
                                     Expanded(
                                       flex: 5,
-                                      child: SingleChildScrollView(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 8,
-                                          horizontal: 16,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            const Text(
-                                              "功能選項",
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.black87,
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              minHeight: constraints.maxHeight,
+                                            ),
+                                            child: Center(
+                                              child: SingleChildScrollView(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 16,
+                                                    ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment
+                                                          .stretch,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      "功能選項",
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: TextStyle(
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: colorScheme
+                                                            .primaryText,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 20),
+                                                    _buildActiveStatusRow(
+                                                      isWide: true,
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                            const SizedBox(height: 12),
-                                            _buildActiveStatusRow(isWide: true),
-                                          ],
-                                        ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   ],
@@ -610,12 +631,12 @@ class _CourseSelectionSchedulePageState
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
-                          color: Colors.grey[50],
+                          color: colorScheme.pageBackground,
                           child: Text(
                             "資料更新時間：$_dataUpdateTime",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.grey[500],
+                              color: colorScheme.subtitleText,
                               fontSize: 12,
                             ),
                           ),
@@ -632,9 +653,10 @@ class _CourseSelectionSchedulePageState
   }
 
   Widget _buildDesktopHeader(String semDisplay) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: Colors.transparent, // 改為透明，由 Scaffold 背景決定
       child: Column(
         children: [
           Padding(
@@ -660,10 +682,10 @@ class _CourseSelectionSchedulePageState
                     const SizedBox(width: 4),
                     Text(
                       "$semDisplay 選課時程",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: colorScheme.primaryText,
                       ),
                     ),
                   ],
@@ -692,16 +714,16 @@ class _CourseSelectionSchedulePageState
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: colorScheme.secondaryCardBackground,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey[200]!),
+                            border: Border.all(color: colorScheme.borderColor),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 Icons.refresh_rounded,
                                 size: 16,
-                                color: Colors.blue[700],
+                                color: colorScheme.accentBlue,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -709,7 +731,7 @@ class _CourseSelectionSchedulePageState
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue[700],
+                                  color: colorScheme.accentBlue,
                                 ),
                               ),
                             ],
@@ -719,39 +741,44 @@ class _CourseSelectionSchedulePageState
               ],
             ),
           ),
-          const Divider(height: 1, color: Colors.black12),
+          const Divider(height: 1),
         ],
       ),
     );
   }
 
-  // ✅ 【修改】根據伺服器回傳狀態顯示 UI (加入異常處理判斷)
   Widget _buildActiveStatusRow({bool isWide = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
     // 1. 基礎狀態判斷 (藍/橘/灰)
     Color? primaryBgColor;
-    Color primaryTextColor = Colors.grey[700]!;
+    Color primaryTextColor = colorScheme.bodyText;
     bool showOpenButton = false;
     bool showStatusButton = false;
 
     if (_isCheckingSystem) {
-      primaryBgColor = Colors.grey[100];
-      primaryTextColor = Colors.grey[700]!;
+      primaryBgColor = colorScheme.secondaryCardBackground;
+      primaryTextColor = colorScheme.bodyText;
     }
     if (_isSystemOpen) {
-      primaryBgColor = Colors.blue[50]?.withOpacity(0.5);
-      primaryTextColor = Colors.blue[900]!;
+      primaryBgColor = colorScheme.isDark
+          ? Colors.blue.withOpacity(0.15)
+          : Colors.blue[50];
+      primaryTextColor = colorScheme.isDark
+          ? Colors.blue[200]!
+          : Colors.blue[800]!;
       showOpenButton = true;
     } else {
       DateTime? confirmEndTime = _getConfirmationEndTime();
       DateTime now = DateTime.now();
       if (confirmEndTime != null && now.isBefore(confirmEndTime) || test) {
-        primaryBgColor = Colors.orange[50]?.withOpacity(0.5);
+        primaryBgColor = colorScheme.warningContainer;
         primaryTextColor = Colors.orange[800]!;
+        if (colorScheme.isDark) primaryTextColor = Colors.orange[200]!;
         _systemStatusMessage = "目前非選課時段";
         showStatusButton = true;
       } else {
-        primaryBgColor = Colors.transparent; // 灰色非選課時段不顯眼
-        primaryTextColor = Colors.grey[500]!;
+        primaryBgColor = Colors.transparent;
+        primaryTextColor = colorScheme.subtitleText;
       }
     }
 
@@ -771,13 +798,13 @@ class _CourseSelectionSchedulePageState
           // --- 第一部分：系統狀態卡片 (藍/橘/灰) ---
           Container(
             padding: const EdgeInsets.symmetric(
-              vertical: 12.0,
+              vertical: 20.0,
               horizontal: 16.0,
             ),
             decoration: BoxDecoration(
               color: primaryBgColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              border: Border.all(color: colorScheme.borderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -806,63 +833,47 @@ class _CourseSelectionSchedulePageState
                         ),
                       ),
                     ),
-                    if (!isWide &&
-                        (!_isCheckingSystem && showOpenButton || test))
-                      _buildActionButton(
-                        "前往選課",
-                        Icons.login_rounded,
-                        Colors.blue[600]!,
-                        () => _navigateToCourseSelection(enableQuery: true),
+                    if (!_isCheckingSystem && showOpenButton || test)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: _buildActionButton(
+                          isWide ? "前往選課系統" : "前往選課",
+                          Icons.login_rounded,
+                          Colors.blue,
+                          () => _navigateToCourseSelection(enableQuery: true),
+                        ),
                       ),
-                    if (!isWide &&
-                        (!_isCheckingSystem && showStatusButton || test))
-                      _buildActionButton(
-                        "目前狀態",
-                        Icons.info_outline_rounded,
-                        Colors.orange[700]!,
-                        () => _navigateToCourseSelection(enableQuery: false),
+                    if (!_isCheckingSystem && showStatusButton || test)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: _buildActionButton(
+                          isWide ? "查看目前狀態" : "目前狀態",
+                          Icons.info_outline_rounded,
+                          Colors.orange,
+                          () => _navigateToCourseSelection(enableQuery: false),
+                        ),
                       ),
                   ],
                 ),
-                if (isWide && (!_isCheckingSystem && showOpenButton || test))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: _buildActionButton(
-                      "前往選課系統",
-                      Icons.login_rounded,
-                      Colors.blue[600]!,
-                      () => _navigateToCourseSelection(enableQuery: true),
-                    ),
-                  ),
-                if (isWide && (!_isCheckingSystem && showStatusButton || test))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: _buildActionButton(
-                      "查看目前狀態",
-                      Icons.info_outline_rounded,
-                      Colors.orange[700]!,
-                      () => _navigateToCourseSelection(enableQuery: false),
-                    ),
-                  ),
               ],
             ),
           ),
 
           // --- 第二部分：異常處理卡片 (綠/灰) ---
           if (shouldShowExceptionUI) ...[
-            const SizedBox(height: 8), // 兩個卡片間的間距
+            const SizedBox(height: 16), // 兩個卡片間的間距
             Container(
               padding: const EdgeInsets.symmetric(
-                vertical: 12.0,
+                vertical: 20.0,
                 horizontal: 16.0,
               ),
               decoration: BoxDecoration(
                 // 如果是進行中就給綠色背景，否則給淡淡的灰色背景
                 color: isExceptionActive
-                    ? Colors.green[50]?.withOpacity(0.5)
-                    : Colors.grey[50],
+                    ? colorScheme.successContainer
+                    : colorScheme.secondaryCardBackground,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[100]!),
+                border: Border.all(color: colorScheme.borderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,46 +889,33 @@ class _CourseSelectionSchedulePageState
                                 ? FontWeight.bold
                                 : FontWeight.normal,
                             color: isExceptionActive
-                                ? Colors.green[800]
-                                : Colors.grey[500],
+                                ? (colorScheme.isDark
+                                      ? Colors.green[200]
+                                      : Colors.green[800])
+                                : colorScheme.subtitleText,
                           ),
                         ),
                       ),
-                      if (!isWide && isExceptionActive)
-                        _buildActionButton(
-                          "前往異常處理",
-                          Icons.build_circle_outlined,
-                          Colors.green[600]!,
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const CourseExceptionHandlingPage(),
-                              ),
-                            );
-                          },
+                      if (isExceptionActive || test)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16.0),
+                          child: _buildActionButton(
+                            "前往異常處理",
+                            Icons.build_circle_outlined,
+                            Colors.green,
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const CourseExceptionHandlingPage(),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                     ],
                   ),
-                  if (isWide && isExceptionActive)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: _buildActionButton(
-                        "前往異常處理",
-                        Icons.build_circle_outlined,
-                        Colors.green[600]!,
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const CourseExceptionHandlingPage(),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -974,15 +972,14 @@ class _CourseSelectionSchedulePageState
 
     bool isActive = _activeItemKeys.contains(entry.key); // ← 只改這行
 
+    final curColorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
       decoration: BoxDecoration(
-        color: isActive ? Colors.blue[50] : Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isActive ? Colors.blue[100]! : Colors.grey[100]!,
-          ),
-        ),
+        color: isActive
+            ? curColorScheme.secondaryCardBackground
+            : curColorScheme.cardBackground,
+        border: Border(bottom: BorderSide(color: curColorScheme.borderColor)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -994,7 +991,9 @@ class _CourseSelectionSchedulePageState
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
-                color: isActive ? Colors.blue[900] : Colors.black87,
+                color: isActive
+                    ? curColorScheme.accentBlue
+                    : curColorScheme.primaryText,
                 letterSpacing: 0.5,
               ),
             ),
@@ -1022,12 +1021,13 @@ class _CourseSelectionSchedulePageState
   }
 
   Widget _buildTimeText(String text, bool isActive) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Text(
       text,
       textAlign: TextAlign.right,
       style: TextStyle(
         fontSize: 15,
-        color: isActive ? Colors.blue[800] : Colors.grey[800],
+        color: isActive ? colorScheme.accentBlue : colorScheme.subtitleText,
         fontWeight: FontWeight.w500,
         height: 1.1,
       ),

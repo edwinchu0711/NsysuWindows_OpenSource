@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';// ✅ 新增：用於開啟外�
 import '../../../models/course_model.dart';
 import '../../../models/custom_event_model.dart';
 import '../../../services/course_query_service.dart'; // ✅ 新增：用於獲取學期資訊
+import '../../../theme/app_theme.dart';
 
 class AssistantLeftPane extends StatelessWidget {
   final List<Course> assistantCourses;
@@ -36,6 +37,7 @@ class AssistantLeftPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (selectedCourse != null) {
       return _buildCourseDetailView(context, selectedCourse!);
     }
@@ -44,7 +46,7 @@ class AssistantLeftPane extends StatelessWidget {
     }
 
     return Container(
-      color: Colors.white,
+      color: colorScheme.cardBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +54,7 @@ class AssistantLeftPane extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("管理清單", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text("管理清單", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
               IconButton(
                 icon: const Icon(Icons.delete_forever, color: Colors.red),
                 tooltip: "清除全部",
@@ -65,20 +67,26 @@ class AssistantLeftPane extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: colorScheme.secondaryCardBackground, borderRadius: BorderRadius.circular(10)),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.blue[700]),
+                Icon(Icons.info_outline, color: colorScheme.accentBlue),
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("目前統計", style: TextStyle(fontSize: 12, color: Colors.black54)),
-                    Text(
-                      "$totalCredits 學分 / ${assistantCourses.length} 門課",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[900]),
-                    )
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("目前統計", style: TextStyle(fontSize: 12, color: colorScheme.bodyText)),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "$totalCredits 學分 / ${assistantCourses.length} 門課",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.primary),
+                        ),
+                      )
+                    ],
+                  ),
                 )
               ],
             ),
@@ -102,8 +110,14 @@ class AssistantLeftPane extends StatelessWidget {
                                 cursor: SystemMouseCursors.click,
                                 child: ListTile(
                                   dense: true,
-                                  title: Text(c.name.split('\n')[0], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text("${c.code}\n${onFormatTime(c)}"),
+                                  title: Text(c.name.split('\n')[0], style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("${c.code} / ${_extractRoomLocation(c.location)}", style: TextStyle(color: colorScheme.bodyText)),
+                                      Text(_formatShortTime(c), style: TextStyle(color: colorScheme.bodyText, fontSize: 11)),
+                                    ],
+                                  ),
                                   trailing: IconButton(
                                     icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
                                     onPressed: () => onRemoveCourse(c),
@@ -125,8 +139,8 @@ class AssistantLeftPane extends StatelessWidget {
                                 cursor: SystemMouseCursors.click,
                                 child: ListTile(
                                   dense: true,
-                                  title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text("星期${fullWeekDays[e.day - 1]} (${e.periods.join(', ')}節)\n${e.details}"),
+                                  title: Text(e.title, style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
+                                  subtitle: Text("星期${fullWeekDays[e.day - 1]} (${e.periods.join(', ')}節)\n${e.details}", style: TextStyle(color: colorScheme.bodyText)),
                                   trailing: IconButton(
                                     icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 20),
                                     onPressed: () => onRemoveEvent(e.id),
@@ -146,8 +160,9 @@ class AssistantLeftPane extends StatelessWidget {
   }
 
   Widget _buildCourseDetailView(BuildContext context, Course course) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: colorScheme.cardBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +173,7 @@ class AssistantLeftPane extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: onClearSelection,
               ),
-              const Text("詳情", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("詳情", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
             ],
           ),
           const Divider(),
@@ -173,13 +188,13 @@ class AssistantLeftPane extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(course.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                          child: Text(course.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.accentBlue)),
                         ),
                         if (course.english)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
-                            child: Text("英語授課", style: TextStyle(color: Colors.blueGrey[600], fontSize: 10, fontWeight: FontWeight.bold)),
+                            decoration: BoxDecoration(color: colorScheme.subtleBackground, borderRadius: BorderRadius.circular(4)),
+                            child: Text("英語授課", style: TextStyle(color: colorScheme.subtitleText, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
                       ],
                     ),
@@ -187,7 +202,7 @@ class AssistantLeftPane extends StatelessWidget {
                     _buildDetailInfoRow(Icons.tag, "課號", course.code),
                     _buildDetailInfoRow(Icons.grade, "學分", "${course.credits} (${course.required})"),
                     _buildDetailInfoRow(Icons.person, "教授", course.professor),
-                    _buildDetailInfoRow(Icons.room, "地點", course.location),
+                    _buildDetailInfoRow(Icons.room, "地點", _extractRoomLocation(course.location)),
                     _buildDetailInfoRow(Icons.access_time, "時間", onFormatTime(course)),
                     
                     if (course.tags.isNotEmpty) ...[
@@ -198,8 +213,12 @@ class AssistantLeftPane extends StatelessWidget {
                         spacing: 4, runSpacing: 4,
                         children: course.tags.map((t) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.blue[100]!)),
-                          child: Text(t, style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryCardBackground, 
+                            borderRadius: BorderRadius.circular(4), 
+                            border: Border.all(color: colorScheme.borderColor)
+                          ),
+                          child: Text(t, style: TextStyle(fontSize: 11, color: colorScheme.accentBlue)),
                         )).toList(),
                       ),
                     ],
@@ -208,7 +227,7 @@ class AssistantLeftPane extends StatelessWidget {
                       const SizedBox(height: 16),
                       const Text("課程備註", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                       const SizedBox(height: 8),
-                      Text(course.description, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+                      Text(course.description, style: TextStyle(fontSize: 14, color: colorScheme.primaryText)),
                     ],
                     const SizedBox(height: 16),
                     const Divider(),
@@ -240,7 +259,7 @@ class AssistantLeftPane extends StatelessWidget {
                     _buildActionBtn(
                       icon: Icons.description_outlined, 
                       label: "課程詳細資料 (教學大綱)", 
-                      color: Colors.blue[800]!,
+                      color: colorScheme.accentBlue,
                       onTap: () => _launchOutline(course.code),
                       isFullWidth: true,
                     ),
@@ -259,9 +278,9 @@ class AssistantLeftPane extends StatelessWidget {
               icon: const Icon(Icons.delete_outline),
               label: const Text("移除此課程"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[50],
+                backgroundColor: colorScheme.isDark ? Colors.red.withOpacity(0.1) : Colors.red[50],
                 foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
+                side: BorderSide(color: colorScheme.isDark ? Colors.red.withOpacity(0.5) : Colors.red),
                 elevation: 0,
               ),
             ),
@@ -273,8 +292,9 @@ class AssistantLeftPane extends StatelessWidget {
 
 
   Widget _buildEventDetailView(BuildContext context, CustomEvent event) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: colorScheme.cardBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +305,7 @@ class AssistantLeftPane extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 onPressed: onClearSelection,
               ),
-              const Text("行程詳情", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text("行程詳情", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
             ],
           ),
           const Divider(),
@@ -297,15 +317,15 @@ class AssistantLeftPane extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(event.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    Text(event.title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.subtitleText)),
                     const SizedBox(height: 16),
                     _buildDetailInfoRow(Icons.access_time, "時間", "星期${fullWeekDays[event.day - 1]} (${event.periods.join(', ')}節)"),
                     if (event.location.isNotEmpty) _buildDetailInfoRow(Icons.room, "地點", event.location),
                     if (event.details.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      const Text("內容備註：", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black54)),
+                      const Text("內容備註：", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
-                      Text(event.details, style: const TextStyle(fontSize: 15)),
+                      Text(event.details, style: TextStyle(fontSize: 15, color: colorScheme.primaryText)),
                     ],
                     const SizedBox(height: 16),
                   ],
@@ -322,9 +342,9 @@ class AssistantLeftPane extends StatelessWidget {
               icon: const Icon(Icons.delete_outline),
               label: const Text("刪除此行程"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[50],
+                backgroundColor: colorScheme.isDark ? Colors.red.withOpacity(0.1) : Colors.red[50],
                 foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
+                side: BorderSide(color: colorScheme.isDark ? Colors.red.withOpacity(0.5) : Colors.red),
                 elevation: 0,
               ),
             ),
@@ -336,24 +356,29 @@ class AssistantLeftPane extends StatelessWidget {
 
 
   Widget _buildDetailInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.blueGrey[400]),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-              ],
-            ),
+    return Builder(
+      builder: (context) {
+        final curColorScheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 18, color: curColorScheme.subtitleText),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontSize: 12, color: curColorScheme.bodyText)),
+                    Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: curColorScheme.primaryText)),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      }
     );
   }
 
@@ -412,4 +437,32 @@ class AssistantLeftPane extends StatelessWidget {
   }
 
 
+  String _formatShortTime(Course c) {
+    if (c.parsedTimes.isEmpty) return "";
+    Map<int, List<String>> dayMap = {};
+    for (var t in c.parsedTimes) {
+      dayMap.putIfAbsent(t.day, () => []).add(t.period);
+    }
+    
+    List<String> result = [];
+    var sortedDays = dayMap.keys.toList()..sort();
+    for (var day in sortedDays) {
+      String dayStr = fullWeekDays[day - 1];
+      String periods = dayMap[day]!.join('');
+      result.add("週$dayStr($periods)");
+    }
+    return result.join(' ');
+  }
+
+  String _extractRoomLocation(String rawRoom) {
+    if (rawRoom.isEmpty) return "地點不明";
+    // 尋找傳統弧括號 (B101) 或全型括號 （B101）
+    final regex = RegExp(r'[\(\uff08](.*?)[\)\uff09]');
+    final match = regex.firstMatch(rawRoom);
+    if (match != null) {
+      String content = match.group(1)?.trim() ?? "";
+      return content.isNotEmpty ? content : "地點不明";
+    }
+    return "地點不明";
+  }
 }

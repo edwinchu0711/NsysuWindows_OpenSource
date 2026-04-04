@@ -40,6 +40,7 @@ import 'exam_task/exam_task_page.dart';
 // --- 選單頁面 Import ---
 import 'course_selection_schedule_page.dart';
 import 'settings_page.dart';
+import '../theme/app_theme.dart';
 
 class MainMenuPage extends StatefulWidget {
   final String cookies;
@@ -62,15 +63,15 @@ class _MainMenuPageState extends State<MainMenuPage> {
   @override
   void initState() {
     super.initState();
- 
+
     // 初始化 ScrollController
     _scrollController = ScrollController();
- 
+
     // 非同步執行，印出路徑供調試
     getApplicationSupportDirectory().then((supportDir) {
       print('我的設定檔就藏在: ${supportDir.path}');
     });
- 
+
     OpenScoreService.instance.statusMessageNotifier.addListener(
       _handleSessionExpiry,
     );
@@ -213,6 +214,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
 
@@ -233,12 +235,12 @@ class _MainMenuPageState extends State<MainMenuPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       body: Stack(
         children: [
           Center(
             child: FractionallySizedBox(
-              widthFactor: isWide ? 0.85 : 1.0,
+              widthFactor: isWide ? 0.80 : 1.0,
               child: ScrollConfiguration(
                 behavior: ScrollConfiguration.of(
                   context,
@@ -266,47 +268,19 @@ class _MainMenuPageState extends State<MainMenuPage> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blue[300],
+                                    color: colorScheme.accentBlue,
                                     letterSpacing: 1.2,
                                   ),
                                 ),
-                                const Text(
+                                Text(
                                   "校務通功能選單",
                                   style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: colorScheme.primaryText,
                                   ),
                                 ),
                               ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    size: 14,
-                                    color: Colors.blue[700],
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    "連線正常",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ],
                         ),
@@ -325,7 +299,12 @@ class _MainMenuPageState extends State<MainMenuPage> {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Colors.blue[800]!, Colors.blue[600]!],
+                              colors: colorScheme.isDark
+                                  ? [
+                                      const Color(0xFF1A237E),
+                                      const Color(0xFF0D47A1),
+                                    ]
+                                  : [Colors.blue[800]!, Colors.blue[600]!],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -383,7 +362,8 @@ class _MainMenuPageState extends State<MainMenuPage> {
           if (_isFirstTimeLoading)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.85),
+                color: (colorScheme.isDark ? Colors.black : Colors.black87)
+                    .withOpacity(0.9),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -577,7 +557,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           context,
           icon: Icons.settings_rounded,
           label: "系統設定",
-          subLabel: "名次預覽設定",
+          subLabel: "名次預覽與介面設定",
           color: Colors.blueGrey,
           onTap: () => Navigator.push(
             context,
@@ -608,6 +588,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
   }
 
   Widget _buildCategoryHeader(String title, IconData icon, Color color) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.only(
@@ -634,7 +615,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.blueGrey[900],
+                color: colorScheme.primaryText,
                 letterSpacing: 0.5,
               ),
             ),
@@ -669,21 +650,22 @@ class _MainMenuPageState extends State<MainMenuPage> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white,
+      color: colorScheme.cardBackground,
       borderRadius: BorderRadius.circular(12),
-      elevation: 2, // 增加陰影使其更立體
-      shadowColor: Colors.black.withOpacity(0.1),
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(colorScheme.isDark ? 0.3 : 0.1),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        mouseCursor: SystemMouseCursors.click, // 顯式設定鼠標指針
-        hoverColor: color.withOpacity(0.12), // 更明顯的懸停顏色
+        mouseCursor: SystemMouseCursors.click,
+        hoverColor: color.withOpacity(0.12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: colorScheme.borderColor),
           ),
           child: Row(
             children: [
@@ -703,16 +685,19 @@ class _MainMenuPageState extends State<MainMenuPage> {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: colorScheme.primaryText,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subLabel,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.subtitleText,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -722,7 +707,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
-                color: Colors.grey[300],
+                color: colorScheme.subtitleText,
               ),
             ],
           ),

@@ -8,6 +8,7 @@ import 'assistant_add_course_page.dart';
 import 'assistant_export_page.dart';
 import 'widgets/assistant_left_pane.dart';
 import 'widgets/assistant_add_event_pane.dart';
+import '../../theme/app_theme.dart';
 
 enum AssistantAction { none, addCourse, addEvent, import, export }
 
@@ -132,14 +133,9 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
       'assistant_courses',
       jsonEncode(_assistantCourses.map((c) => c.toJson()).toList()),
     );
-    // ✅ 新增：若移除的是當前詳情顯示的課程，則清除選擇狀態
     if (_selectedCourseForDetail?.code == course.code) {
       setState(() => _selectedCourseForDetail = null);
     }
-    if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("已移除 ${course.name}")));
   }
 
   // ✅ 新增：移除自訂行程
@@ -152,14 +148,9 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
       'custom_events',
       jsonEncode(_customEvents.map((e) => e.toJson()).toList()),
     );
-    // ✅ 新增：若移除的是當前詳情顯示的行程，則清除選擇狀態
     if (_selectedEventForDetail?.id == eventId) {
       setState(() => _selectedEventForDetail = null);
     }
-    if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("已移除自訂行程")));
   }
 
   Future<void> _clearAllData() async {
@@ -167,11 +158,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     await prefs.remove('assistant_courses');
     await prefs.remove('custom_events');
     _loadAllData();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("已清空所有課表與行程")));
   }
-
   String _getTotalCredits() {
     double total = 0.0;
     for (var c in _assistantCourses) {
@@ -344,6 +331,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     bool isWideScreen = MediaQuery.of(context).size.width >= 1000;
 
     Widget timetableContent = _isLoading
@@ -361,7 +349,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                         vertical: 4,
                         horizontal: 16,
                       ),
-                      color: Colors.blue[50],
+                      color: colorScheme.secondaryCardBackground,
                       width: double.infinity,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -372,14 +360,14 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                                 Icon(
                                   Icons.info_outline,
                                   size: 18,
-                                  color: Colors.blue[800],
+                                  color: colorScheme.accentBlue,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     " ${_assistantCourses.length} 門課程 / ${_getTotalCredits()} 學分",
                                     style: TextStyle(
-                                      color: Colors.blue[900],
+                                      color: colorScheme.primaryText,
                                       fontWeight: FontWeight.bold,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -393,7 +381,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                             icon: const Icon(Icons.list_alt, size: 18),
                             label: const Text("管理清單"),
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue[800],
+                              foregroundColor: colorScheme.accentBlue,
                             ),
                           ),
                         ],
@@ -407,7 +395,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
 
     if (isWideScreen) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.pageBackground,
         appBar: null,
         body: Column(
           children: [
@@ -440,20 +428,20 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                   const VerticalDivider(
                     width: 1,
                     thickness: 1,
-                    color: Colors.black12,
+                    color: Colors.transparent,
                   ),
                   // 中間：課表主體 (Flex 3.5)
                   Expanded(
                     flex: 350,
                     child: Container(
-                      color: Colors.grey[50],
+                      color: colorScheme.pageBackground,
                       child: timetableContent,
                     ),
                   ),
                   const VerticalDivider(
                     width: 1,
                     thickness: 1,
-                    color: Colors.black12,
+                    color: Colors.transparent,
                   ),
                   // 右側：動作操作區 + 頂部導覽 (Flex 4.5)
                   Expanded(
@@ -461,36 +449,38 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                     child: Column(
                       children: [
                         // 頂部導覽
-                        Container(
-                          height: 50,
-                          color: Colors.white,
+                        Ink(
+                          height: 56, // 稍微增加高度以避免圓形 Hover 效果被截斷
+                          decoration: BoxDecoration(
+                            color: colorScheme.headerBackground,
+                            border: Border(bottom: BorderSide(color: colorScheme.borderColor, width: 0.5)),
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               _buildNavIcon(
                                 AssistantAction.addCourse,
-                                Icons.add_box,
+                                Icons.add_box_rounded,
                                 "加選課程",
                               ),
                               _buildNavIcon(
                                 AssistantAction.addEvent,
-                                Icons.event_note,
+                                Icons.event_note_rounded,
                                 "其他行程",
                               ),
                               _buildNavIcon(
                                 AssistantAction.import,
-                                Icons.download,
+                                Icons.download_rounded,
                                 "匯入課表",
                               ),
                               _buildNavIcon(
                                 AssistantAction.export,
-                                Icons.upload,
+                                Icons.upload_rounded,
                                 "匯出選課",
                               ),
                             ],
                           ),
                         ),
-                        const Divider(height: 1),
                         // 操作內容區
                         Expanded(child: _buildRightPaneContent()),
                       ],
@@ -505,7 +495,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.pageBackground,
       appBar: null,
       body: Column(
         children: [
@@ -530,12 +520,12 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                 tooltip: "返回主選單",
               ),
               const SizedBox(width: 4),
-              const Text(
+              Text(
                 "選課助手",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.primaryText,
                 ),
               ),
             ],
@@ -561,8 +551,11 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
       child: IconButton(
         icon: Icon(
           icon,
-          color: isSelected ? Colors.blue[700] : Colors.grey[600],
+          color: isSelected 
+              ? Theme.of(context).colorScheme.accentBlue 
+              : Theme.of(context).colorScheme.iconColor,
         ),
+        splashRadius: 24, // 限制圓形 Hover 範圍以防邊緣截斷
         onPressed: () => setState(() => _currentAction = action),
         mouseCursor: SystemMouseCursors.click,
       ),
@@ -576,9 +569,16 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.touch_app_outlined, size: 64, color: Colors.grey[300]),
+              Icon(
+                Icons.touch_app_outlined, 
+                size: 64, 
+                color: Theme.of(context).colorScheme.iconColor.withOpacity(0.3)
+              ),
               const SizedBox(height: 16),
-              const Text("請從左側選擇動作", style: TextStyle(color: Colors.grey)),
+              Text(
+                "請從左側選擇動作", 
+                style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)
+              ),
             ],
           ),
         );
@@ -586,6 +586,8 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
         return AssistantAddCoursePage(
           isSubPane: true,
           onCourseAdded: _loadAllData,
+          initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
+          initialEvents: _customEvents.map((e) => e.toJson()).toList(),
         );
       case AssistantAction.addEvent:
         return AssistantAddEventPane(
@@ -628,15 +630,15 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
         );
       case AssistantAction.export:
         return const AssistantExportPage(isSubPane: true);
-      default:
-        return const SizedBox.shrink();
+
     }
   }
 
-  final Color _paleBlueColor = const Color(0xFFF4F8FF);
 
-  // ✅ 修改：將 _assistantCourses 與 _customEvents 合併計算表格大小
+
   Widget _buildTimeTable() {
+    // 加入 colorScheme 存取
+    final colorScheme = Theme.of(context).colorScheme;
     int maxDay = 5;
 
     // 計算課程的最大天數與節次
@@ -701,21 +703,21 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     }
 
     return Container(
-      color: Colors.grey[30],
+      color: Colors.transparent,
       child: Table(
-        border: TableBorder.all(color: Colors.grey[350]!, width: 0.5),
+        border: TableBorder.all(color: colorScheme.borderColor, width: 0.5),
         columnWidths: const {0: FixedColumnWidth(50)},
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
           TableRow(
-            decoration: BoxDecoration(color: _paleBlueColor),
+            decoration: BoxDecoration(color: colorScheme.timetableHeader),
             children: [
               SizedBox(
                 height: 35,
                 child: Center(
                   child: Text(
                     "時段",
-                    style: TextStyle(fontSize: 10, color: Colors.blueGrey[600]),
+                    style: TextStyle(fontSize: 10, color: colorScheme.subtitleText),
                   ),
                 ),
               ),
@@ -728,7 +730,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: Colors.blueGrey[900],
+                      color: colorScheme.primaryText,
                     ),
                   ),
                 ),
@@ -742,7 +744,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                 TableCell(
                   verticalAlignment: TableCellVerticalAlignment.fill,
                   child: Container(
-                    color: _paleBlueColor,
+                    color: colorScheme.timetableSlot,
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -752,7 +754,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: Colors.blueGrey[900],
+                            color: colorScheme.primaryText,
                           ),
                         ),
                         if (timeInfo.isNotEmpty)
@@ -760,7 +762,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                             timeInfo,
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.blueGrey[600],
+                              color: colorScheme.subtitleText,
                             ),
                             textAlign: TextAlign.center,
                           ),

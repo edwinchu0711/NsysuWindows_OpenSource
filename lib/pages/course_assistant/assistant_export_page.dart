@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/course_model.dart'; // 請確認路徑
 import 'package:flutter/services.dart';
+import '../../theme/app_theme.dart';
 
 class AssistantExportPage extends StatefulWidget {
   final bool isSubPane;
@@ -107,13 +108,10 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
     }
   }
 
-  // 執行匯入程式碼 (JSON 格式)
+  // 執行匯入程式碼 (JSON 格式) - 改為直接複製
   void _exportAsCode() {
     if (_selectedCourseIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("請至少選擇一門課程")));
-      return;
+      return; // 靜默處理，因為按鈕已設為 disabled
     }
 
     // 格式: const exportClass = [{"id":"GEAE2347","name":"名稱","value":50,"isSel":"+"}];
@@ -130,63 +128,22 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
         .toList();
 
     String codeString = "const exportClass = ${jsonEncode(exportData)};";
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("匯出程式碼"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "請複製下方完整程式碼，並貼進選課系統的匯入面板中，或是NSYSU手機應用程式：",
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              constraints: const BoxConstraints(maxHeight: 200),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  codeString,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("取消"),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: codeString));
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿！")));
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.copy_rounded, size: 18),
-            label: const Text("直接複製"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[700],
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
+    
+    // 直接複製到剪貼簿
+    Clipboard.setData(ClipboardData(text: codeString));
+    
+    // 顯示短暫提示 (考慮到用戶之前希望減少通知，這裡用較不干擾的方式或是遵照慣例顯示)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("已複製匯出程式碼至剪貼簿！"),
+        duration: Duration(seconds: 1),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     bool isAllSelected =
         _selectedCourseIds.length == _assistantCourses.length &&
         _assistantCourses.isNotEmpty;
@@ -194,25 +151,25 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
     final content = _isLoading
         ? const Center(child: CircularProgressIndicator())
         : _assistantCourses.isEmpty
-        ? const Center(
+        ? Center(
             child: Text(
               "助手課表目前沒有正式課程，無法匯出",
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: colorScheme.subtitleText),
             ),
           )
         : Column(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                color: Colors.orange[50],
-                child: const Row(
+                color: colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.2) : Colors.orange[50],
+                child: Row(
                   children: [
-                    Icon(Icons.lightbulb_outline, color: Colors.orange),
-                    SizedBox(width: 8),
+                    const Icon(Icons.lightbulb_outline, color: Colors.orangeAccent),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "勾選您想匯出的課程，點擊下方按鈕後，前往「選課系統」頁面即可自動加入待加選清單！",
-                        style: TextStyle(color: Colors.orange, fontSize: 13),
+                        style: TextStyle(color: colorScheme.isDark ? Colors.orange[200] : Colors.orange[800], fontSize: 13),
                       ),
                     ),
                   ],
@@ -235,7 +192,7 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                         });
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.blue[800],
+                        foregroundColor: colorScheme.accentBlue,
                       ),
                       child: Text(isAllSelected ? "取消全選" : "全選"),
                     ),
@@ -245,7 +202,7 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                 child: ListView.separated(
                   itemCount: _assistantCourses.length,
                   separatorBuilder: (context, index) =>
-                      const Divider(height: 1),
+                      Divider(height: 1, color: colorScheme.borderColor),
                   itemBuilder: (context, index) {
                     final course = _assistantCourses[index];
                     final isSelected = _selectedCourseIds.contains(course.code);
@@ -253,10 +210,11 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                       value: isSelected,
                       title: Text(
                         course.name.split('\n')[0],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText),
                       ),
-                      subtitle: Text("${course.code} · ${course.professor}"),
-                      activeColor: Colors.blue[700],
+                      subtitle: Text("${course.code} · ${course.professor}", style: TextStyle(color: colorScheme.subtitleText)),
+                      activeColor: colorScheme.accentBlue,
+                      checkColor: Colors.white,
                       onChanged: (bool? value) {
                         setState(() {
                           if (value == true) {
@@ -273,14 +231,15 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
+                  color: colorScheme.cardBackground,
+                  boxShadow: colorScheme.isDark ? [] : [
                     BoxShadow(
                       color: Colors.black12,
                       blurRadius: 10,
                       offset: const Offset(0, -5),
                     ),
                   ],
+                  border: Border(top: BorderSide(color: colorScheme.borderColor)),
                 ),
                 child: SafeArea(
                   child: Row(
@@ -299,8 +258,8 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.blue[700]!),
-                              foregroundColor: Colors.blue[700],
+                              side: BorderSide(color: colorScheme.accentBlue),
+                              foregroundColor: colorScheme.accentBlue,
                             ),
                           ),
                         ),
@@ -323,7 +282,7 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[700],
+                              backgroundColor: colorScheme.accentBlue,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -337,12 +296,16 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
           );
 
     if (widget.isSubPane) {
-      return Container(color: Colors.white, child: content);
+      return Container(color: colorScheme.pageBackground, child: content);
     }
 
     return Scaffold(
+      backgroundColor: colorScheme.pageBackground,
       appBar: AppBar(
         title: const Text("匯出至選課系統"),
+        backgroundColor: colorScheme.headerBackground,
+        foregroundColor: colorScheme.primaryText,
+        elevation: 0.5,
         actions: [
           if (_assistantCourses.isNotEmpty)
             TextButton(
@@ -357,7 +320,7 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                   }
                 });
               },
-              style: TextButton.styleFrom(foregroundColor: Colors.blue[800]),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.accentBlue),
               child: Text(isAllSelected ? "取消全選" : "全選"),
             ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({Key? key}) : super(key: key);
@@ -71,11 +72,12 @@ class _InfoPageState extends State<InfoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -142,7 +144,6 @@ class _InfoPageState extends State<InfoPage> {
                           },
                         ),
 
-                        // 特別感謝
                         Container(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -150,10 +151,10 @@ class _InfoPageState extends State<InfoPage> {
                           ),
                           padding: const EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.05),
+                            color: Theme.of(context).colorScheme.isDark ? Colors.blue[900]!.withOpacity(0.2) : Colors.blue.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.isDark ? Colors.blue[700]!.withOpacity(0.3) : Colors.blue.withOpacity(0.1),
                             ),
                           ),
                           child: Column(
@@ -163,7 +164,7 @@ class _InfoPageState extends State<InfoPage> {
                                 children: [
                                   Icon(
                                     Icons.volunteer_activism,
-                                    color: Colors.blue[400],
+                                    color: Theme.of(context).colorScheme.isDark ? Colors.blue[300] : Colors.blue[400],
                                     size: 18,
                                   ),
                                   const SizedBox(width: 8),
@@ -172,7 +173,7 @@ class _InfoPageState extends State<InfoPage> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.blue[700],
+                                      color: Theme.of(context).colorScheme.isDark ? Colors.blue[300] : Colors.blue[700],
                                     ),
                                   ),
                                 ],
@@ -182,7 +183,7 @@ class _InfoPageState extends State<InfoPage> {
                                 "特別感謝 NSYSU Open Development Community 提供的開源貢獻，為本專案的基礎架構提供了寶貴的參考與支援。",
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.blueGrey[800],
+                                  color: Theme.of(context).colorScheme.subtitleText,
                                   height: 1.5,
                                 ),
                                 textAlign: TextAlign.center,
@@ -208,7 +209,7 @@ class _InfoPageState extends State<InfoPage> {
                             "⚠️ 重要聲明：使用此應用程式產生之任何問題與風險均須由使用者自行承擔。本專案採開源形式，開放大眾自由修改、下載，感謝您的理解。",
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.red[500],
+                              color: Theme.of(context).colorScheme.isDark ? Colors.red[300] : Colors.red[500],
                               fontWeight: FontWeight.w600,
                               height: 1.5,
                             ),
@@ -234,13 +235,13 @@ class _InfoPageState extends State<InfoPage> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primaryText),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 10),
           Text(
             title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primaryText),
           ),
         ],
       ),
@@ -280,14 +281,15 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   Widget _buildInfoItem(int index, String title, String content) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(colorScheme.isDark ? 0.15 : 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -298,11 +300,11 @@ class _InfoPageState extends State<InfoPage> {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: Colors.blue[100],
+            backgroundColor: Theme.of(context).colorScheme.isDark ? Colors.blue[900] : Colors.blue[100],
             child: Text(
               index.toString(),
               style: TextStyle(
-                color: Colors.blue[800],
+                color: Theme.of(context).colorScheme.isDark ? Colors.blue[100] : Colors.blue[800],
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -315,10 +317,10 @@ class _InfoPageState extends State<InfoPage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: colorScheme.primaryText,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -326,7 +328,7 @@ class _InfoPageState extends State<InfoPage> {
                   content,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: colorScheme.subtitleText,
                     height: 1.4,
                   ),
                 ),

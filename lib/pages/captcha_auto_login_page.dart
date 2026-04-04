@@ -15,13 +15,14 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/utils.dart';
 import 'main_menu_page.dart';
 import '../services/storage_service.dart';
+import '../theme/app_theme.dart';
 
 
 bool _obscurePassword = true;
 
 class CaptchaAutoLoginPage extends StatefulWidget {
   final bool isRelogin;
-  CaptchaAutoLoginPage({this.isRelogin = false});
+  const CaptchaAutoLoginPage({super.key, this.isRelogin = false});
 
   @override
   State<CaptchaAutoLoginPage> createState() => _CaptchaAutoLoginPageState();
@@ -245,72 +246,101 @@ class _CaptchaAutoLoginPageState extends State<CaptchaAutoLoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.pageBackground,
       body: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(30),
-          child: Center(
-            child: SizedBox(
-              width: 380, // 限制最大寬度，避免輸入框過長
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.account_balance, size: 80, color: Colors.blueAccent),
-                  const SizedBox(height: 20),
-                  const Text("NSYSU 校務系統", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Text(_result, style: TextStyle(color: Colors.grey[700])),
-                  const SizedBox(height: 40),
-                  TextField(
-                    controller: _usernameController,
-                    keyboardType: TextInputType.emailAddress, // 預設顯示英文鍵盤
-                    decoration: InputDecoration(
-                      labelText: "學號",
-                      prefixIcon: const Icon(Icons.person),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    keyboardType: TextInputType.emailAddress, // 預設顯示英文鍵盤
-                    inputFormatters: [
-                      FilteringTextInputFormatter.deny(RegExp(r'[\u4e00-\u9fa5]')), // 僅排除中文，允許符號與英數
-                    ],
-                    decoration: InputDecoration(
-                      labelText: "密碼",
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                          color: Colors.grey,
+                padding: EdgeInsets.all(30),
+                child: Center(
+                  child: SizedBox(
+                    width: 380,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.account_balance, size: 80, color: colorScheme.accentBlue),
+                        const SizedBox(height: 20),
+                        Text(
+                          "NSYSU 校務系統",
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.primaryText),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: _isAutoLoggingIn ? null : _startLoginProcess,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: _isAutoLoggingIn 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text("登入系統", style: TextStyle(fontSize: 18, color: Colors.white)),
-                    ),
-                  ),
+                        const SizedBox(height: 10),
+                        Text(_result, style: TextStyle(color: colorScheme.bodyText)),
+                        const SizedBox(height: 40),
+                        TextField(
+                          controller: _usernameController,
+                          keyboardType: TextInputType.emailAddress,
+                          style: TextStyle(color: colorScheme.primaryText),
+                          decoration: InputDecoration(
+                            labelText: "學號",
+                            labelStyle: TextStyle(color: colorScheme.subtitleText),
+                            prefixIcon: Icon(Icons.person, color: colorScheme.accentBlue),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: colorScheme.isDark ? colorScheme.borderColor : Colors.grey.shade400,
+                                width: 1.5,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: colorScheme.accentBlue, width: 2.0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        TextField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          keyboardType: TextInputType.emailAddress,
+                          style: TextStyle(color: colorScheme.primaryText),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(RegExp(r'[\u4e00-\u9fa5]')),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: "密碼",
+                            labelStyle: TextStyle(color: colorScheme.subtitleText),
+                            prefixIcon: Icon(Icons.lock, color: colorScheme.accentBlue),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                color: colorScheme.subtitleText,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: colorScheme.isDark ? colorScheme.borderColor : Colors.grey.shade400,
+                                width: 1.5,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: colorScheme.accentBlue, width: 2.0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: ElevatedButton(
+                            onPressed: _isAutoLoggingIn ? null : _startLoginProcess,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: colorScheme.accentBlue,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: _isAutoLoggingIn 
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : const Text("登入系統", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
                 ],
               ),
             ),

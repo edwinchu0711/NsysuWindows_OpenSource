@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../services/course_query_service.dart'; // 請確認路徑是否正確
 import 'package:http/http.dart' as http;
+import '../../theme/app_theme.dart';
 
 class CourseSearchPickerPage extends StatefulWidget {
   final bool isEmbedded;
@@ -37,21 +38,22 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (widget.isEmbedded) {
       return Column(
         children: [
           Container(
-            color: Colors.white,
+            color: colorScheme.cardBackground,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
                 Expanded(
-                  child: const Text(
+                  child: Text(
                     "搜尋課程",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey,
+                      color: colorScheme.primaryText,
                     ),
                   ),
                 ),
@@ -68,15 +70,15 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
           const Divider(height: 1),
           // 搜尋表單
           Container(
-            color: Colors.white,
+            color: colorScheme.cardBackground,
             padding: const EdgeInsets.all(16),
             child: _buildInlineSearchForm(),
           ),
-          const Divider(height: 1, thickness: 1, color: Colors.black12),
+          Divider(height: 1, thickness: 1, color: colorScheme.borderColor),
           // 結果列表
           Expanded(
             child: ColoredBox(
-              color: Colors.grey[50]!,
+              color: colorScheme.pageBackground,
               child: _buildSearchResults(),
             ),
           ),
@@ -89,18 +91,18 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text("$semDisplay 選擇課程"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: colorScheme.cardBackground,
+        foregroundColor: colorScheme.primaryText,
         elevation: 0.5,
       ),
       body: Column(
         children: [
           Container(
-            color: Colors.white,
+            color: colorScheme.cardBackground,
             padding: const EdgeInsets.all(16),
             child: _buildInlineSearchForm(),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: colorScheme.borderColor),
           Expanded(child: _buildSearchResults()),
         ],
       ),
@@ -185,14 +187,15 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
   }
 
   Widget _buildSearchResults() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (_isQueryLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("搜尋中...", style: TextStyle(color: Colors.grey)),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text("搜尋中...", style: TextStyle(color: colorScheme.subtitleText)),
           ],
         ),
       );
@@ -203,11 +206,11 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_rounded, size: 64, color: Colors.grey[300]),
+            Icon(Icons.search_rounded, size: 64, color: colorScheme.subtitleText.withOpacity(0.3)),
             const SizedBox(height: 16),
             Text(
               "輸入關鍵字並點擊搜尋按鈕",
-              style: TextStyle(color: Colors.grey[400], fontSize: 16),
+              style: TextStyle(color: colorScheme.subtitleText.withOpacity(0.5), fontSize: 16),
             ),
           ],
         ),
@@ -215,7 +218,7 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     }
 
     if (_searchResults.isEmpty) {
-      return const Center(child: Text("找不到符合條件的課程"));
+      return Center(child: Text("找不到符合條件的課程", style: TextStyle(color: colorScheme.primaryText)));
     }
 
     return ListView.builder(
@@ -227,9 +230,10 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
         return Card(
           elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
+          color: colorScheme.cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey[200]!),
+            side: BorderSide(color: colorScheme.borderColor),
           ),
           clipBehavior: Clip.antiAlias,
           child: Theme(
@@ -244,10 +248,10 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                   Expanded(
                     child: Text(
                       course.name.split('\n')[0],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.black87,
+                        color: colorScheme.primaryText,
                       ),
                     ),
                   ),
@@ -263,7 +267,11 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                     _buildMiniInfoChip(Icons.tag, course.id),
                     _buildMiniInfoChip(
                       Icons.account_balance_outlined,
-                      course.department.split(' ')[0],
+                      course.department,
+                    ),
+                    _buildMiniInfoChip(
+                      Icons.room_outlined,
+                      _parseRoomLocation(course.room),
                     ),
                     if (course.english)
                       Container(
@@ -272,14 +280,14 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
+                          color: colorScheme.subtleBackground,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
+                        child: Text(
                           "英語授課",
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.blueGrey,
+                            color: colorScheme.subtitleText,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -308,7 +316,7 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                 child: const Text("選取", style: TextStyle(fontSize: 13)),
               ),
               children: [
-                const Divider(height: 1, indent: 16, endIndent: 16),
+                Divider(height: 1, indent: 16, endIndent: 16, color: colorScheme.borderColor),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -339,24 +347,24 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                         _parseRoomLocation(course.room),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         "上課時間",
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
+                          color: colorScheme.accentBlue,
                         ),
                       ),
                       const SizedBox(height: 6),
                       _buildTimeDisplay(course.classTime),
                       if (course.tags.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           "相關學程",
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueGrey,
+                            color: colorScheme.accentBlue,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -371,16 +379,16 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue[50],
+                                    color: colorScheme.accentBlue.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                      color: Colors.blue[100]!,
+                                      color: colorScheme.accentBlue.withOpacity(0.2),
                                     ),
                                   ),
                                   child: Text(
                                     p,
                                     style: TextStyle(
-                                      color: Colors.blue[700],
+                                      color: colorScheme.accentBlue,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -391,31 +399,31 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                       ],
                       if (course.description.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           "課程備註",
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueGrey,
+                            color: colorScheme.accentBlue,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           course.description,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: colorScheme.primaryText,
                             height: 1.4,
                           ),
                         ),
                       ],
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         "評分方式",
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blueGrey,
+                          color: colorScheme.accentBlue,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -433,10 +441,10 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                           if (snapshot.hasError ||
                               !snapshot.hasData ||
                               snapshot.data!.isEmpty) {
-                            return const Text(
+                            return Text(
                               "無法取得資料",
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: colorScheme.subtitleText,
                                 fontSize: 12,
                               ),
                             );
@@ -451,18 +459,18 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(
+                                        Icon(
                                           Icons.circle,
                                           size: 6,
-                                          color: Colors.blueGrey,
+                                          color: colorScheme.accentBlue.withOpacity(0.5),
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
                                             e,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.black87,
+                                              color: colorScheme.primaryText,
                                             ),
                                           ),
                                         ),
@@ -488,10 +496,11 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
   // --- 與 AssistantAddCoursePage 共用的私有方法組 ---
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.blueGrey),
+        Icon(icon, size: 16, color: colorScheme.subtitleText),
         const SizedBox(width: 6),
         Expanded(
           child: Column(
@@ -499,13 +508,14 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: colorScheme.subtitleText),
               ),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
+                  color: colorScheme.primaryText,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -517,6 +527,7 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
   }
 
   Widget _buildTimeDisplay(List<String> times) {
+    final colorScheme = Theme.of(context).colorScheme;
     final days = ["一", "二", "三", "四", "五", "六", "日"];
     List<Widget> timeWidgets = [];
     for (int i = 0; i < times.length && i < 7; i++) {
@@ -532,13 +543,13 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue[100],
+                    color: colorScheme.accentBlue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     "星期${days[i]}",
                     style: TextStyle(
-                      color: Colors.blue[900],
+                      color: colorScheme.accentBlue,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -547,7 +558,7 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                 const SizedBox(width: 12),
                 Text(
                   "第 ${times[i]} 節",
-                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  style: TextStyle(fontSize: 14, color: colorScheme.primaryText),
                 ),
               ],
             ),
@@ -556,7 +567,7 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
       }
     }
     if (timeWidgets.isEmpty)
-      return const Text("無時間資訊", style: TextStyle(color: Colors.grey));
+      return Text("無時間資訊", style: TextStyle(color: colorScheme.subtitleText));
     return Column(children: timeWidgets);
   }
 
@@ -592,12 +603,13 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     required Map<String, String> options,
     required Function(Set<String>) onChanged,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: colorScheme.subtitleText),
         ),
         const SizedBox(height: 2),
         InkWell(
@@ -610,13 +622,15 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                   builder: (ctx, setInnerState) {
                     return AlertDialog(
                       title: Text("選擇$label"),
+                      backgroundColor: colorScheme.cardBackground,
                       content: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: options.entries.map((e) {
                             return CheckboxListTile(
-                              title: Text(e.value),
+                              title: Text(e.value, style: TextStyle(color: colorScheme.primaryText)),
                               value: tempSet.contains(e.key),
+                              activeColor: colorScheme.accentBlue,
                               onChanged: (val) {
                                 setInnerState(() {
                                   if (val == true)
@@ -649,7 +663,8 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              color: colorScheme.secondaryCardBackground,
+              border: Border.all(color: colorScheme.borderColor),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -660,11 +675,11 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                     values.isEmpty
                         ? "全部"
                         : values.map((e) => options[e]).join(', '),
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down, color: Colors.grey, size: 18),
+                Icon(Icons.arrow_drop_down, color: colorScheme.subtitleText, size: 18),
               ],
             ),
           ),
@@ -678,47 +693,58 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     TextEditingController controller, {
     String? hint,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: colorScheme.subtitleText),
         ),
         const SizedBox(height: 2),
         TextField(
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12),
+            hintStyle: TextStyle(fontSize: 12, color: colorScheme.subtitleText.withOpacity(0.5)),
+            fillColor: colorScheme.secondaryCardBackground,
+            filled: true,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 10,
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: colorScheme.borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: colorScheme.borderColor),
+            ),
             isDense: true,
           ),
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
         ),
       ],
     );
   }
 
   Widget _buildMiniInfoChip(IconData icon, String label) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: colorScheme.subtleBackground,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.blueGrey),
+          Icon(icon, size: 12, color: colorScheme.accentBlue),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
+            style: TextStyle(fontSize: 11, color: colorScheme.primaryText),
           ),
         ],
       ),
@@ -726,11 +752,15 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
   }
 
   String _parseRoomLocation(String rawRoom) {
-    if (rawRoom.isEmpty) return "不明";
-    final RegExp regex = RegExp(r'[(\uff08]([^)\uff09]*)[)\uff09]');
+    if (rawRoom.isEmpty) return "地點不明";
+    // 尋找傳統弧括號 (B101) 或全型括號 （B101）
+    final regex = RegExp(r'[\(\uff08](.*?)[\)\uff09]');
     final match = regex.firstMatch(rawRoom);
-    if (match != null) return match.group(1)?.trim() ?? "不明";
-    return "不明";
+    if (match != null) {
+      String content = match.group(1)?.trim() ?? "";
+      return content.isNotEmpty ? content : "地點不明";
+    }
+    return "地點不明";
   }
 
   Future<List<String>> _getCourseEvaluation(String courseId) async {
@@ -769,6 +799,6 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     } catch (e) {
       return ["載入失敗"];
     }
-    return ["查無資料"];
+    return ["查與資料"];
   }
 }

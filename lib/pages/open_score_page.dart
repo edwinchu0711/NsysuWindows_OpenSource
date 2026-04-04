@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/open_score_service.dart';
+import '../theme/app_theme.dart';
 
 class OpenScorePage extends StatelessWidget {
   final String cookies;
@@ -12,19 +13,30 @@ class OpenScorePage extends StatelessWidget {
   }) : super(key: key);
 
   /// 建立右側狀態顯示區塊 (總分或查無資料)
-  Widget _buildTrailingWidget(List<Map<String, String>> scores) {
+  Widget _buildTrailingWidget(
+    BuildContext context,
+    List<Map<String, String>> scores,
+  ) {
     if (scores.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.orange[50],
+          color: Theme.of(context).colorScheme.isDark
+              ? Colors.orange[900]?.withOpacity(0.3)
+              : Colors.orange[50],
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.orange.shade200),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.isDark
+                ? Colors.orange[700]!
+                : Colors.orange.shade200,
+          ),
         ),
         child: Text(
           "無資料",
           style: TextStyle(
-            color: Colors.deepOrange[700],
+            color: Theme.of(context).colorScheme.isDark
+                ? Colors.orange[200]
+                : Colors.deepOrange[700],
             fontWeight: FontWeight.bold,
             fontSize: 12,
           ),
@@ -54,19 +66,28 @@ class OpenScorePage extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: (scoreValue ?? 0) < 60 ? Colors.red : Colors.green[800],
+            color: (scoreValue ?? 0) < 60
+                ? Colors.red
+                : (Theme.of(context).colorScheme.isDark
+                      ? Colors.green[200]
+                      : Colors.green[800]),
           ),
         ),
         const SizedBox(width: 4),
-        const Icon(Icons.expand_more, color: Colors.grey, size: 18),
+        Icon(
+          Icons.expand_more,
+          color: Theme.of(context).colorScheme.subtitleText,
+          size: 18,
+        ),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       appBar: null,
       body: Column(
         children: [
@@ -94,12 +115,12 @@ class OpenScorePage extends StatelessWidget {
                           onPressed: () => Navigator.pop(context),
                         ),
                         const SizedBox(width: 4),
-                        const Text(
+                        Text(
                           "開放成績查詢",
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.primaryText,
                           ),
                         ),
                       ],
@@ -133,15 +154,19 @@ class OpenScorePage extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(
+                      Theme.of(context).colorScheme.isDark ? 0.3 : 1.0,
+                    ),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.withOpacity(0.12)),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.tips_and_updates_rounded,
-                        color: Colors.blue[700],
+                        color: Theme.of(context).colorScheme.accentBlue,
                         size: 16,
                       ),
                       const SizedBox(width: 10),
@@ -152,7 +177,9 @@ class OpenScorePage extends StatelessWidget {
                             Text(
                               "此頁面成績為系統即時抓取，尚未經過最終核算與排名，僅供本學期修課進度參考。",
                               style: TextStyle(
-                                color: Colors.blue[800],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryText,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                                 height: 1.4,
@@ -162,7 +189,9 @@ class OpenScorePage extends StatelessWidget {
                             Text(
                               "本功能僅在每年 5/15~6/15 及 12/15~1/15 自動更新，其餘期間若有需要請手動更新。",
                               style: TextStyle(
-                                color: Colors.blue[800],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.subtitleText,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 height: 1.4,
@@ -188,8 +217,12 @@ class OpenScorePage extends StatelessWidget {
                 builder: (ctx, progress, _) => LinearProgressIndicator(
                   value: progress,
                   minHeight: 2,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.secondaryCardBackground,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.accentBlue,
+                  ),
                 ),
               );
             },
@@ -210,11 +243,13 @@ class OpenScorePage extends StatelessWidget {
                       return Center(
                         child: isLoading
                             ? const SizedBox.shrink()
-                            : const Text(
+                            : Text(
                                 "目前沒有成績資料\n請嘗試點擊重新整理按鈕",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: Colors.grey,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.subtitleText,
                                   fontSize: 14,
                                 ),
                               ),
@@ -238,44 +273,49 @@ class OpenScorePage extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(color: Colors.grey[200]!),
+                            side: BorderSide(color: colorScheme.borderColor),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: ExpansionTile(
                             initiallyExpanded: false,
-                            backgroundColor: Colors.white,
-                            collapsedBackgroundColor: Colors.white,
+                            backgroundColor: colorScheme.cardBackground,
+                            collapsedBackgroundColor:
+                                colorScheme.cardBackground,
                             leading: CircleAvatar(
-                              backgroundColor: Colors.blue[50],
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.secondaryCardBackground,
                               child: Icon(
                                 Icons.book_rounded,
-                                color: Colors.blue[700],
+                                color: Theme.of(context).colorScheme.accentBlue,
                                 size: 18,
                               ),
                             ),
                             title: Text(
                               courseData['course_name'],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: Colors.black87,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryText,
                               ),
                             ),
                             tilePadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 0,
                             ),
-                            trailing: _buildTrailingWidget(scores),
+                            trailing: _buildTrailingWidget(context, scores),
                             children: [
                               if (scores.isNotEmpty) ...[
                                 Container(
-                                  color: Colors.grey[50],
+                                  color: colorScheme.secondaryCardBackground,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 6,
                                     horizontal: 16,
                                   ),
                                   child: Row(
-                                    children: const [
+                                    children: [
                                       Expanded(
                                         flex: 3,
                                         child: Text(
@@ -283,6 +323,9 @@ class OpenScorePage extends StatelessWidget {
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primaryText,
                                           ),
                                         ),
                                       ),
@@ -292,7 +335,9 @@ class OpenScorePage extends StatelessWidget {
                                           "比例",
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: Colors.grey,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.subtitleText,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -305,6 +350,9 @@ class OpenScorePage extends StatelessWidget {
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 13,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primaryText,
                                           ),
                                         ),
                                       ),
@@ -318,12 +366,19 @@ class OpenScorePage extends StatelessWidget {
 
                                   return Container(
                                     color: isTotal
-                                        ? Colors.yellow.withOpacity(0.04)
-                                        : Colors.white,
+                                        ? Theme.of(context).colorScheme.isDark
+                                              ? Colors.yellow[900]?.withOpacity(
+                                                  0.1,
+                                                )
+                                              : Colors.yellow.withOpacity(0.04)
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.cardBackground,
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 10.0,
                                       horizontal: 16.0,
                                     ),
+
                                     child: Row(
                                       children: [
                                         Expanded(
@@ -339,15 +394,20 @@ class OpenScorePage extends StatelessWidget {
                                                   fontWeight: isTotal
                                                       ? FontWeight.bold
                                                       : FontWeight.normal,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primaryText,
                                                 ),
                                               ),
                                               if ((scoreItem['note'] ?? "")
                                                   .isNotEmpty)
                                                 Text(
                                                   scoreItem['note']!,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontSize: 11,
-                                                    color: Colors.grey,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.subtitleText,
                                                   ),
                                                 ),
                                             ],
@@ -359,7 +419,9 @@ class OpenScorePage extends StatelessWidget {
                                             scoreItem['percentage'] ?? "",
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.subtitleText,
                                               fontSize: 13,
                                             ),
                                           ),
@@ -380,7 +442,11 @@ class OpenScorePage extends StatelessWidget {
                                                           0) <
                                                       60
                                                   ? Colors.red
-                                                  : Colors.green[800],
+                                                  : (Theme.of(
+                                                          context,
+                                                        ).colorScheme.isDark
+                                                        ? Colors.green[200]
+                                                        : Colors.green[800]),
                                             ),
                                           ),
                                         ),
@@ -389,12 +455,14 @@ class OpenScorePage extends StatelessWidget {
                                   );
                                 }).toList(),
                               ] else
-                                const Padding(
-                                  padding: EdgeInsets.all(16.0),
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Text(
                                     "此課程尚無詳細評分明細",
                                     style: TextStyle(
-                                      color: Colors.grey,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.subtitleText,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -418,17 +486,12 @@ class OpenScorePage extends StatelessWidget {
 
   // ✅ 新增：更精簡的刷新按鈕
   Widget _buildRefreshButton(BuildContext context, bool isLoading) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: isLoading
           ? null
           : () {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("正在重新抓取資料..."),
-                  duration: Duration(seconds: 1),
-                ),
-              );
               OpenScoreService.instance.fetchOpenScores();
             },
       mouseCursor: isLoading
@@ -438,9 +501,9 @@ class OpenScorePage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.cardBackground,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: colorScheme.borderColor),
         ),
         child: Row(
           children: [
@@ -453,7 +516,7 @@ class OpenScorePage extends StatelessWidget {
                 : Icon(
                     Icons.refresh_rounded,
                     size: 16,
-                    color: Colors.blue[700],
+                    color: colorScheme.accentBlue,
                   ),
             const SizedBox(width: 6),
             Text(
@@ -461,7 +524,7 @@ class OpenScorePage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue[700],
+                color: colorScheme.accentBlue,
               ),
             ),
           ],

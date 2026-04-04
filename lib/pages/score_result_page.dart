@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/historical_score_service.dart';
+import '../theme/app_theme.dart';
 
 class ScoreResultPage extends StatefulWidget {
   final String cookies;
@@ -19,11 +20,12 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ValueListenableBuilder<bool>(
       valueListenable: HistoricalScoreService.instance.isLoadingNotifier,
       builder: (context, isLoading, _) {
         return Scaffold(
-          backgroundColor: Colors.grey[50], // 一致底色
+          backgroundColor: colorScheme.pageBackground,
           appBar: null, // 移除 AppBar
           body: Column(
             children: [
@@ -43,8 +45,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                               onPressed: () => Navigator.pop(context),
                               tooltip: "返回主選單",
                             ),
-                            const SizedBox(width: 4),
-                            const Text("歷年成績查詢", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            Text("歷年成績查詢", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primaryText)),
                           ],
                         ),
                         // 刷新按鈕
@@ -60,8 +61,8 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                   valueListenable: HistoricalScoreService.instance.progressNotifier,
                   builder: (context, progress, _) => LinearProgressIndicator(
                     value: progress, 
-                    backgroundColor: Colors.grey[200], 
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.pinkAccent),
+                    backgroundColor: Theme.of(context).colorScheme.secondaryCardBackground, 
+                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.accentBlue),
                     minHeight: 3,
                   ),
                 ),
@@ -76,8 +77,8 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                         if (validYearsSet.isEmpty) {
                           return Center(
                             child: isLoading 
-                              ? const Text("正在搜尋歷年成績...\n請稍候", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey))
-                              : const Text("查與任何成績資料", style: TextStyle(color: Colors.grey)),
+                              ? Text("正在搜尋歷年成績...\n請稍候", textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.subtitleText))
+                              : Text("查無任何成績資料", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
                           );
                         }
 
@@ -150,6 +151,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
 
   // ✅ 新增：自定義刷新按鈕
   Widget _buildRefreshButton(bool isLoading) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: isLoading ? null : () => HistoricalScoreService.instance.fetchAllData(),
       mouseCursor: isLoading ? SystemMouseCursors.basic : SystemMouseCursors.click,
@@ -157,17 +159,17 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.cardBackground,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey[200]!),
+          border: Border.all(color: colorScheme.borderColor),
         ),
         child: Row(
           children: [
             isLoading 
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) 
-              : Icon(Icons.refresh_rounded, size: 16, color: Colors.blue[700]),
+              : Icon(Icons.refresh_rounded, size: 16, color: colorScheme.accentBlue),
             const SizedBox(width: 6),
-            Text(isLoading ? "同步中" : "重新整理", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue[700])),
+            Text(isLoading ? "同步中" : "重新整理", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: colorScheme.accentBlue)),
           ],
         ),
       ),
@@ -176,21 +178,22 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
 
   // ✅ 修改：學期選擇器區域 (垂直排列適配左側欄)
   Widget _buildDesktopSelectorArea(List<String> sortedYears, List<String> availableSems) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.tune_rounded, color: Colors.grey, size: 18),
+              Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.subtitleText, size: 18),
               const SizedBox(width: 8),
-              Text("學期切換", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey[700])),
+              Text("學期切換", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.subtitleText)),
             ],
           ),
           const SizedBox(height: 16),
@@ -236,13 +239,25 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
         bool isCurrentlyActive = isPreviewEnabled && !isOffPeriod;
         bool isEnabledButInactive = isPreviewEnabled && isOffPeriod;
 
-        Color bgColor = isCurrentlyActive ? Colors.blue[50]! : (isEnabledButInactive ? Colors.orange[50]! : Colors.grey[100]!);
+        Color bgColor = isCurrentlyActive 
+            ? (Theme.of(context).colorScheme.isDark ? Colors.blue[900]!.withOpacity(0.2) : Colors.blue[50]!) 
+            : (isEnabledButInactive 
+                ? (Theme.of(context).colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.2) : Colors.orange[50]!) 
+                : Theme.of(context).colorScheme.secondaryCardBackground);
+        
         Color borderColor = isCurrentlyActive 
-            ? Colors.blue.withOpacity(0.15) 
-            : (isEnabledButInactive ? Colors.orange.withOpacity(0.3) : Colors.grey[300]!);
-        Color titleColor = isCurrentlyActive ? Colors.blue[900]! : (isEnabledButInactive ? Colors.orange[900]! : Colors.grey[800]!);
+            ? Theme.of(context).colorScheme.accentBlue.withOpacity(0.3) 
+            : (isEnabledButInactive ? Colors.orange.withOpacity(0.5) : Theme.of(context).colorScheme.borderColor);
+            
+        Color titleColor = isCurrentlyActive 
+            ? Theme.of(context).colorScheme.accentBlue 
+            : (isEnabledButInactive ? Colors.orange[400]! : Theme.of(context).colorScheme.primaryText);
+            
         IconData icon = isCurrentlyActive ? Icons.info_rounded : (isEnabledButInactive ? Icons.warning_amber_rounded : Icons.info_outline_rounded);
-        Color iconColor = isCurrentlyActive ? Colors.blue[700]! : (isEnabledButInactive ? Colors.orange[700]! : Colors.grey[600]!);
+        
+        Color iconColor = isCurrentlyActive 
+            ? Theme.of(context).colorScheme.accentBlue 
+            : (isEnabledButInactive ? Colors.orange[400]! : Theme.of(context).colorScheme.subtitleText);
 
         String statusTitle = "預覽名次：未開啟";
         if (isCurrentlyActive) statusTitle = "預覽名次：已開啟";
@@ -340,7 +355,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
     final courses = HistoricalScoreService.instance.coursesNotifier.value[key] ?? [];
     
     if (courses.isEmpty) {
-      return const Center(child: Text("資料載入異常", style: TextStyle(color: Colors.grey)));
+      return Center(child: Text("資料載入異常", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)));
     }
 
     return Column(
@@ -467,31 +482,33 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          SizedBox(width: 45, child: Text("學分", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13))),
-          SizedBox(width: 16),
-          Expanded(child: Text("課程名稱 / 代碼", style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13))),
-          Text("成績", style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold, fontSize: 13)),
+          SizedBox(width: 45, child: Text("學分", textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontWeight: FontWeight.bold, fontSize: 13))),
+          const SizedBox(width: 16),
+          Expanded(child: Text("課程名稱 / 代碼", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontWeight: FontWeight.bold, fontSize: 13))),
+          Text("成績", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontWeight: FontWeight.bold, fontSize: 13)),
         ],
       ),
     );
   }
 
-   Widget _buildDropdown(String label, List<String> items, String value, Function(String?) onChanged, {Map<String, String>? displayMap}) {
+  Widget _buildDropdown(String label, List<String> items, String value, Function(String?) onChanged, {Map<String, String>? displayMap}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(label, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText)),
         SizedBox(height: 4),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: colorScheme.secondaryCardBackground, borderRadius: BorderRadius.circular(8)),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: items.contains(value) ? value : null,
               isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+              dropdownColor: colorScheme.secondaryCardBackground,
+              icon: Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.subtitleText),
               items: items.map((item) {
-                return DropdownMenuItem(value: item, child: Text(displayMap != null ? (displayMap[item] ?? item) : item, style: TextStyle(fontWeight: FontWeight.w500)));
+                return DropdownMenuItem(value: item, child: Text(displayMap != null ? (displayMap[item] ?? item) : item, style: TextStyle(fontWeight: FontWeight.w500, color: colorScheme.primaryText)));
               }).toList(),
               onChanged: onChanged,
             ),
@@ -502,18 +519,19 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
   }
   
   Widget _buildCourseCard(CourseScore course) {
+    final colorScheme = Theme.of(context).colorScheme;
     double scoreVal = double.tryParse(course.score) ?? 0;
     bool isPass = scoreVal >= 60;
     bool isNumber = RegExp(r'^\d+$').hasMatch(course.score);
-    Color scoreColor = isNumber ? (isPass ? Colors.black87 : Colors.redAccent) : Colors.blueGrey;
+    Color scoreColor = isNumber ? (isPass ? colorScheme.primaryText : Colors.redAccent) : Colors.blueGrey;
     if (scoreVal >= 90) scoreColor = Colors.red[700]!;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10), // 縮減外部間距
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: colorScheme.borderColor),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.01), spreadRadius: 0, blurRadius: 5, offset: const Offset(0, 1))],
       ),
       child: Padding(
@@ -522,17 +540,17 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
           children: [
             Container(
               width: 38, height: 38, // 縮小圓圈
-              decoration: BoxDecoration(color: Colors.blue[50], shape: BoxShape.circle),
-              child: Center(child: Text(course.credits, style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold, fontSize: 15))),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.isDark ? Colors.blue[900]!.withOpacity(0.3) : Colors.blue[50], shape: BoxShape.circle),
+              child: Center(child: Text(course.credits, style: TextStyle(color: Theme.of(context).colorScheme.accentBlue, fontWeight: FontWeight.bold, fontSize: 15))),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(course.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  Text(course.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primaryText)),
                   const SizedBox(height: 2),
-                  Text(course.id, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  Text(course.id, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.subtitleText)),
                 ],
               ),
             ),
@@ -553,21 +571,26 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
 
     switch (type) {
       case SummaryType.official:
-        bgColors = [const Color(0xFFE0F2F1), const Color(0xFFB2DFDB)]; // 藍綠色系
-        themeColor = Colors.teal[800]!;
+        bgColors = Theme.of(context).colorScheme.isDark 
+            ? [Colors.teal[900]!, Colors.teal[800]!] 
+            : [const Color(0xFFE0F2F1), const Color(0xFFB2DFDB)];
+        themeColor = Theme.of(context).colorScheme.isDark ? Colors.teal[200]! : Colors.teal[800]!;
         title = "學期統計";
         icon = Icons.analytics_outlined;
         break;
       case SummaryType.preview:
-        // 恢復粉紅色系
-        bgColors = [const Color(0xFFFFF1F1), const Color(0xFFFFE4E8)]; 
-        themeColor = Colors.pink[800]!;
+        bgColors = Theme.of(context).colorScheme.isDark 
+            ? [Colors.pink[900]!, Colors.pink[800]!] 
+            : [const Color(0xFFFFF1F1), const Color(0xFFFFE4E8)];
+        themeColor = Theme.of(context).colorScheme.isDark ? Colors.pink[200]! : Colors.pink[800]!;
         title = "學期統計 (預覽)";
         icon = Icons.preview_rounded;
         break;
       case SummaryType.calculated:
-        bgColors = [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)]; // 綠色系
-        themeColor = Colors.green[800]!;
+        bgColors = Theme.of(context).colorScheme.isDark 
+            ? [Colors.green[900]!, Colors.green[800]!] 
+            : [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9)];
+        themeColor = Theme.of(context).colorScheme.isDark ? Colors.green[200]! : Colors.green[800]!;
         title = "學期統計 (試算)";
         icon = Icons.calculate_outlined;
         showRank = false;
@@ -632,19 +655,21 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.5), // 讓底色透明一點融入黃色背景
+                color: Theme.of(context).colorScheme.isDark 
+                    ? Colors.black.withOpacity(0.3) 
+                    : Colors.white.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(8)
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween, 
                 children: [
-                  Text("本學期名次", style: TextStyle(color: themeColor, fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text("本學期名次", style: TextStyle(color: themeColor, fontSize: 13, fontWeight: FontWeight.bold)),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text(summary.rank, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: themeColor)), 
-                      Text(" / ${summary.classSize}", style: TextStyle(color: themeColor.withOpacity(0.7), fontSize: 12))
+                      Text(summary.rank, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.isDark ? Colors.white : themeColor)), 
+                      Text(" / ${summary.classSize}", style: TextStyle(color: (Theme.of(context).colorScheme.isDark ? Colors.white : themeColor).withOpacity(0.7), fontSize: 12))
                     ]
                   ),
                 ]
@@ -658,8 +683,8 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
   Widget _buildSummaryItem(String label, String value, Color color, {bool isHighlight = false}) {
     return Column(children: [
       Text(label, style: TextStyle(fontSize: 12, color: color)),
-      SizedBox(height: 4),
-      Text(value, style: TextStyle(fontSize: isHighlight ? 20 : 18, fontWeight: FontWeight.bold, color: isHighlight ? Colors.deepOrange : color))
+      const SizedBox(height: 4),
+      Text(value, style: TextStyle(fontSize: isHighlight ? 20 : 18, fontWeight: FontWeight.bold, color: isHighlight ? (Theme.of(context).colorScheme.isDark ? Colors.orangeAccent : Colors.deepOrange) : color))
     ]);
   }
 }

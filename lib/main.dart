@@ -10,12 +10,17 @@ Licensed under the MIT License.
 import 'package:flutter/material.dart';
 import 'pages/captcha_auto_login_page.dart';
 import 'package:flutter/services.dart';
-import 'services/cache_manager.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; // 記得保留這個
-import 'package:window_manager/window_manager.dart'; // 新增這行：視窗管理
+import 'package:window_manager/window_manager.dart';
+import 'widgets/custom_title_bar.dart';
 import 'services/storage_service.dart';
 import 'services/historical_score_service.dart';
 import 'services/course_service.dart';
+
+import 'theme/app_theme.dart';
+import 'theme/theme_notifier.dart';
+
+final GlobalKey<State<CustomTitleBar>> titleBarKey = GlobalKey();
 
 // 自定義動畫 Builder (保持原樣)
 class BottomUpPageTransitionsBuilder extends PageTransitionsBuilder {
@@ -45,6 +50,9 @@ void main() async {
   // 初始化安全存儲與遷移
   await StorageService.instance.init();
 
+  // 初始化主題設定
+  await ThemeNotifier.instance.init();
+
   // 顯式從快取載入資料 (StorageService 已就緒)
   await Future.wait([
     HistoricalScoreService.instance.loadFromCache(),
@@ -58,8 +66,10 @@ void main() async {
     size: Size(1200, 800),
     minimumSize: Size(900, 600), // x > y (長方形)
     center: true,
+    titleBarStyle: TitleBarStyle.hidden, // 隱藏標題列
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.maximize(); // 打到最開
     await windowManager.show();
     await windowManager.focus();
   });
@@ -79,69 +89,57 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]).then((_) {
     runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: CaptchaAutoLoginPage(),
+      ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeNotifier.instance,
+        builder: (context, themeMode, _) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: const CaptchaAutoLoginPage(),
 
-        // ★★★ 新增：設定語言環境 (這會讓日曆顯示中文) ★★★
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('zh', 'TW'), // 繁體中文
-          Locale('en', 'US'), // 英文
-        ],
-
-        // ★★★ 結束 ★★★
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          // ★★★ 新增：取消點擊水波紋效果，讓整體看起來更像網頁 ★★★
-          splashFactory: NoSplash.splashFactory,
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-
-          // ★★★ 新增：按鈕滑鼠游標全域設定 (Pointer) ★★★
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              enabledMouseCursor: SystemMouseCursors.click,
-              disabledMouseCursor: SystemMouseCursors.basic,
-            ),
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              enabledMouseCursor: SystemMouseCursors.click,
-              disabledMouseCursor: SystemMouseCursors.basic,
-            ),
-          ),
-          outlinedButtonTheme: OutlinedButtonThemeData(
-            style: OutlinedButton.styleFrom(
-              enabledMouseCursor: SystemMouseCursors.click,
-              disabledMouseCursor: SystemMouseCursors.basic,
-            ),
-          ),
-          iconButtonTheme: IconButtonThemeData(
-            style: ButtonStyle(
-              mouseCursor: MaterialStateProperty.resolveWith<MouseCursor?>((
-                Set<MaterialState> states,
-              ) {
-                if (states.contains(MaterialState.disabled)) {
-                  return SystemMouseCursors.basic;
-                }
-                return SystemMouseCursors.click;
-              }),
-            ),
-          ),
-
-          // ★★★ 結束 ★★★
-          pageTransitionsTheme: PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: const CupertinoPageTransitionsBuilder(),
-              TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+            // 注入全局 UI 框架
+            builder: (context, child) {
+              return Material(
+                color: Theme.of(context).colorScheme.pageBackground,
+                child: Stack(
+                  children: [
+                    // 內容區域：向下偏移 32 像素
+                    Positioned.fill(
+                      top: 32,
+                      child: child ?? const SizedBox.shrink(),
+                    ),
+                    // 靜態標題列
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 32,
+                      child: CustomTitleBar(
+                        key: titleBarKey,
+                        title: "NSYSU",
+                      ),
+                    ),
+                  ],
+                ),
+              );
             },
-          ),
-        ),
+
+            // 語言環境
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('zh', 'TW'),
+              Locale('en', 'US'),
+            ],
+
+            // ★★★ 雙主題 + 動態切換 ★★★
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeMode,
+          );
+        },
       ),
     );
   });

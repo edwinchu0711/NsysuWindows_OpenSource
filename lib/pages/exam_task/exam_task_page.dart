@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 需引入
 import '../../services/exam_task/elearn_task_HW_service.dart';
 import 'task_detail_pages.dart';
+import '../../theme/app_theme.dart';
 
 class ExamTaskPage extends StatefulWidget {
   const ExamTaskPage({Key? key}) : super(key: key);
@@ -274,11 +275,12 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
     
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -438,6 +440,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
   }
 
   Widget _buildStatusChip(String label) {
+    final colorScheme = Theme.of(context).colorScheme;
     bool isSelected = _selectedStatusFilters.contains(label);
     return FilterChip(
       label: Center( // 確保文字置中
@@ -445,21 +448,23 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
         label, 
         style: TextStyle(
           fontSize: 11, // 稍微縮小字體以適應寬度
-          color: isSelected ? Colors.indigo : Colors.black87,
+          color: isSelected ? Colors.indigo : colorScheme.primaryText,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         )
       )
     ),
     selected: isSelected,
     onSelected: (bool selected) {
-      setState(() {
-        if (selected) {
-          _selectedStatusFilters.add(label);
-        } else {
-          _selectedStatusFilters.remove(label);
-        }
-        _applyFilterAndSort();
-      });
+      if (mounted) {
+        setState(() {
+          if (selected) {
+            _selectedStatusFilters.add(label);
+          } else {
+            _selectedStatusFilters.remove(label);
+          }
+          _applyFilterAndSort();
+        });
+      }
     },
       // 壓縮尺寸的關鍵設定
     showCheckmark: false, // 移除選取時的打勾符號
@@ -470,19 +475,20 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
     selectedColor: Colors.indigo.withOpacity(0.2),
     checkmarkColor: Colors.indigo,
     labelStyle: TextStyle(
-      color: isSelected ? Colors.indigo : Colors.black87,
+      color: isSelected ? Colors.indigo : colorScheme.primaryText,
       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       fontSize: 12, // 再次確保字體較小
     ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor: colorScheme.secondaryCardBackground,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: isSelected ? Colors.indigo : Colors.grey[300]!),
+        side: BorderSide(color: isSelected ? Colors.indigo : colorScheme.borderColor),
       ),
     );
   }
 
   Widget _buildTaskCard(ElearnTask task, bool isWideLayout) {
+    final colorScheme = Theme.of(context).colorScheme;
     final dateFormat = DateFormat('yyyy/MM/dd HH:mm');
     bool isOverdue = task.endTime != null && task.endTime!.isBefore(DateTime.now()) && !task.isSubmitted;
     
@@ -509,7 +515,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.indigo.withOpacity(0.05) : Colors.white,
+        color: isSelected ? Colors.indigo.withOpacity(0.05) : colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isSelected ? Colors.indigo.withOpacity(0.5) : Colors.grey[200]!, width: 1.5),
         boxShadow: isSelected ? [] : [
@@ -534,7 +540,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(child: Text(task.courseName, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+                    Expanded(child: Text(task.courseName, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
                     Icon(task.type == "作業" ? Icons.assignment_outlined : Icons.quiz_outlined, 
                          size: 16, color: task.type == "作業" ? Colors.blueAccent : Colors.purpleAccent),
                   ],
@@ -544,7 +550,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
                    task.title, 
                    maxLines: 2,
                    overflow: TextOverflow.ellipsis,
-                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.4, color: Colors.black87)
+                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.4, color: colorScheme.primaryText)
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -568,7 +574,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
                       ],
                     ),
                     if (task.score != null) ...[
-                      Text("${task.score}", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
+                      Text("${task.score}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colorScheme.primaryText)),
                     ]
                   ],
                 ),

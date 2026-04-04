@@ -4,17 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/course_query_service.dart'; // 請確認路徑是否正確
 import 'package:http/http.dart' as http; // ✅ 新增這行：用來發送網路請求
 import 'package:url_launcher/url_launcher.dart'; // ✅ 新增：用於開啟外部連結
+import '../../../theme/app_theme.dart';
 
 class AssistantAddCoursePage extends StatefulWidget {
   final VoidCallback? onCourseAdded; // 新增回呼，通知父層
   final VoidCallback? onClose; // 新增回呼，由父層決定關閉行為
   final bool isSubPane; // ★★★ 新增：是否以子區塊模式顯示 ★★★
 
+  final List<dynamic>? initialCourses; // 既有課程 (來自父層)
+  final List<dynamic>? initialEvents;  // 既有行程 (來自父層)
+
   const AssistantAddCoursePage({
     Key? key,
     this.onCourseAdded,
     this.onClose,
-    this.isSubPane = false, // 預設不是子區塊
+    this.isSubPane = false,
+    this.initialCourses,
+    this.initialEvents,
   }) : super(key: key);
 
   @override
@@ -34,6 +40,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   Set<String> _selectedDays = {};
   Set<String> _selectedPeriods = {};
   String? _selectedClass;
+  bool _filterConflict = false; // 是否過濾衝堂
+  List<dynamic>? _localAddedCourses; // 新增：用於即時追蹤本地已加入課程，解決刷新延遲問題
 
   @override
   void initState() {
@@ -76,11 +84,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         currentList = jsonDecode(jsonStr);
       }
 
-      // 檢查是否重複
       if (currentList.any((c) => c['code'] == courseData.id)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("此課程已經在助手中了！")));
         return;
       }
 
@@ -125,21 +129,18 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
       setState(() {
         _existingAssistantCourseIds.add(courseData.id);
+        _localAddedCourses = currentList; // 更新本地緩存資料，讓下次搜尋即時生效
       });
 
       // ★★★ 新增：呼叫回呼，讓旁邊的課表自動更新 ★★★
       widget.onCourseAdded?.call();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("已排入模擬課表：${courseData.name.split('\n')[0]}"),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // ★★★ 新增：如果開啟了過濾衝堂，加入課程後自動重新搜尋以隱藏新衝突課程 ★★★
+      if (_filterConflict) {
+        _performSearch();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("加入失敗：$e")));
+      // 靜默處理
     }
   }
 
@@ -158,7 +159,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(8),
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.cardBackground,
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: ElevatedButton.icon(
@@ -166,8 +167,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 icon: const Icon(Icons.search),
                 label: const Text("開啟搜尋面板"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[50],
-                  foregroundColor: Colors.blue[800],
+                  backgroundColor: Theme.of(context).colorScheme.secondaryCardBackground,
+                  foregroundColor: Theme.of(context).colorScheme.accentBlue,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -178,7 +179,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           // 桌面版內嵌搜尋表單
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.cardBackground,
             child: _buildDesktopSearchForm(),
           ),
         const Divider(height: 1),
@@ -187,14 +188,14 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
 
     if (widget.isSubPane) {
-      return Container(color: Colors.white, child: content);
+      return Container(color: Theme.of(context).colorScheme.pageBackground, child: content);
     }
 
     return Scaffold(
       appBar: AppBar(
         title: Text("$semDisplay 新增課程"),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: Theme.of(context).colorScheme.headerBackground,
+        foregroundColor: Theme.of(context).colorScheme.primaryText,
         elevation: 0.5,
         // ★★★ 新增：如果由分割畫面呼叫，顯示關閉按鈕 ★★★
         leading: widget.onClose != null
@@ -210,23 +211,26 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
   Widget _buildSearchResults() {
     if (_isQueryLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("搜尋中 (可能需要下載課程資料)...", style: TextStyle(color: Colors.grey)),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              "搜尋中 (可能需要下載課程資料)...",
+              style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)
+            ),
           ],
         ),
       );
     }
-
+    
     if (!_hasSearched) {
       return Center(
         child: Text(
           "點擊上方按鈕搜尋想加入的課程",
-          style: TextStyle(color: Colors.grey[400]),
+          style: TextStyle(color: Theme.of(context).colorScheme.subtitleText),
         ),
       );
     }
@@ -247,7 +251,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           margin: const EdgeInsets.only(bottom: 8),
           clipBehavior: Clip.antiAlias,
           child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
+              colorScheme: Theme.of(context).colorScheme,
+            ),
             child: ExpansionTile(
               tilePadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -277,8 +284,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                         "${course.grade}年${course.className}",
                       ),
                       _buildMiniInfoChip(
-                        Icons.room_outlined,
-                        _parseRoomLocation(course.room),
+                        Icons.category_outlined,
+                        course.department,
                       ),
                       _buildMiniInfoChip(
                         Icons.access_time,
@@ -291,9 +298,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 ],
               ),
               trailing: isAdded
-                  ? const Icon(
+                  ? Icon(
                       Icons.check_circle,
-                      color: Colors.green,
+                      color: Theme.of(context).colorScheme.isDark ? Colors.greenAccent[400] : Colors.green[600],
                       size: 32,
                     )
                   : MouseRegion(
@@ -301,7 +308,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       child: ElevatedButton(
                         onPressed: () => _addCourseToAssistant(course),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[600],
+                          backgroundColor: Theme.of(context).colorScheme.isDark ? Colors.green[800] : Colors.green[600],
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -311,22 +318,22 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       ),
                     ),
               children: [
-                const Divider(height: 1, thickness: 1, color: Colors.black12),
+                const Divider(height: 1, thickness: 1),
                 Container(
-                  color: Colors.blue[50]!.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.secondaryCardBackground.withOpacity(0.5),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
                   child: Column(
                     children: [
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           "評分方式",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueGrey,
+                            color: Theme.of(context).colorScheme.subtitleText,
                           ),
                         ),
                       ),
@@ -354,10 +361,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                             if (snapshot.hasError ||
                                 !snapshot.hasData ||
                                 snapshot.data!.isEmpty) {
-                              return const Text(
+                              return Text(
                                 "尚無詳細評分資料",
                                 style: TextStyle(
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.subtitleText,
                                   fontSize: 13,
                                 ),
                               );
@@ -375,18 +382,18 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(
-                                            Icons.check_circle_outline,
-                                            size: 16,
-                                            color: Colors.blue,
-                                          ),
+                                            Icon(
+                                              Icons.check_circle_outline,
+                                              size: 16,
+                                              color: Theme.of(context).colorScheme.accentBlue,
+                                            ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text(
                                               e,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 13,
-                                                color: Colors.black87,
+                                                color: Theme.of(context).colorScheme.primaryText,
                                               ),
                                             ),
                                           ),
@@ -403,7 +410,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       const Divider(
                         height: 1,
                         thickness: 1,
-                        color: Colors.black12,
                       ),
                       const SizedBox(height: 12),
 
@@ -416,11 +422,11 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   "課程資訊",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blueGrey,
+                                    color: Theme.of(context).colorScheme.subtitleText,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -430,8 +436,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   "餘額",
                                   "${course.remaining}",
                                   valueColor: course.remaining > 0
-                                      ? Colors.green[700]
-                                      : Colors.red,
+                                      ? (Theme.of(context).colorScheme.isDark ? Colors.green[200] : Colors.green[700])
+                                      : Colors.redAccent,
                                 ),
                                 _buildInfoRow(
                                   "選上機率",
@@ -447,21 +453,21 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   "對應學程",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blueGrey,
+                                    color: Theme.of(context).colorScheme.subtitleText,
                                     fontSize: 13,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 if (course.tags.isEmpty)
-                                  const Text(
+                                  Text(
                                     "無相關學程",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.subtitleText,
                                     ),
                                   )
                                 else
@@ -476,18 +482,18 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Colors.blue[50],
+                                              color: Theme.of(context).colorScheme.secondaryCardBackground,
                                               borderRadius:
                                                   BorderRadius.circular(4),
                                               border: Border.all(
-                                                color: Colors.blue[100]!,
+                                                color: Theme.of(context).colorScheme.borderColor,
                                               ),
                                             ),
                                             child: Text(
                                               t,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.blue,
+                                                color: Theme.of(context).colorScheme.accentBlue,
                                               ),
                                             ),
                                           ),
@@ -502,13 +508,13 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
                       if (course.description.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        const Align(
+                        Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
                             "備註",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blueGrey,
+                              color: Theme.of(context).colorScheme.subtitleText,
                               fontSize: 13,
                             ),
                           ),
@@ -518,9 +524,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             course.description,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.primaryText,
                             ),
                           ),
                         ),
@@ -530,16 +536,15 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                       const Divider(
                         height: 1,
                         thickness: 1,
-                        color: Colors.black12,
                       ),
                       const SizedBox(height: 8),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           "外部連結與評價",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blueGrey,
+                            color: Theme.of(context).colorScheme.subtitleText,
                             fontSize: 13,
                           ),
                         ),
@@ -552,14 +557,14 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                           _buildActionButton(
                             icon: Icons.person_search,
                             label: "教授評價",
-                            color: Colors.orange[700]!,
+                            color: Colors.orangeAccent,
                             onTap: () =>
                                 _launchEvaluationSearch(course.teacher),
                           ),
                           _buildActionButton(
                             icon: Icons.forum_outlined,
                             label: "課程評價",
-                            color: Colors.purple[700]!,
+                            color: Colors.purpleAccent,
                             onTap: () => _launchEvaluationSearch(
                               course.name.split('\n')[0],
                             ),
@@ -602,20 +607,38 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Center(
+                  Center(
                     child: Text(
                       "課程查詢條件",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primaryText,
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _buildTextField(
-                    "關鍵字搜尋 (課名、教師、系所、學程)",
-                    _mergedQueryCtrl,
-                    hint: "可用空白區隔多個關鍵字，如：資工 周",
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          "關鍵字搜尋 (課名、教師、系所、學程)",
+                          _mergedQueryCtrl,
+                          hint: "可用空白區隔多個關鍵字，如：資工 周",
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        children: [
+                          const Text("過濾衝堂", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Switch(
+                            value: _filterConflict,
+                            onChanged: (v) => setState(() => _filterConflict = v),
+                            activeColor: Theme.of(context).colorScheme.accentBlue,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -653,11 +676,11 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     "上課時間",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey,
+                      color: Theme.of(context).colorScheme.subtitleText,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -717,7 +740,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                           _performSearch();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Theme.of(context).colorScheme.accentBlue,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text(
@@ -771,6 +794,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         classType: classText,
         days: _selectedDays.toList(),
         periods: _selectedPeriods.toList(),
+        filterConflict: _filterConflict,
+        existingCourses: _localAddedCourses ?? widget.initialCourses,
+        existingEvents: widget.initialEvents,
       );
 
       setState(() {
@@ -799,6 +825,24 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 _mergedQueryCtrl,
                 hint: "可用空白區隔多個關鍵字，如：資工 物件",
               ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("過濾衝堂", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                SizedBox(
+                  height: 32,
+                  child: Switch(
+                    value: _filterConflict,
+                    activeColor: Theme.of(context).colorScheme.accentBlue,
+                    onChanged: (v) {
+                      setState(() => _filterConflict = v);
+                      _performSearch();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -866,7 +910,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                   child: ElevatedButton(
                     onPressed: _performSearch,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Theme.of(context).colorScheme.accentBlue,
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(0, 38),
@@ -916,9 +960,19 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               horizontal: 10,
               vertical: 4,
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.secondaryCardBackground,
             isDense: true,
           ),
+          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.primaryText),
         ),
       ],
     );
@@ -988,7 +1042,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              color: Theme.of(context).colorScheme.secondaryCardBackground,
+              border: Border.all(color: Theme.of(context).colorScheme.borderColor),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -999,11 +1054,11 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                     values.isEmpty
                         ? "全部"
                         : values.map((e) => options[e]).join(', '),
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.primaryText),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                Icon(Icons.arrow_drop_down, color: Theme.of(context).colorScheme.subtitleText),
               ],
             ),
           ),
@@ -1026,14 +1081,14 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.subtitleText),
           ),
           Text(
             value,
             style: TextStyle(
               fontSize: 12,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: valueColor ?? Colors.black87,
+              color: valueColor ?? Theme.of(context).colorScheme.primaryText,
             ),
           ),
         ],
@@ -1065,11 +1120,21 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
+            hintStyle: TextStyle(color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.5)),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 8,
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+            ),
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.secondaryCardBackground,
             isDense: true,
           ),
           style: const TextStyle(fontSize: 14),
@@ -1078,16 +1143,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
   }
 
-  String _parseRoomLocation(String rawRoom) {
-    if (rawRoom.isEmpty) return "不明";
-    final RegExp regex = RegExp(r'[(\uff08]([^)\uff09]*)[)\uff09]');
-    final match = regex.firstMatch(rawRoom);
-    if (match != null) {
-      String content = match.group(1)?.trim() ?? "";
-      return content.isNotEmpty ? content : "不明";
-    }
-    return "不明";
-  }
 
   // ✅ 核心方法：抓取評分方式
   Future<List<String>> _getCourseEvaluation(String courseId) async {
@@ -1194,22 +1249,23 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Theme.of(context).colorScheme.secondaryCardBackground,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: Colors.blueGrey),
+          Icon(icon, size: 12, color: Theme.of(context).colorScheme.subtitleText),
           const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.primaryText),
           ),
         ],
       ),
     );
   }
+
 }
 
 // ✅ 新增：支援 Hover 效果與點擊開網址的課程名稱組件
@@ -1257,7 +1313,7 @@ class _HoverableCourseNameState extends State<_HoverableCourseName> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                color: _isHovering ? Colors.blue[700] : Colors.black87,
+                color: _isHovering ? Theme.of(context).colorScheme.accentBlue : Theme.of(context).colorScheme.primaryText,
                 decoration: _isHovering
                     ? TextDecoration.underline
                     : TextDecoration.none,

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/course_model.dart';
 import '../../services/course_query_service.dart'; // 確認你的 service 路徑正確
 import 'package:flutter/services.dart'; // 加上這行來使用 Clipboard
+import '../../theme/app_theme.dart';
 
 class AssistantImportPage extends StatefulWidget {
   final bool isSubPane;
@@ -185,10 +186,10 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
             if (skip > 0) Text("⏭️ 已存在跳過: $skip 筆"),
             if (fails.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text("❌ 找不到課程:", style: TextStyle(color: Colors.red)),
+              const Text("❌ 找不到課程:", style: TextStyle(color: Colors.redAccent)),
               Text(
                 fails.join(", "),
-                style: const TextStyle(color: Colors.red, fontSize: 13),
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
               ),
             ],
           ],
@@ -219,28 +220,31 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
+              color: Theme.of(context).colorScheme.secondaryCardBackground,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Theme.of(context).colorScheme.borderColor),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue),
-                    SizedBox(width: 8),
+                    Icon(Icons.info_outline, color: Theme.of(context).colorScheme.accentBlue),
+                    const SizedBox(width: 8),
                     Text(
                       "匯入說明",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: Theme.of(context).colorScheme.primaryText,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text(
-                  "請至「中山選課小幫手網頁版」匯出加選課程，或是此平台匯出的課程代碼，\n並將產生的完整程式碼複製並貼在下方欄位中。\n若匯入失敗，請檢查是否為當年度課程。",
+                  "請至「中山選課小幫助網頁版」匯出加選課程，或是此平台匯出的課程代碼，並將產生的完整程式碼複製並貼在下方欄位中。\n若匯入失敗，請檢查是否為當年度課程。",
+                  style: TextStyle(color: Theme.of(context).colorScheme.subtitleText, fontSize: 13),
                 ),
               ],
             ),
@@ -251,12 +255,12 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "程式碼內容：",
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black54,
+                  color: Theme.of(context).colorScheme.subtitleText,
                 ),
               ),
               TextButton.icon(
@@ -264,7 +268,7 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
                 icon: const Icon(Icons.paste, size: 18),
                 label: const Text("剪貼簿貼上"),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.blue[700],
+                  foregroundColor: Theme.of(context).colorScheme.accentBlue,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
@@ -283,10 +287,17 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
                 hintText: "貼上從選課小幫手複製的程式碼...",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.borderColor),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
+                fillColor: Theme.of(context).colorScheme.secondaryCardBackground,
+                hintStyle: TextStyle(color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.5)),
               ),
+              style: TextStyle(color: Theme.of(context).colorScheme.primaryText),
             ),
           ),
           const SizedBox(height: 16),
@@ -307,7 +318,7 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
                   : const Icon(Icons.download),
               label: Text(_isImporting ? "正在搜尋並匯入..." : "開始匯入"),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[700],
+                backgroundColor: Theme.of(context).colorScheme.accentBlue,
                 foregroundColor: Colors.white,
                 textStyle: const TextStyle(
                   fontSize: 16,
@@ -321,11 +332,17 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
     );
 
     if (widget.isSubPane) {
-      return Container(color: Colors.white, child: content);
+      return Container(color: Theme.of(context).colorScheme.pageBackground, child: content);
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("匯入課表")),
+      backgroundColor: Theme.of(context).colorScheme.pageBackground,
+      appBar: AppBar(
+        title: const Text("匯入課表代碼"),
+        backgroundColor: Theme.of(context).colorScheme.headerBackground,
+        foregroundColor: Theme.of(context).colorScheme.primaryText,
+        elevation: 0.5,
+      ),
       body: content,
     );
   }

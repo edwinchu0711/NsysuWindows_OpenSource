@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 // 1. 這裡加上 const 關鍵字，修復「isn't a const constructor」的問題
 class VersionRecord {
@@ -74,14 +75,12 @@ class AppVersionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       appBar: AppBar(
         title: const Text("版本資訊", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
       ),
       body: CustomScrollView(
         slivers: [
@@ -89,9 +88,9 @@ class AppVersionPage extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(24.0),
               margin: const EdgeInsets.only(bottom: 10),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: colorScheme.cardBackground,
+                borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(30),
                   bottomRight: Radius.circular(30),
                 ),
@@ -132,7 +131,7 @@ class AppVersionPage extends StatelessWidget {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 final item = history[index];
-                return _buildHistoryCard(item);
+                return _buildHistoryCard(context, item);
               },
               childCount: history.length,
             ),
@@ -143,16 +142,17 @@ class AppVersionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHistoryCard(VersionRecord item) {
+  Widget _buildHistoryCard(BuildContext context, VersionRecord item) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(colorScheme.isDark ? 0.15 : 0.04),
             spreadRadius: 1,
             blurRadius: 5,
             offset: const Offset(0, 2),
@@ -172,12 +172,12 @@ class AppVersionPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: colorScheme.secondaryCardBackground,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   item.date,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: colorScheme.subtitleText),
                 ),
               ),
             ],

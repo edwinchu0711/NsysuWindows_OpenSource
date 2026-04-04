@@ -3,6 +3,7 @@ import '../../services/course_selection_service.dart';
 import 'course_status_tab.dart';
 import 'course_query_tab.dart';
 import '../../models/course_selection_models.dart';
+import '../../theme/app_theme.dart';
 
 class CourseSelectionPage extends StatefulWidget {
   final bool enableQuery;
@@ -83,10 +84,11 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     bool isDesktop = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: colorScheme.pageBackground,
       appBar: null, // 移除佈局
       body: Column(
         children: [
@@ -121,6 +123,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   }
 
   Widget _buildDesktopLayout() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -129,8 +132,8 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           flex: 28,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey[50],
-              border: Border(right: BorderSide(color: Colors.grey[200]!)),
+              color: colorScheme.pageBackground,
+              border: Border(right: BorderSide(color: colorScheme.borderColor)),
             ),
             child: _buildStatusTab(),
           ),
@@ -139,7 +142,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
         Expanded(
           flex: 32,
           child: Container(
-            color: Colors.white,
+            color: colorScheme.cardBackground,
             child: _buildMiddleSchedulePane(),
           ),
         ),
@@ -148,8 +151,8 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           flex: 40,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(left: BorderSide(color: Colors.grey[200]!)),
+              color: colorScheme.cardBackground,
+              border: Border(left: BorderSide(color: colorScheme.borderColor)),
             ),
             child: CourseQueryTab(
               currentCourses: _myCourses,
@@ -162,6 +165,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   }
 
   Widget _buildMiddleSchedulePane() {
+    final colorScheme = Theme.of(context).colorScheme;
     final scheduleMap = _parseCoursesToSchedule();
     List<int> visibleDays = [0, 1, 2, 3, 4];
     if (_hasCourseInDay(scheduleMap, 5)) visibleDays.add(5);
@@ -174,15 +178,15 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+            color: colorScheme.headerBackground,
+            border: Border(bottom: BorderSide(color: colorScheme.borderColor)),
           ),
-          child: const Text(
+          child: Text(
             "預覽課表",
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: colorScheme.primaryText,
             ),
           ),
         ),
@@ -192,27 +196,27 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
               padding: const EdgeInsets.all(12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.secondaryCardBackground,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
+                  border: Border.all(color: colorScheme.borderColor),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Table(
-                  border: TableBorder.all(color: Colors.grey[200]!, width: 1),
+                  border: TableBorder.all(color: colorScheme.borderColor, width: 1),
                   columnWidths: const {0: FixedColumnWidth(50)},
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   children: [
                     TableRow(
-                      decoration: const BoxDecoration(color: Color(0xFFF4F8FF)),
+                      decoration: BoxDecoration(color: colorScheme.timetableHeader),
                       children: [
-                        const SizedBox(
+                        SizedBox(
                           height: 35,
                           child: Center(
                             child: Text(
                               "時段",
                               style: TextStyle(
                                 fontSize: 10,
-                                color: Colors.blueGrey,
+                                color: colorScheme.subtitleText,
                               ),
                             ),
                           ),
@@ -223,10 +227,10 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                             alignment: Alignment.center,
                             child: Text(
                               ['一', '二', '三', '四', '五', '六', '日'][dayIndex],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                color: Colors.blueGrey,
+                                color: colorScheme.subtitleText,
                               ),
                             ),
                           ),
@@ -240,25 +244,25 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                           TableCell(
                             verticalAlignment: TableCellVerticalAlignment.fill,
                             child: Container(
-                              color: const Color(0xFFF4F8FF),
+                              color: colorScheme.timetableSlot,
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     period,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
-                                      color: Colors.blueGrey,
+                                      color: colorScheme.subtitleText,
                                     ),
                                   ),
                                   if (timeInfo.isNotEmpty)
                                     Text(
                                       timeInfo,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 9,
-                                        color: Colors.blueGrey,
+                                        color: colorScheme.subtitleText,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
@@ -470,9 +474,10 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   }
 
   Widget _buildDesktopHeader(bool isDesktop) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: colorScheme.headerBackground,
       child: Column(
         children: [
           Padding(
@@ -496,14 +501,14 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                       tooltip: "返回主選單",
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      widget.enableQuery ? "選課系統" : "目前選課狀態",
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
+                        Text(
+                          widget.enableQuery ? "選課系統" : "目前選課狀態",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primaryText,
+                          ),
+                        ),
                   ],
                 ),
                 // 已移除重新整理按鈕
@@ -518,9 +523,9 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: true,
-                  labelColor: Colors.blue[800],
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.blue,
+                  labelColor: colorScheme.accentBlue,
+                  unselectedLabelColor: colorScheme.subtitleText,
+                  indicatorColor: colorScheme.accentBlue,
                   indicatorWeight: 3,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -533,7 +538,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                 ),
               ),
             ),
-          const Divider(height: 1, color: Colors.black12),
+          Divider(height: 1, color: colorScheme.borderColor),
         ],
       ),
     );
