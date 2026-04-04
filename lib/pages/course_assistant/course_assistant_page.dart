@@ -1287,11 +1287,21 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
   }
 
   String keepUntilLastChinese(String input) {
+    if (input.isEmpty) return "";
     final RegExp chineseRegex = RegExp(r'[\u4e00-\u9fa5]');
     final Iterable<Match> matches = chineseRegex.allMatches(input);
-    if (matches.isEmpty) return "";
+    if (matches.isEmpty) return input;
+    
     int lastIndex = matches.last.end;
-    return input.substring(0, lastIndex);
+    
+    // 包含最後一個中文字後面的括號、全半形標點、或是括號內的內容
+    final RegExp suffixRegex = RegExp(r'^[\s\(\)（）\[\]【】]+');
+    final match = suffixRegex.firstMatch(input.substring(lastIndex));
+    if (match != null) {
+      lastIndex += match.end;
+    }
+    
+    return input.substring(0, lastIndex).trim();
   }
 
   String _extractLocation(String raw) {
