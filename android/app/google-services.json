@@ -1,7 +1,7 @@
 {
   "project_info": {
     "project_number": "884980113630",
-    "project_id": "nsysu-app-dc690",
+    "project_id": "000",
     "storage_bucket": "nsysu-app-dc690.firebasestorage.app"
   },
   "client": [
@@ -13,11 +13,6 @@
         }
       },
       "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC3IphKyZ1T0wxQrW1rPseOpXOn5D4qix0"
-        }
-      ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": []
@@ -32,11 +27,6 @@
         }
       },
       "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyC3IphKyZ1T0wxQrW1rPseOpXOn5D4qix0"
-        }
-      ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": []
