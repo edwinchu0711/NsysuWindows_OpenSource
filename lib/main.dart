@@ -16,6 +16,9 @@ import 'widgets/custom_title_bar.dart';
 import 'services/storage_service.dart';
 import 'services/historical_score_service.dart';
 import 'services/course_service.dart';
+import 'services/course_query_service.dart';
+import 'services/local_course_service.dart';
+import 'services/database_embedding_service.dart';
 
 import 'theme/app_theme.dart';
 import 'theme/theme_notifier.dart';
@@ -59,12 +62,23 @@ void main() async {
     CourseService.instance.loadFromCache(),
   ]);
 
+  // 初始化 Isar 並從本地載入課程資料
+  await CourseQueryService.instance.init();
+
+  // 初始化本地課程資料庫 (安全處理 DB 不存在的情況)
+  LocalCourseService.instance.init();
+
+  // 初始化 embedding 資料庫，完成後背景檢查更新
+  DatabaseEmbeddingService.instance.init().then((_) {
+    DatabaseEmbeddingService.instance.checkForAutoUpdate();
+  });
+
   // ★★★ 新增：初始化 desktop 視窗大小設定 ★★★
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1200, 800),
-    minimumSize: Size(900, 600), // x > y (長方形)
+    minimumSize: Size(1100, 720), // x > y (長方形)
     center: true,
     titleBarStyle: TitleBarStyle.hidden, // 隱藏標題列
   );
@@ -113,10 +127,7 @@ void main() async {
                       left: 0,
                       right: 0,
                       height: 32,
-                      child: CustomTitleBar(
-                        key: titleBarKey,
-                        title: "NSYSU",
-                      ),
+                      child: CustomTitleBar(key: titleBarKey, title: "NSYSU"),
                     ),
                   ],
                 ),
@@ -129,10 +140,7 @@ void main() async {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('zh', 'TW'),
-              Locale('en', 'US'),
-            ],
+            supportedLocales: const [Locale('zh', 'TW'), Locale('en', 'US')],
 
             // ★★★ 雙主題 + 動態切換 ★★★
             theme: AppTheme.lightTheme,

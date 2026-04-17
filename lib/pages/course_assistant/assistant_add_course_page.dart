@@ -46,7 +46,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   @override
   void initState() {
     super.initState();
-    _loadExistingAssistantCourses();
+    _loadExistingAssistantCourses().then((_) => _performSearch());
   }
 
   @override
@@ -254,8 +254,15 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         bool isAdded = _existingAssistantCourseIds.contains(course.id);
 
         return Card(
-          elevation: 1,
+          elevation: 0,
           margin: const EdgeInsets.only(bottom: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.borderColor,
+              width: 0.8,
+            ),
+          ),
           clipBehavior: Clip.antiAlias,
           child: Theme(
             data: Theme.of(context).copyWith(
@@ -1264,7 +1271,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
   void _launchEvaluationSearch(String keyword) async {
     if (keyword.isEmpty) return;
-    final query = '中山大學 "$keyword" DCard | PTT';
+    final query = '中山大學 "$keyword" 評價';
     final url = Uri.parse(
       'https://www.google.com/search?q=${Uri.encodeComponent(query)}',
     );

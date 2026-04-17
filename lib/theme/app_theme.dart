@@ -53,9 +53,9 @@ class AppTheme {
       highlightColor: Colors.transparent,
 
       // Divider
-      dividerColor: isDark ? Colors.white12 : Colors.black12,
+      dividerColor: isDark ? Colors.white12 : Colors.black26,
       dividerTheme: DividerThemeData(
-        color: isDark ? Colors.white12 : Colors.black12,
+        color: isDark ? Colors.white12 : Colors.black26,
       ),
 
       // AppBar
@@ -202,7 +202,7 @@ extension AppColors on ColorScheme {
 
   /// 次要卡片 / 下拉選單 / Input 背景（淺色對齊原始 Colors.grey[50]/[100]）
   Color get secondaryCardBackground =>
-      isDark ? const Color(0xFF252B3B) : const Color(0xFFFAFAFA);
+      isDark ? const Color(0xFF252B3B) : const Color(0xFFF2F4F7);
 
   /// 主要文字顏色（淺色對齊原始 Colors.black87 = #DE000000）
   Color get primaryText =>
@@ -218,7 +218,7 @@ extension AppColors on ColorScheme {
 
   /// 分隔線 / Border 色
   Color get borderColor =>
-      isDark ? Colors.white12 : Colors.grey.shade200;
+      isDark ? Colors.white12 : Colors.grey.shade300;
 
   /// Header 背景（白色 Header bar）
   Color get headerBackground =>
@@ -234,11 +234,11 @@ extension AppColors on ColorScheme {
 
   /// 表格標頭背景（原 _paleBlueColor = #F4F8FF）
   Color get timetableHeader =>
-      isDark ? const Color(0xFF2D3548) : const Color(0xFFF4F8FF);
+      isDark ? const Color(0xFF2D3548) : const Color(0xFFE9F1FF);
 
   /// 表格時段索引背景（側邊時段欄）
   Color get timetableSlot =>
-      isDark ? const Color(0xFF252B3B) : const Color(0xFFF4F8FF);
+      isDark ? const Color(0xFF252B3B) : const Color(0xFFE9F1FF);
 
   /// 成功狀態背景（例如：系統開放、加選成功）
   Color get successContainer =>

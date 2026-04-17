@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 5.0.0+1
+version: 6.0.0+1
 
 environment:
   sdk: ^3.10.4
@@ -29,7 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   permission_handler: ^11.3.0 # 處理安裝未知來源權限 (Android 8+)
-  path_provider: ^2.1.1  # 用於存取暫存資料夾
+  path_provider: ^2.1.5  # 用於存取暫存資料夾
   package_info_plus: ^8.0.0  # 加入這一行
   open_filex: ^4.3.0      # 用於呼叫手機的其他 App 開啟檔案
   connectivity_plus: ^5.0.0
@@ -59,14 +59,23 @@ dependencies:
   window_manager: ^0.5.1
   flutter_secure_storage: ^10.0.0
   encrypt: ^5.0.3
+  file_picker: ^11.0.1
+  mime: ^2.0.0
+  flutter_markdown: ^0.7.3
+  isar: 3.1.0+1
+  isar_flutter_libs: 3.1.0+1
+  sqflite: ^2.4.2
+  path: ^1.9.1
+  sqflite_common_ffi: ^2.4.0+2
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
-  path_provider: ^2.1.2
 
   flutter_lints: ^6.0.0
+  isar_generator: 3.1.0+1
+  build_runner: 2.4.13
 
 
 
@@ -84,11 +93,6 @@ flutter_launcher_icons:
 flutter:
 
   uses-material-design: true
-
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

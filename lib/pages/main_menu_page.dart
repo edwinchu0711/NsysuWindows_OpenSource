@@ -27,6 +27,7 @@ import 'course_assistant/course_assistant_page.dart';
 import '../services/open_score_service.dart';
 import '../services/historical_score_service.dart';
 import '../services/course_service.dart';
+import '../services/course_query_service.dart';
 import '../services/exam_task/elearn_task_HW_service.dart';
 import '../services/elearn_bulletin_service.dart';
 import '../services/graduation_service.dart';
@@ -77,6 +78,9 @@ class _MainMenuPageState extends State<MainMenuPage> {
     );
     _checkAndStartTasks();
     _checkNewVersion();
+
+    // SSO 登入後觸發課程資料更新 + courses.db 建立
+    CourseQueryService.instance.checkForUpdate();
   }
 
   @override

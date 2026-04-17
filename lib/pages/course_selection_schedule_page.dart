@@ -11,7 +11,7 @@ import '../services/storage_service.dart';
 import '../../services/course_query_service.dart'; // 請確認路徑是否正確
 import '../theme/app_theme.dart';
 
-bool test = false;
+bool test = true;
 
 enum SelectionState {
   open, // 正常開放選課

@@ -574,7 +574,10 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
                       ],
                     ),
                     if (task.score != null) ...[
-                      Text("${task.score}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colorScheme.primaryText)),
+                      Text(
+                        task.score!.toString().replaceAll(RegExp(r'\.0$'), ''), 
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: colorScheme.primaryText)
+                      ),
                     ]
                   ],
                 ),

@@ -46,7 +46,7 @@ class AssistantLeftPane extends StatelessWidget {
     }
 
     return Container(
-      color: colorScheme.cardBackground,
+      color: colorScheme.pageBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,7 +67,11 @@ class AssistantLeftPane extends StatelessWidget {
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: colorScheme.secondaryCardBackground, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryCardBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colorScheme.borderColor, width: 0.8),
+            ),
             child: Row(
               children: [
                 Icon(Icons.info_outline, color: colorScheme.accentBlue),
@@ -106,6 +110,11 @@ class AssistantLeftPane extends StatelessWidget {
                             ),
                             ...assistantCourses.map((c) => Card(
                               margin: const EdgeInsets.only(bottom: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: colorScheme.borderColor, width: 0.8),
+                              ),
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.click,
                                 child: ListTile(
@@ -135,6 +144,11 @@ class AssistantLeftPane extends StatelessWidget {
                             ),
                             ...customEvents.map((e) => Card(
                               margin: const EdgeInsets.only(bottom: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(color: colorScheme.borderColor, width: 0.8),
+                              ),
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.click,
                                 child: ListTile(
@@ -162,7 +176,7 @@ class AssistantLeftPane extends StatelessWidget {
   Widget _buildCourseDetailView(BuildContext context, Course course) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.cardBackground,
+      color: colorScheme.pageBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,7 +308,7 @@ class AssistantLeftPane extends StatelessWidget {
   Widget _buildEventDetailView(BuildContext context, CustomEvent event) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: colorScheme.cardBackground,
+      color: colorScheme.pageBackground,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +432,7 @@ class AssistantLeftPane extends StatelessWidget {
       searchKeyword = keyword.substring(0, lastChineseIdx + 1);
     }
 
-    final query = '中山大學 "$searchKeyword" DCard | PTT';
+    final query = '中山大學 "$searchKeyword" 評價';
     final url = Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent(query)}');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);

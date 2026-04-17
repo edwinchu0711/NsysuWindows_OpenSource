@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/course_model.dart';
@@ -8,9 +9,12 @@ import 'assistant_add_course_page.dart';
 import 'assistant_export_page.dart';
 import 'widgets/assistant_left_pane.dart';
 import 'widgets/assistant_add_event_pane.dart';
+import 'widgets/assistant_ai_pane.dart';
+import '../../services/ai/ai_service.dart';
+import '../../models/ai_config_model.dart';
 import '../../theme/app_theme.dart';
 
-enum AssistantAction { none, addCourse, addEvent, import, export }
+enum AssistantAction { none, addCourse, addEvent, import, export, aiAssistant }
 
 class CourseAssistantPage extends StatefulWidget {
   const CourseAssistantPage({Key? key}) : super(key: key);
@@ -19,7 +23,8 @@ class CourseAssistantPage extends StatefulWidget {
   State<CourseAssistantPage> createState() => _CourseAssistantPageState();
 }
 
-class _CourseAssistantPageState extends State<CourseAssistantPage> {
+class _CourseAssistantPageState extends State<CourseAssistantPage>
+    with SingleTickerProviderStateMixin {
   List<Course> _assistantCourses = [];
   List<CustomEvent> _customEvents = []; // ✅ 新增：存放自訂行程的列表
   bool _isLoading = false;
@@ -84,15 +89,56 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     'F': ['21:05', '21:55'],
   };
 
+  AiService? _aiService;
+  List<AiConfig> _aiConfigs = [];
+  String? _selectedAiConfigId;
+  bool _hasEmbeddingApiKey = false;
+
+  late final AnimationController _navAnimController;
+  late final Animation<double> _navCurve;
+  int _prevActionIndex = 0;
+
   @override
   void initState() {
     super.initState();
+    _navAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _navCurve = CurvedAnimation(
+      parent: _navAnimController,
+      curve: Curves.easeInOutCubic,
+    );
+    _navAnimController.value = 1.0; // start at initial position
     _loadAllData();
   }
 
+  @override
+  void dispose() {
+    _navAnimController.dispose();
+    _aiService?.clearHistory();
+    super.dispose();
+  }
+
+  void _onAiConfigChanged(AiConfig config) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_ai_config_id', config.id);
+    setState(() {
+      _selectedAiConfigId = config.id;
+
+      if (_aiService != null) {
+        final oldHistory = _aiService!.history;
+        _aiService = AiService(config: config);
+        _aiService!.history.addAll(oldHistory);
+      } else {
+        _aiService = AiService(config: config);
+      }
+    });
+  }
+
   // ✅ 統一載入課程與自訂行程
-  Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadAllData({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -117,10 +163,57 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
       } else {
         _customEvents = [];
       }
+
+      // 讀取 AI 設定
+      final configJson = prefs.getString('ai_configs') ?? '[]';
+      _aiConfigs = AiConfig.decode(configJson);
+      _selectedAiConfigId = prefs.getString('selected_ai_config_id');
+
+      // 檢查 Embedding API Key 是否已設定
+      final embeddingJson = prefs.getString('embedding_config');
+      if (embeddingJson != null && embeddingJson.isNotEmpty) {
+        try {
+          final embeddingConfig = AiConfig.fromJson(jsonDecode(embeddingJson));
+          _hasEmbeddingApiKey = embeddingConfig.apiKey.isNotEmpty;
+        } catch (_) {
+          _hasEmbeddingApiKey = false;
+        }
+      } else {
+        // 若無獨立 embedding 設定，嘗試使用主 AI 設定的 API Key
+        _hasEmbeddingApiKey = _aiConfigs.isNotEmpty && _aiConfigs.first.apiKey.isNotEmpty;
+      }
+
+      if (_aiConfigs.isNotEmpty) {
+        AiConfig? target;
+        if (_selectedAiConfigId != null) {
+          target = _aiConfigs.firstWhere(
+            (c) => c.id == _selectedAiConfigId,
+            orElse: () => _aiConfigs.first,
+          );
+        } else {
+          target = _aiConfigs.first;
+        }
+
+        if (_aiService == null || _aiService!.config.id != target.id) {
+          if (_aiService != null) {
+            final oldHistory = _aiService!.history;
+            _aiService = AiService(config: target);
+            _aiService!.history.addAll(oldHistory);
+          } else {
+            _aiService = AiService(config: target);
+          }
+        }
+
+        _selectedAiConfigId = target.id;
+      }
     } catch (e) {
       print("讀取資料失敗: $e");
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -159,6 +252,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     await prefs.remove('custom_events');
     _loadAllData();
   }
+
   String _getTotalCredits() {
     double total = 0.0;
     for (var c in _assistantCourses) {
@@ -418,7 +512,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                       onClearAll: _showClearConfirmDialog,
                       onFormatTime: (Course c) =>
                           _formatCourseTimeWithRange(c).replaceAll('\n', ' '),
-                      // 新增：詳細資訊相關
                       selectedCourse: _selectedCourseForDetail,
                       selectedEvent: _selectedEventForDetail,
                       onClearSelection: () => setState(() {
@@ -427,63 +520,25 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                       }),
                     ),
                   ),
-                  const VerticalDivider(
-                    width: 1,
-                    thickness: 1,
-                    color: Colors.transparent,
-                  ),
+                  // 分隔線：左 ↔ 中
+                  Container(width: 1, color: colorScheme.borderColor),
                   // 中間：課表主體 (Flex 3.5)
                   Expanded(
                     flex: 350,
                     child: Container(
                       alignment: Alignment.topCenter,
-                      color: colorScheme.pageBackground,
                       child: timetableContent,
                     ),
                   ),
-                  const VerticalDivider(
-                    width: 1,
-                    thickness: 1,
-                    color: Colors.transparent,
-                  ),
+                  // 分隔線：中 ↔ 右
+                  Container(width: 1, color: colorScheme.borderColor),
                   // 右側：動作操作區 + 頂部導覽 (Flex 4.5)
                   Expanded(
                     flex: 450,
                     child: Column(
                       children: [
-                        // 頂部導覽
-                        Ink(
-                          height: 56, // 稍微增加高度以避免圓形 Hover 效果被截斷
-                          decoration: BoxDecoration(
-                            color: colorScheme.headerBackground,
-                            border: Border(bottom: BorderSide(color: colorScheme.borderColor, width: 0.5)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildNavIcon(
-                                AssistantAction.addCourse,
-                                Icons.add_box_rounded,
-                                "加選課程",
-                              ),
-                              _buildNavIcon(
-                                AssistantAction.addEvent,
-                                Icons.event_note_rounded,
-                                "其他行程",
-                              ),
-                              _buildNavIcon(
-                                AssistantAction.import,
-                                Icons.download_rounded,
-                                "匯入課表",
-                              ),
-                              _buildNavIcon(
-                                AssistantAction.export,
-                                Icons.upload_rounded,
-                                "匯出選課",
-                              ),
-                            ],
-                          ),
-                        ),
+                        // 頂部導覽 - Liquid Glass
+                        _buildLiquidGlassNav(),
                         // 操作內容區
                         Expanded(child: _buildRightPaneContent()),
                       ],
@@ -547,53 +602,195 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     );
   }
 
-  Widget _buildNavIcon(AssistantAction action, IconData icon, String label) {
-    bool isSelected = _currentAction == action;
-    return Tooltip(
-      message: label,
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: isSelected 
-              ? Theme.of(context).colorScheme.accentBlue 
-              : Theme.of(context).colorScheme.iconColor,
-        ),
-        splashRadius: 24, // 限制圓形 Hover 範圍以防邊緣截斷
-        onPressed: () => setState(() => _currentAction = action),
-        mouseCursor: SystemMouseCursors.click,
+  static const _navActions = [
+    (AssistantAction.addCourse, Icons.add_box_rounded, "加選課程"),
+    (AssistantAction.addEvent, Icons.event_note_rounded, "其他行程"),
+    (AssistantAction.import, Icons.download_rounded, "匯入課表"),
+    (AssistantAction.export, Icons.upload_rounded, "匯出選課"),
+    (AssistantAction.aiAssistant, Icons.smart_toy_rounded, "AI 助手"),
+  ];
+
+  Widget _buildLiquidGlassNav() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.isDark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final totalWidth = constraints.maxWidth;
+          final itemWidth = totalWidth / _navActions.length;
+
+          return Stack(
+            children: [
+              // Outer ellipse container (background layer)
+              Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            Colors.white.withOpacity(0.08),
+                            Colors.white.withOpacity(0.03),
+                          ]
+                        : [
+                            Colors.white.withOpacity(0.85),
+                            Colors.white.withOpacity(0.6),
+                          ],
+                  ),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withOpacity(0.12)
+                        : Colors.white.withOpacity(0.6),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white.withOpacity(0.8),
+                      blurRadius: 0,
+                      offset: const Offset(0, -1),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Row(
+                      children: _navActions.map((item) {
+                        final (action, icon, label) = item;
+                        final isSelected = _currentAction == action;
+                        return _buildGlassNavItem(action, icon, label, isSelected);
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Animated inner ellipse (sliding indicator B) — behind icons
+              AnimatedBuilder(
+                animation: _navAnimController,
+                builder: (context, _) {
+                  final tween = Tween<double>(
+                    begin: _prevActionIndex * itemWidth + 4,
+                    end: _currentActionIndex * itemWidth + 4,
+                  );
+                  final left = tween.evaluate(_navCurve);
+                  return Positioned(
+                    left: left,
+                    top: 4,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: itemWidth - 8,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          color: isDark
+                              ? Colors.white.withOpacity(0.10)
+                              : const Color(0xFFE3F2FD).withOpacity(0.7),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withOpacity(0.2)
+                                : const Color(0xFF90CAF9).withOpacity(0.5),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.06)
+                                  : const Color(0xFF90CAF9).withOpacity(0.15),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Icon row (top layer — always visible)
+              Positioned.fill(
+                child: Row(
+                  children: _navActions.map((item) {
+                    final (action, icon, label) = item;
+                    final isSelected = _currentAction == action;
+                    return _buildGlassNavItem(action, icon, label, isSelected);
+                  }).toList(),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildRightPaneContent() {
-    switch (_currentAction) {
-      case AssistantAction.none:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.touch_app_outlined, 
-                size: 64, 
-                color: Theme.of(context).colorScheme.iconColor.withOpacity(0.3)
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "請從左側選擇動作", 
-                style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)
-              ),
-            ],
+  Widget _buildGlassNavItem(AssistantAction action, IconData icon, String label, bool isSelected) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Tooltip(
+        message: label,
+        child: IconButton(
+          icon: Icon(
+            icon,
+            size: 20,
+            color: isSelected ? colorScheme.accentBlue : colorScheme.iconColor,
           ),
-        );
-      case AssistantAction.addCourse:
-        return AssistantAddCoursePage(
+          onPressed: () {
+            if (_currentAction != action) {
+              setState(() {
+                _prevActionIndex = _currentActionIndex;
+                _currentAction = action;
+              });
+              _navAnimController.forward(from: 0);
+            }
+          },
+          mouseCursor: SystemMouseCursors.click,
+          splashRadius: 18,
+        ),
+      ),
+    );
+  }
+
+  int get _currentActionIndex {
+    switch (_currentAction) {
+      case AssistantAction.addCourse: return 0;
+      case AssistantAction.addEvent: return 1;
+      case AssistantAction.import: return 2;
+      case AssistantAction.export: return 3;
+      case AssistantAction.aiAssistant: return 4;
+      case AssistantAction.none: return 0;
+    }
+  }
+
+  Widget _buildRightPaneContent() {
+    return IndexedStack(
+      index: _currentActionIndex,
+      children: [
+        AssistantAddCoursePage(
+          key: const ValueKey('add_course_pane'),
           isSubPane: true,
           onCourseAdded: _loadAllData,
           initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
           initialEvents: _customEvents.map((e) => e.toJson()).toList(),
-        );
-      case AssistantAction.addEvent:
-        return AssistantAddEventPane(
+        ),
+        AssistantAddEventPane(
+          key: const ValueKey('add_event_pane'),
           periods: _periods,
           fullWeekDays: _fullWeekDays,
           onSave: (title, loc, details, day, periods) async {
@@ -625,19 +822,28 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
               context,
             ).showSnackBar(const SnackBar(content: Text("行程已加入！")));
           },
-        );
-      case AssistantAction.import:
-        return AssistantImportPage(
+        ),
+        AssistantImportPage(
+          key: const ValueKey('import_pane'),
           isSubPane: true,
           onImportComplete: _loadAllData,
-        );
-      case AssistantAction.export:
-        return const AssistantExportPage(isSubPane: true);
-
-    }
+        ),
+        AssistantExportPage(
+          key: const ValueKey('export_pane'),
+          isSubPane: true,
+        ),
+        AssistantAiPane(
+          key: const ValueKey('ai_assistant_pane'),
+          aiService: _aiService,
+          aiConfigs: _aiConfigs,
+          selectedConfigId: _selectedAiConfigId,
+          onConfigChanged: _onAiConfigChanged,
+          onRefreshRequested: () => _loadAllData(silent: true),
+          hasEmbeddingApiKey: _hasEmbeddingApiKey,
+        ),
+      ],
+    );
   }
-
-
 
   Widget _buildTimeTable() {
     // 加入 colorScheme 存取
@@ -705,10 +911,19 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
       }
     }
 
-    return Container(
-      color: Colors.transparent,
-      child: Table(
-        border: TableBorder.all(color: colorScheme.borderColor, width: 0.5),
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.borderColor, width: 0.8),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Table(
+        border: TableBorder(
+          horizontalInside: BorderSide(color: colorScheme.borderColor, width: 0.8),
+          verticalInside: BorderSide(color: colorScheme.borderColor, width: 0.8),
+        ),
         columnWidths: const {0: FixedColumnWidth(50)},
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
@@ -720,7 +935,10 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
                 child: Center(
                   child: Text(
                     "時段",
-                    style: TextStyle(fontSize: 10, color: colorScheme.subtitleText),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colorScheme.subtitleText,
+                    ),
                   ),
                 ),
               ),
@@ -1041,8 +1259,9 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
             );
           }).toList(),
         ],
-      ),
-    );
+      ), // Table
+      ), // Container
+    ); // Padding
   }
 
   void _showCourseDetail(Course course) {
@@ -1291,16 +1510,16 @@ class _CourseAssistantPageState extends State<CourseAssistantPage> {
     final RegExp chineseRegex = RegExp(r'[\u4e00-\u9fa5]');
     final Iterable<Match> matches = chineseRegex.allMatches(input);
     if (matches.isEmpty) return input;
-    
+
     int lastIndex = matches.last.end;
-    
+
     // 包含最後一個中文字後面的括號、全半形標點、或是括號內的內容
     final RegExp suffixRegex = RegExp(r'^[\s\(\)（）\[\]【】]+');
     final match = suffixRegex.firstMatch(input.substring(lastIndex));
     if (match != null) {
       lastIndex += match.end;
     }
-    
+
     return input.substring(0, lastIndex).trim();
   }
 

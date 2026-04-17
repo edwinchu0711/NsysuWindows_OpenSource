@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/course_selection_service.dart';
 import 'course_status_tab.dart';
 import 'course_query_tab.dart';
@@ -23,6 +24,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   String _message = "資料讀取中...";
   List<CourseSelectionData> _myCourses = [];
   bool _isSystemClosed = false;
+  bool _isNeedConfirmation = false;
 
   @override
   void initState() {
@@ -45,6 +47,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
       _isLoading = true;
       _message = "正在登入選課系統...";
       _isSystemClosed = false;
+      _isNeedConfirmation = false;
     });
 
     try {
@@ -60,6 +63,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
         });
       } else if (state == SelectionState.needConfirmation) {
         setState(() {
+          _isNeedConfirmation = true;
           _isLoading = false;
         });
       } else {
@@ -97,27 +101,90 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
 
           // 2. 主內容區域
           Expanded(
-            child: isDesktop && widget.enableQuery
-                ? _buildDesktopLayout()
-                : Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: widget.enableQuery
-                          ? TabBarView(
-                              controller: _tabController,
-                              children: [
-                                _buildStatusTab(),
-                                CourseQueryTab(
-                                  currentCourses: _myCourses,
-                                  onRequestRefresh: _loadMyCourses,
-                                ),
-                              ],
-                            )
-                          : _buildStatusTab(),
-                    ),
-                  ),
+            child: _isNeedConfirmation
+                ? _buildNeedConfirmationView()
+                : (isDesktop && widget.enableQuery
+                    ? _buildDesktopLayout()
+                    : Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1200),
+                          child: widget.enableQuery
+                              ? TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    _buildStatusTab(),
+                                    CourseQueryTab(
+                                      currentCourses: _myCourses,
+                                      onRequestRefresh: _loadMyCourses,
+                                    ),
+                                  ],
+                                )
+                              : _buildStatusTab(),
+                        ),
+                      )),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNeedConfirmationView() {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 80,
+              color: Colors.orange[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "尚未完成預選課程確認",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primaryText,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "請利用學校官網完成預選課程的確認，再使用本程式進行選課。",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: colorScheme.subtitleText,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final url = Uri.parse("https://selcrs.nsysu.edu.tw");
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text("前往學校官網確認"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.accentBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _loadMyCourses,
+              child: const Text("主動重新整理"),
+            ),
+          ],
+        ),
       ),
     );
   }

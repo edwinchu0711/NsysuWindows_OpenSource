@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
+import 'assignment_submission_page.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as dom;
 import '../../services/exam_task/elearn_task_HW_service.dart';
@@ -429,7 +430,12 @@ class _ExamDetailPageState extends State<ExamDetailPage> {
                         ),
                         DataCell(
                           Text(
-                            s['score']?.toString() ?? "-",
+                            s['score'] != null
+                                ? s['score'].toString().replaceAll(
+                                    RegExp(r'\.0$'),
+                                    '',
+                                  )
+                                : "-",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.accentBlue,
@@ -598,6 +604,38 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
           actions: [
+            if (_data != null &&
+                (_data!['is_in_progress'] == true ||
+                    _data!['is_in_progress'] == 1 ||
+                    _data!['is_in_progress'] == "true"))
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0, top: 10, bottom: 10),
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssignmentSubmissionPage(
+                          homeworkId: widget.homeworkId,
+                          courseName: _data!['course_name'] ?? "",
+                          title: widget.title,
+                        ),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    "繳交作業",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             if (!widget.isSubmitted)
               IconButton(
                 icon: Icon(
@@ -703,6 +741,12 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
                     d['score_rule'] == 'highest' ? '最高得分' : '平均得分',
                   ),
                   _buildInfoRow(context, "完成指標", info['completion_criterion']),
+                  if (info['score'] != null)
+                    _buildInfoRow(
+                      context,
+                      "得分",
+                      info['score'].toString().replaceAll(RegExp(r'\.0$'), ''),
+                    ),
                 ],
               ),
             ),
@@ -753,6 +797,44 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
                 ),
               );
             }).toList(),
+          ],
+
+          if (_data != null &&
+              (_data!['is_in_progress'] == true ||
+                  _data!['is_in_progress'] == 1)) ...[
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AssignmentSubmissionPage(
+                        homeworkId: widget.homeworkId,
+                        courseName: _data!['course_name'] ?? "",
+                        title: widget.title,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.send_rounded),
+                label: const Text(
+                  "繳交作業",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ],
       ),
