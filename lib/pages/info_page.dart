@@ -68,6 +68,17 @@ class _InfoPageState extends State<InfoPage> {
       "title": "異常處理與重啟",
       "content": "若遇到資料無法顯示，請嘗試「完全關閉應用程式後重開」，通常可解決暫時性的網路問題。",
     },
+    {
+      "id": 14,
+      "title": "AI 模型使用限制",
+      "content": "使用 AI 模型時請務必留意請求頻率。若您使用自定義 API 金鑰，請自行注意用量以免產生額外費用。",
+    },
+    {
+      "id": 15,
+      "title": "AI 隱私與安全",
+      "content":
+          "與模型對話時，系統不會主動傳送您的個人隱私資料。然而，您自行輸入的對話內容仍會傳送至 AI 服務商，請避免在對話中提供敏感個資。",
+    },
   ];
 
   @override
@@ -151,10 +162,14 @@ class _InfoPageState extends State<InfoPage> {
                           ),
                           padding: const EdgeInsets.all(15),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.isDark ? Colors.blue[900]!.withOpacity(0.2) : Colors.blue.withOpacity(0.05),
+                            color: Theme.of(context).colorScheme.isDark
+                                ? Colors.blue[900]!.withOpacity(0.2)
+                                : Colors.blue.withOpacity(0.05),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.isDark ? Colors.blue[700]!.withOpacity(0.3) : Colors.blue.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.isDark
+                                  ? Colors.blue[700]!.withOpacity(0.3)
+                                  : Colors.blue.withOpacity(0.1),
                             ),
                           ),
                           child: Column(
@@ -164,7 +179,9 @@ class _InfoPageState extends State<InfoPage> {
                                 children: [
                                   Icon(
                                     Icons.volunteer_activism,
-                                    color: Theme.of(context).colorScheme.isDark ? Colors.blue[300] : Colors.blue[400],
+                                    color: Theme.of(context).colorScheme.isDark
+                                        ? Colors.blue[300]
+                                        : Colors.blue[400],
                                     size: 18,
                                   ),
                                   const SizedBox(width: 8),
@@ -173,7 +190,10 @@ class _InfoPageState extends State<InfoPage> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).colorScheme.isDark ? Colors.blue[300] : Colors.blue[700],
+                                      color:
+                                          Theme.of(context).colorScheme.isDark
+                                          ? Colors.blue[300]
+                                          : Colors.blue[700],
                                     ),
                                   ),
                                 ],
@@ -183,7 +203,9 @@ class _InfoPageState extends State<InfoPage> {
                                 "特別感謝 NSYSU Open Development Community 提供的開源貢獻，為本專案的基礎架構提供了寶貴的參考與支援。",
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Theme.of(context).colorScheme.subtitleText,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.subtitleText,
                                   height: 1.5,
                                 ),
                                 textAlign: TextAlign.center,
@@ -209,7 +231,9 @@ class _InfoPageState extends State<InfoPage> {
                             "⚠️ 重要聲明：使用此應用程式產生之任何問題與風險均須由使用者自行承擔。本專案採開源形式，開放大眾自由修改、下載，感謝您的理解。",
                             style: TextStyle(
                               fontSize: 13,
-                              color: Theme.of(context).colorScheme.isDark ? Colors.red[300] : Colors.red[500],
+                              color: Theme.of(context).colorScheme.isDark
+                                  ? Colors.red[300]
+                                  : Colors.red[500],
                               fontWeight: FontWeight.w600,
                               height: 1.5,
                             ),
@@ -235,13 +259,20 @@ class _InfoPageState extends State<InfoPage> {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primaryText),
+            icon: Icon(
+              Icons.arrow_back,
+              color: Theme.of(context).colorScheme.primaryText,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 10),
           Text(
             title,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primaryText),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primaryText,
+            ),
           ),
         ],
       ),
@@ -300,11 +331,15 @@ class _InfoPageState extends State<InfoPage> {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: Theme.of(context).colorScheme.isDark ? Colors.blue[900] : Colors.blue[100],
+            backgroundColor: Theme.of(context).colorScheme.isDark
+                ? Colors.blue[900]
+                : Colors.blue[100],
             child: Text(
               index.toString(),
               style: TextStyle(
-                color: Theme.of(context).colorScheme.isDark ? Colors.blue[100] : Colors.blue[800],
+                color: Theme.of(context).colorScheme.isDark
+                    ? Colors.blue[100]
+                    : Colors.blue[800],
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),

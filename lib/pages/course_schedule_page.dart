@@ -261,42 +261,29 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
                   const SizedBox(width: 20),
                   // 學期切換 Dropdown
                   if (_availableSemesters.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryCardBackground,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: colorScheme.borderColor),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedSemester,
-                          items: _availableSemesters.map((sem) {
-                            String label =
-                                "${sem.substring(0, sem.length - 1)} 學年 " +
-                                (sem.endsWith("1")
-                                    ? "上學期"
-                                    : sem.endsWith("2")
-                                    ? "下學期"
-                                    : "暑修");
-                            return DropdownMenuItem(
-                              value: sem,
-                              child: Text(
-                                label,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: colorScheme.primaryText,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedSemester = val;
-                              _selectedCourseForDetail = null; // 切換學期後清空詳情
-                            });
-                          },
-                        ),
+                    _GlassSingleSelectDropdown(
+                      label: "", // 標題內嵌在按鈕內
+                      items: _availableSemesters,
+                      value: _selectedSemester!,
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _selectedSemester = val;
+                            _selectedCourseForDetail = null;
+                          });
+                        }
+                      },
+                      displayMap: Map.fromEntries(
+                        _availableSemesters.map((sem) {
+                          String label =
+                              "${sem.substring(0, sem.length - 1)} 學年 " +
+                              (sem.endsWith("1")
+                                  ? "上學期"
+                                  : sem.endsWith("2")
+                                  ? "下學期"
+                                  : "暑修");
+                          return MapEntry(sem, label);
+                        }),
                       ),
                     ),
                 ],
@@ -924,20 +911,287 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
 
   Color _getCourseColor(String name, {String? id}) {
     final colors = [
-      Colors.blue[700]!,
-      Colors.orange[800]!,
-      Colors.purple[600]!,
-      Colors.teal[700]!,
-      Colors.pink[600]!,
-      Colors.indigo[600]!,
-      Colors.deepOrange[600]!,
-      Colors.cyan[700]!,
-      Colors.red[600]!,
-      Colors.deepPurple[600]!,
-      Colors.green[700]!,
+      0xFF1976D2, // Blue 700
+      0xFFEF6C00, // Orange 800
+      0xFF8E24AA, // Purple 600
+      0xFF00796B, // Teal 700
+      0xFFD81B60, // Pink 600
+      0xFF3949AB, // Indigo 600
+      0xFFF4511E, // Deep Orange 600
+      0xFF0097A7, // Cyan 700
+      0xFFE53935, // Red 600
+      0xFF5E35B1, // Deep Purple 600
+      0xFF388E3C, // Green 700
     ];
     final String key = id != null ? name + id : name;
     final int hash = key.hashCode.abs();
-    return colors[hash % colors.length];
+    return Color(colors[hash % colors.length]);
+  }
+}
+
+class _GlassSingleSelectDropdown extends StatefulWidget {
+  final String label;
+  final List<String> items;
+  final String value;
+  final Function(String?) onChanged;
+  final Map<String, String>? displayMap;
+
+  const _GlassSingleSelectDropdown({
+    Key? key,
+    required this.label,
+    required this.items,
+    required this.value,
+    required this.onChanged,
+    this.displayMap,
+  }) : super(key: key);
+
+  @override
+  State<_GlassSingleSelectDropdown> createState() => _GlassSingleSelectDropdownState();
+}
+
+class _GlassSingleSelectDropdownState extends State<_GlassSingleSelectDropdown> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown();
+    } else {
+      _overlayEntry = _createOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      setState(() => _isOpen = true);
+    }
+  }
+
+  void _closeDropdown() {
+    // 解決 Windows 平台在移除 Overlay 時可能發生的焦點/鍵盤狀態斷言錯誤
+    FocusManager.instance.primaryFocus?.unfocus();
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeDropdown,
+              ),
+            ),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 4),
+              child: Material(
+                color: Colors.transparent,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 200),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutBack,
+                  builder: (context, val, child) {
+                    return Transform.scale(
+                      scale: 0.95 + 0.05 * val,
+                      alignment: Alignment.topCenter,
+                      child: Opacity(
+                        opacity: val.clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: size.width < 220 ? 220 : size.width,
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    decoration: BoxDecoration(
+                      color: colorScheme.headerBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: colorScheme.borderColor.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.items.map((item) {
+                          final isSelected = item == widget.value;
+                          final label = widget.displayMap != null
+                              ? (widget.displayMap![item] ?? item)
+                              : item;
+                          return _HoverableSingleSelectOption(
+                            label: label,
+                            isSelected: isSelected,
+                            colorScheme: colorScheme,
+                            onTap: () {
+                              widget.onChanged(item);
+                              _closeDropdown();
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final displayValue = widget.displayMap != null
+        ? (widget.displayMap![widget.value] ?? widget.value)
+        : widget.value;
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.label.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                widget.label,
+                style: TextStyle(fontSize: 12, color: colorScheme.subtitleText),
+              ),
+            ),
+          InkWell(
+            onTap: _toggleDropdown,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: colorScheme.secondaryCardBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: colorScheme.borderColor,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayValue,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.primaryText,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isOpen ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: colorScheme.accentBlue,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HoverableSingleSelectOption extends StatefulWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final ColorScheme colorScheme;
+
+  const _HoverableSingleSelectOption({
+    Key? key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.colorScheme,
+  }) : super(key: key);
+
+  @override
+  State<_HoverableSingleSelectOption> createState() => _HoverableSingleSelectOptionState();
+}
+
+class _HoverableSingleSelectOptionState extends State<_HoverableSingleSelectOption> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final isSelected = widget.isSelected;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? cs.accentBlue.withValues(alpha: 0.15)
+                : (_isHovering ? cs.accentBlue.withValues(alpha: 0.08) : Colors.transparent),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? cs.accentBlue.withValues(alpha: 0.4) : (_isHovering ? cs.accentBlue.withValues(alpha: 0.25) : Colors.transparent),
+            ),
+            boxShadow: _isHovering && !isSelected
+                ? [
+                    BoxShadow(
+                      color: cs.accentBlue.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: isSelected || _isHovering ? cs.primaryText : cs.subtitleText,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_rounded, size: 18, color: cs.accentBlue),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -11,7 +11,7 @@ import '../services/storage_service.dart';
 import '../../services/course_query_service.dart'; // 請確認路徑是否正確
 import '../theme/app_theme.dart';
 
-bool test = true;
+bool test = false;
 
 enum SelectionState {
   open, // 正常開放選課
@@ -196,7 +196,7 @@ class _CourseSelectionSchedulePageState
       if (mounted) {
         setState(() {
           _isSystemOpen = isOpen;
-          _systemStatusMessage = isOpen ? "選課系統開放中" : "目前非選課時段（選課時段會開啟選課功能）";
+          _systemStatusMessage = isOpen ? "選課系統開放中" : "目前非選課時段";
           _isCheckingSystem = false;
         });
       }
@@ -509,7 +509,7 @@ class _CourseSelectionSchedulePageState
     bool isWide = screenWidth > 900;
 
     return Scaffold(
-      backgroundColor: colorScheme.pageBackground,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: FractionallySizedBox(
@@ -631,7 +631,7 @@ class _CourseSelectionSchedulePageState
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
-                          color: colorScheme.pageBackground,
+                          color: Colors.transparent,
                           child: Text(
                             "資料更新時間：$_dataUpdateTime",
                             textAlign: TextAlign.center,
@@ -785,8 +785,6 @@ class _CourseSelectionSchedulePageState
     // 2. 異常處理狀態判斷 (綠/灰)
     bool isExceptionActive =
         _activeItemKeys.any((key) => key.contains('異常')) || test;
-    // 只有在系統開放(藍)或橘色時段才顯示異常 UI
-    bool shouldShowExceptionUI = showOpenButton || showStatusButton;
 
     return Padding(
       padding: isWide
@@ -833,7 +831,7 @@ class _CourseSelectionSchedulePageState
                         ),
                       ),
                     ),
-                    if (!_isCheckingSystem && showOpenButton || test)
+                    if (!_isCheckingSystem)
                       Padding(
                         padding: const EdgeInsets.only(left: 16.0),
                         child: _buildActionButton(
@@ -843,16 +841,6 @@ class _CourseSelectionSchedulePageState
                           () => _navigateToCourseSelection(enableQuery: true),
                         ),
                       ),
-                    if (!_isCheckingSystem && showStatusButton || test)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 16.0),
-                        child: _buildActionButton(
-                          isWide ? "查看目前狀態" : "目前狀態",
-                          Icons.info_outline_rounded,
-                          Colors.orange,
-                          () => _navigateToCourseSelection(enableQuery: false),
-                        ),
-                      ),
                   ],
                 ),
               ],
@@ -860,66 +848,65 @@ class _CourseSelectionSchedulePageState
           ),
 
           // --- 第二部分：異常處理卡片 (綠/灰) ---
-          if (shouldShowExceptionUI) ...[
-            const SizedBox(height: 16), // 兩個卡片間的間距
-            Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20.0,
-                horizontal: 16.0,
-              ),
-              decoration: BoxDecoration(
-                // 如果是進行中就給綠色背景，否則給淡淡的灰色背景
-                color: isExceptionActive
-                    ? colorScheme.successContainer
-                    : colorScheme.secondaryCardBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colorScheme.borderColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          isExceptionActive || test ? "目前為異常處理階段" : "非異常處理時段",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: isExceptionActive
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isExceptionActive
-                                ? (colorScheme.isDark
-                                      ? Colors.green[200]
-                                      : Colors.green[800])
-                                : colorScheme.subtitleText,
-                          ),
+          const SizedBox(height: 16), // 兩個卡片間的間距
+          Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: 20.0,
+              horizontal: 16.0,
+            ),
+            decoration: BoxDecoration(
+              // 如果是進行中就給綠色背景，否則給淡淡的灰色背景
+              color: isExceptionActive
+                  ? colorScheme.successContainer
+                  : colorScheme.secondaryCardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.borderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        isExceptionActive ? "目前為異常處理階段" : "非異常處理時段",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isExceptionActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isExceptionActive
+                              ? (colorScheme.isDark
+                                    ? Colors.green[200]
+                                    : Colors.green[800])
+                              : colorScheme.subtitleText,
                         ),
                       ),
-                      if (isExceptionActive || test)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16.0),
-                          child: _buildActionButton(
-                            "前往異常處理",
-                            Icons.build_circle_outlined,
-                            Colors.green,
-                            () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const CourseExceptionHandlingPage(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0),
+                      child: _buildActionButton(
+                        "前往異常處理",
+                        Icons.build_circle_outlined,
+                        isExceptionActive ? Colors.green : Colors.grey,
+                        () {
+                          if (isExceptionActive) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const CourseExceptionHandlingPage(),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -973,50 +960,83 @@ class _CourseSelectionSchedulePageState
     bool isActive = _activeItemKeys.contains(entry.key); // ← 只改這行
 
     final curColorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-      decoration: BoxDecoration(
-        color: isActive
-            ? curColorScheme.secondaryCardBackground
-            : curColorScheme.cardBackground,
-        border: Border(bottom: BorderSide(color: curColorScheme.borderColor)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
-                color: isActive
-                    ? curColorScheme.accentBlue
-                    : curColorScheme.primaryText,
-                letterSpacing: 0.5,
+    bool isHovered = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return MouseRegion(
+          onEnter: (_) => setState(() => isHovered = true),
+          onExit: (_) => setState(() => isHovered = false),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: curColorScheme.borderColor),
+              ),
+            ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isHovered
+                      ? Colors.blue.withOpacity(0.6)
+                      : Colors.transparent,
+                  width: 1.5,
+                ),
+                boxShadow: isHovered
+                    ? [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.15),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: isActive
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        color: isActive
+                            ? curColorScheme.accentBlue
+                            : curColorScheme.primaryText,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildTimeText(start, isActive),
+                        if (hasEnd) ...[
+                          const SizedBox(height: 6),
+                          _buildTimeText("~ $end", isActive),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildTimeText(start, isActive),
-                if (hasEnd) ...[
-                  const SizedBox(height: 6),
-                  _buildTimeText("~ $end", isActive),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

@@ -154,12 +154,15 @@ class OpenScorePage extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(
-                      Theme.of(context).colorScheme.isDark ? 0.3 : 1.0,
-                    ),
+                    color: Theme.of(context).colorScheme.primaryContainer
+                        .withOpacity(
+                          Theme.of(context).colorScheme.isDark ? 0.3 : 1.0,
+                        ),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withOpacity(0.2),
                     ),
                   ),
                   child: Row(
@@ -268,156 +271,241 @@ class OpenScorePage extends StatelessWidget {
                             .map((item) => Map<String, String>.from(item))
                             .toList();
 
-                        return Card(
-                          elevation: 0,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(color: colorScheme.borderColor),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: ExpansionTile(
-                            initiallyExpanded: false,
-                            backgroundColor: colorScheme.cardBackground,
-                            collapsedBackgroundColor:
-                                colorScheme.cardBackground,
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.secondaryCardBackground,
-                              child: Icon(
-                                Icons.book_rounded,
-                                color: Theme.of(context).colorScheme.accentBlue,
-                                size: 18,
-                              ),
-                            ),
-                            title: Text(
-                              courseData['course_name'],
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primaryText,
-                              ),
-                            ),
-                            tilePadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 0,
-                            ),
-                            trailing: _buildTrailingWidget(context, scores),
-                            children: [
-                              if (scores.isNotEmpty) ...[
-                                Container(
-                                  color: colorScheme.secondaryCardBackground,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 6,
-                                    horizontal: 16,
+                        bool isHovered = false;
+                        return StatefulBuilder(
+                          builder: (context, setState) {
+                            return MouseRegion(
+                              onEnter: (_) => setState(() => isHovered = true),
+                              onExit: (_) => setState(() => isHovered = false),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: const EdgeInsets.only(bottom: 10),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.cardBackground,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isHovered
+                                        ? Colors.blue.withOpacity(0.6)
+                                        : colorScheme.borderColor,
+                                    width: isHovered ? 1.5 : 1.0,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        flex: 3,
-                                        child: Text(
-                                          "評分項目",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primaryText,
+                                  boxShadow: isHovered
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.blue.withOpacity(
+                                              0.15,
+                                            ),
+                                            blurRadius: 10,
+                                            spreadRadius: 2,
                                           ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          "比例",
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.subtitleText,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        flex: 2,
-                                        child: Text(
-                                          "得分",
-                                          textAlign: TextAlign.end,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primaryText,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                        ]
+                                      : [],
                                 ),
-                                const Divider(height: 1),
-                                ...scores.map((scoreItem) {
-                                  bool isTotal = (scoreItem['item'] ?? "")
-                                      .contains("總成績");
-
-                                  return Container(
-                                    color: isTotal
-                                        ? Theme.of(context).colorScheme.isDark
-                                              ? Colors.yellow[900]?.withOpacity(
-                                                  0.1,
-                                                )
-                                              : Colors.yellow.withOpacity(0.04)
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.cardBackground,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10.0,
-                                      horizontal: 16.0,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: ExpansionTile(
+                                    initiallyExpanded: false,
+                                    backgroundColor: colorScheme.cardBackground,
+                                    collapsedBackgroundColor:
+                                        colorScheme.cardBackground,
+                                    leading: CircleAvatar(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.secondaryCardBackground,
+                                      child: Icon(
+                                        Icons.book_rounded,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.accentBlue,
+                                        size: 18,
+                                      ),
                                     ),
-
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 3,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                    title: Text(
+                                      courseData['course_name'],
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primaryText,
+                                      ),
+                                    ),
+                                    tilePadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 0,
+                                    ),
+                                    trailing: _buildTrailingWidget(
+                                      context,
+                                      scores,
+                                    ),
+                                    children: [
+                                      if (scores.isNotEmpty) ...[
+                                        Container(
+                                          color: colorScheme
+                                              .secondaryCardBackground,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 6,
+                                            horizontal: 16,
+                                          ),
+                                          child: Row(
                                             children: [
-                                              Text(
-                                                scoreItem['item'] ?? "",
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: isTotal
-                                                      ? FontWeight.bold
-                                                      : FontWeight.normal,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primaryText,
+                                              Expanded(
+                                                flex: 3,
+                                                child: Text(
+                                                  "評分項目",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primaryText,
+                                                  ),
                                                 ),
                                               ),
-                                              if ((scoreItem['note'] ?? "")
-                                                  .isNotEmpty)
-                                                Text(
-                                                  scoreItem['note']!,
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  "比例",
+                                                  textAlign: TextAlign.center,
                                                   style: TextStyle(
-                                                    fontSize: 11,
                                                     color: Theme.of(
                                                       context,
                                                     ).colorScheme.subtitleText,
+                                                    fontSize: 12,
                                                   ),
                                                 ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  "得分",
+                                                  textAlign: TextAlign.end,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primaryText,
+                                                  ),
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
-                                        Expanded(
-                                          flex: 2,
+                                        const Divider(height: 1),
+                                        ...scores.map((scoreItem) {
+                                          bool isTotal =
+                                              (scoreItem['item'] ?? "")
+                                                  .contains("總成績");
+
+                                          return Container(
+                                            color: isTotal
+                                                ? Theme.of(
+                                                        context,
+                                                      ).colorScheme.isDark
+                                                      ? Colors.yellow[900]
+                                                            ?.withOpacity(0.1)
+                                                      : Colors.yellow
+                                                            .withOpacity(0.04)
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.cardBackground,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 16.0,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Expanded(
+                                                  flex: 3,
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        scoreItem['item'] ?? "",
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight: isTotal
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                    .normal,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .primaryText,
+                                                        ),
+                                                      ),
+                                                      if ((scoreItem['note'] ??
+                                                              "")
+                                                          .isNotEmpty)
+                                                        Text(
+                                                          scoreItem['note']!,
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .subtitleText,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Text(
+                                                    scoreItem['percentage'] ??
+                                                        "",
+                                                    textAlign: TextAlign.center,
+                                                    style: TextStyle(
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .subtitleText,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Text(
+                                                    scoreItem['raw_score'] ??
+                                                        "-",
+                                                    textAlign: TextAlign.end,
+                                                    style: TextStyle(
+                                                      fontSize: 15,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          (double.tryParse(
+                                                                    scoreItem['raw_score'] ??
+                                                                        "0",
+                                                                  ) ??
+                                                                  0) <
+                                                              60
+                                                          ? Colors.red
+                                                          : (Theme.of(context)
+                                                                    .colorScheme
+                                                                    .isDark
+                                                                ? Colors
+                                                                      .green[200]
+                                                                : Colors
+                                                                      .green[800]),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ] else
+                                        Padding(
+                                          padding: const EdgeInsets.all(16.0),
                                           child: Text(
-                                            scoreItem['percentage'] ?? "",
-                                            textAlign: TextAlign.center,
+                                            "此課程尚無詳細評分明細",
                                             style: TextStyle(
                                               color: Theme.of(
                                                 context,
@@ -426,50 +514,13 @@ class OpenScorePage extends StatelessWidget {
                                             ),
                                           ),
                                         ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            scoreItem['raw_score'] ?? "-",
-                                            textAlign: TextAlign.end,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  (double.tryParse(
-                                                            scoreItem['raw_score'] ??
-                                                                "0",
-                                                          ) ??
-                                                          0) <
-                                                      60
-                                                  ? Colors.red
-                                                  : (Theme.of(
-                                                          context,
-                                                        ).colorScheme.isDark
-                                                        ? Colors.green[200]
-                                                        : Colors.green[800]),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ] else
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    "此課程尚無詳細評分明細",
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.subtitleText,
-                                      fontSize: 13,
-                                    ),
+                                      const SizedBox(height: 6),
+                                    ],
                                   ),
                                 ),
-                              const SizedBox(height: 6),
-                            ],
-                          ),
+                              ),
+                            );
+                          },
                         );
                       },
                     );

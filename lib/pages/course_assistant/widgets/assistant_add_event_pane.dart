@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../widgets/glass_dropdown.dart';
 
 class AssistantAddEventPane extends StatefulWidget {
   final List<String> periods;
@@ -62,15 +63,19 @@ class _AssistantAddEventPaneState extends State<AssistantAddEventPane> {
                   ),
                   const SizedBox(height: 16),
                   const Text("選擇星期：", style: TextStyle(fontWeight: FontWeight.bold)),
-                  DropdownButton<int>(
-                    isExpanded: true,
-                    value: _selectedDay,
-                    mouseCursor: SystemMouseCursors.click,
-                    items: List.generate(7, (index) {
-                      return DropdownMenuItem(value: index + 1, child: Text("星期${widget.fullWeekDays[index]}"));
-                    }),
+                  const SizedBox(height: 8),
+                  GlassSingleSelectDropdown(
+                    label: "",
+                    items: List.generate(7, (index) => (index + 1).toString()),
+                    value: _selectedDay.toString(),
+                    displayMap: {
+                      for (int i = 0; i < 7; i++)
+                        (i + 1).toString(): "星期${widget.fullWeekDays[i]}"
+                    },
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedDay = val);
+                      if (val != null) {
+                        setState(() => _selectedDay = int.parse(val));
+                      }
                     },
                   ),
                   const SizedBox(height: 16),

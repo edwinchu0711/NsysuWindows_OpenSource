@@ -1030,100 +1030,17 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
   }
 
-  // ✅ 新增：複選下拉選單
   Widget _buildMultiSelectDropdown({
     required String label,
     required Set<String> values,
     required Map<String, String> options,
     required Function(Set<String>) onChanged,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-        ),
-        const SizedBox(height: 2),
-        InkWell(
-          onTap: () async {
-            final Set<String>? newValues = await showDialog<Set<String>>(
-              context: context,
-              builder: (ctx) {
-                Set<String> tempSet = Set.from(values);
-                return StatefulBuilder(
-                  builder: (ctx, setInnerState) {
-                    return AlertDialog(
-                      title: Text("選擇$label"),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: options.entries.map((e) {
-                            return CheckboxListTile(
-                              title: Text(e.value),
-                              value: tempSet.contains(e.key),
-                              onChanged: (val) {
-                                setInnerState(() {
-                                  if (val == true)
-                                    tempSet.add(e.key);
-                                  else
-                                    tempSet.remove(e.key);
-                                });
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text("取消"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, tempSet),
-                          child: const Text("確定"),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-            if (newValues != null) onChanged(newValues);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryCardBackground,
-              border: Border.all(
-                color: Theme.of(context).colorScheme.borderColor,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    values.isEmpty
-                        ? "全部"
-                        : values.map((e) => options[e]).join(', '),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(context).colorScheme.primaryText,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: Theme.of(context).colorScheme.subtitleText,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return _GlassMultiSelectDropdown(
+      label: label,
+      values: values,
+      options: options,
+      onChanged: onChanged,
     );
   }
 
@@ -1400,6 +1317,317 @@ class _HoverableCourseNameState extends State<_HoverableCourseName> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _GlassMultiSelectDropdown extends StatefulWidget {
+  final String label;
+  final Set<String> values;
+  final Map<String, String> options;
+  final Function(Set<String>) onChanged;
+
+  const _GlassMultiSelectDropdown({
+    Key? key,
+    required this.label,
+    required this.values,
+    required this.options,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  State<_GlassMultiSelectDropdown> createState() =>
+      _GlassMultiSelectDropdownState();
+}
+
+class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+  late Set<String> _tempSet;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown(true);
+    } else {
+      _tempSet = Set.from(widget.values);
+      _overlayEntry = _createOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      setState(() => _isOpen = true);
+    }
+  }
+
+  void _closeDropdown([bool save = false]) {
+    if (save) {
+      widget.onChanged(Set.from(_tempSet));
+    }
+    // 解決 Windows 平台在移除 Overlay 時可能發生的焦點/鍵盤狀態斷言錯誤
+    FocusManager.instance.primaryFocus?.unfocus();
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _closeDropdown(true),
+              ),
+            ),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 8),
+              child: Material(
+                color: Colors.transparent,
+                child: StatefulBuilder(
+                  builder: (context, setInnerState) {
+                    return TweenAnimationBuilder<double>(
+                      duration: const Duration(milliseconds: 200),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      curve: Curves.easeOutBack,
+                      builder: (context, val, child) {
+                        return Transform.scale(
+                          scale: 0.95 + 0.05 * val,
+                          alignment: Alignment.topCenter,
+                          child: Opacity(
+                            opacity: val.clamp(0.0, 1.0),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: size.width < 180 ? 180 : size.width,
+                        constraints: const BoxConstraints(maxHeight: 300),
+                        decoration: BoxDecoration(
+                          color: colorScheme.headerBackground,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: colorScheme.borderColor.withValues(
+                              alpha: 0.5,
+                            ),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Flexible(
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: widget.options.entries.map((e) {
+                                    final isSelected = _tempSet.contains(e.key);
+                                    return _HoverableMultiSelectOption(
+                                      label: e.value,
+                                      isSelected: isSelected,
+                                      colorScheme: colorScheme,
+                                      onTap: () {
+                                        setInnerState(() {
+                                          if (isSelected) {
+                                            _tempSet.remove(e.key);
+                                          } else {
+                                            _tempSet.add(e.key);
+                                          }
+                                          // Save immediately upon ticking for real-time feel
+                                          widget.onChanged(Set.from(_tempSet));
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          ),
+          const SizedBox(height: 2),
+          InkWell(
+            onTap: _toggleDropdown,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: colorScheme.borderColor,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.values.isEmpty
+                          ? "全部"
+                          : widget.values
+                                .map((e) => widget.options[e] ?? e)
+                                .join(', '),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.primaryText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    _isOpen
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: colorScheme.accentBlue,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HoverableMultiSelectOption extends StatefulWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final ColorScheme colorScheme;
+
+  const _HoverableMultiSelectOption({
+    Key? key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.colorScheme,
+  }) : super(key: key);
+
+  @override
+  State<_HoverableMultiSelectOption> createState() =>
+      _HoverableMultiSelectOptionState();
+}
+
+class _HoverableMultiSelectOptionState
+    extends State<_HoverableMultiSelectOption> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final isSelected = widget.isSelected;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? cs.accentBlue.withValues(alpha: 0.1)
+                : (_isHovering
+                      ? cs.accentBlue.withValues(alpha: 0.05)
+                      : Colors.transparent),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? cs.accentBlue.withValues(alpha: 0.3)
+                  : (_isHovering
+                        ? cs.accentBlue.withValues(alpha: 0.2)
+                        : Colors.transparent),
+            ),
+            boxShadow: _isHovering && !isSelected
+                ? [
+                    BoxShadow(
+                      color: cs.accentBlue.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
+                size: 18,
+                color: isSelected
+                    ? cs.accentBlue
+                    : (_isHovering
+                          ? cs.accentBlue.withValues(alpha: 0.6)
+                          : cs.subtitleText),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: isSelected || _isHovering
+                        ? cs.primaryText
+                        : cs.subtitleText,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

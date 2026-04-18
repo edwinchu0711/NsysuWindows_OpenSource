@@ -685,47 +685,12 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
     Function(String?) onChanged, {
     Map<String, String>? displayMap,
   }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: colorScheme.subtitleText),
-        ),
-        SizedBox(height: 4),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: colorScheme.secondaryCardBackground,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : null,
-              isExpanded: true,
-              dropdownColor: colorScheme.secondaryCardBackground,
-              icon: Icon(
-                Icons.arrow_drop_down,
-                color: Theme.of(context).colorScheme.subtitleText,
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem(
-                  value: item,
-                  child: Text(
-                    displayMap != null ? (displayMap[item] ?? item) : item,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: colorScheme.primaryText,
-                    ),
-                  ),
-                );
-              }).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
+    return _GlassSingleSelectDropdown(
+      label: label,
+      items: items,
+      value: value,
+      onChanged: onChanged,
+      displayMap: displayMap,
     );
   }
 
@@ -749,83 +714,106 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       scoreColor = colorScheme.isDark ? Colors.blueGrey[300]! : Colors.blueGrey;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: colorScheme.cardBackground,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.01),
-            spreadRadius: 0,
-            blurRadius: 5,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-          vertical: 12.0,
-        ), // 縮減內部上下間距
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38, // 縮小圓圈
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.isDark
-                    ? Colors.blue[900]!.withOpacity(0.3)
-                    : Colors.blue[50],
-                shape: BoxShape.circle,
+    bool isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return MouseRegion(
+          onEnter: (_) => setState(() => isHovered = true),
+          onExit: (_) => setState(() => isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: colorScheme.cardBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isHovered
+                    ? Colors.blue.withOpacity(0.6)
+                    : colorScheme.borderColor,
+                width: isHovered ? 1.5 : 1.0,
               ),
-              child: Center(
-                child: Text(
-                  course.credits,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.accentBlue,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
+              boxShadow: isHovered
+                  ? [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.15),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.01),
+                        spreadRadius: 0,
+                        blurRadius: 5,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ), // 縮減內部上下間距
+              child: Row(
                 children: [
-                  Text(
-                    course.name,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primaryText,
+                  Container(
+                    width: 38,
+                    height: 38, // 縮小圓圈
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.isDark
+                          ? Colors.blue[900]!.withOpacity(0.3)
+                          : Colors.blue[50],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        course.credits,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.accentBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          course.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          course.id,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.subtitleText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Text(
-                    course.id,
+                    course.score,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.subtitleText,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: scoreColor,
                     ),
                   ),
                 ],
               ),
             ),
-            Text(
-              course.score,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: scoreColor,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1041,6 +1029,282 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _GlassSingleSelectDropdown extends StatefulWidget {
+  final String label;
+  final List<String> items;
+  final String value;
+  final Function(String?) onChanged;
+  final Map<String, String>? displayMap;
+
+  const _GlassSingleSelectDropdown({
+    Key? key,
+    required this.label,
+    required this.items,
+    required this.value,
+    required this.onChanged,
+    this.displayMap,
+  }) : super(key: key);
+
+  @override
+  State<_GlassSingleSelectDropdown> createState() =>
+      _GlassSingleSelectDropdownState();
+}
+
+class _GlassSingleSelectDropdownState
+    extends State<_GlassSingleSelectDropdown> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown();
+    } else {
+      _overlayEntry = _createOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      setState(() => _isOpen = true);
+    }
+  }
+
+  void _closeDropdown() {
+    // 解決 Windows 平台在移除 Overlay 時可能發生的焦點/鍵盤狀態斷言錯誤
+    FocusManager.instance.primaryFocus?.unfocus();
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  OverlayEntry _createOverlayEntry() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeDropdown,
+              ),
+            ),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 4),
+              child: Material(
+                color: Colors.transparent,
+                child: TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 200),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutBack,
+                  builder: (context, val, child) {
+                    return Transform.scale(
+                      scale: 0.95 + 0.05 * val,
+                      alignment: Alignment.topCenter,
+                      child: Opacity(
+                        opacity: val.clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: size.width,
+                    constraints: const BoxConstraints(maxHeight: 250),
+                    decoration: BoxDecoration(
+                      color: colorScheme.headerBackground,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: colorScheme.borderColor.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.items.map((item) {
+                          final isSelected = item == widget.value;
+                          final label = widget.displayMap != null
+                              ? (widget.displayMap![item] ?? item)
+                              : item;
+                          return _HoverableSingleSelectOption(
+                            label: label,
+                            isSelected: isSelected,
+                            colorScheme: colorScheme,
+                            onTap: () {
+                              widget.onChanged(item);
+                              _closeDropdown();
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final displayValue = widget.displayMap != null
+        ? (widget.displayMap![widget.value] ?? widget.value)
+        : widget.value;
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.label,
+            style: TextStyle(fontSize: 12, color: colorScheme.subtitleText),
+          ),
+          const SizedBox(height: 4),
+          InkWell(
+            onTap: _toggleDropdown,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.secondaryCardBackground,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colorScheme.borderColor, width: 0.5),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayValue,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colorScheme.primaryText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    _isOpen
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: colorScheme.accentBlue,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HoverableSingleSelectOption extends StatefulWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final ColorScheme colorScheme;
+
+  const _HoverableSingleSelectOption({
+    Key? key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    required this.colorScheme,
+  }) : super(key: key);
+
+  @override
+  State<_HoverableSingleSelectOption> createState() =>
+      _HoverableSingleSelectOptionState();
+}
+
+class _HoverableSingleSelectOptionState
+    extends State<_HoverableSingleSelectOption> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final isSelected = widget.isSelected;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? cs.accentBlue.withValues(alpha: 0.15)
+                : (_isHovering
+                      ? cs.accentBlue.withValues(alpha: 0.08)
+                      : Colors.transparent),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? cs.accentBlue.withValues(alpha: 0.4)
+                  : (_isHovering
+                        ? cs.accentBlue.withValues(alpha: 0.25)
+                        : Colors.transparent),
+            ),
+            boxShadow: _isHovering && !isSelected
+                ? [
+                    BoxShadow(
+                      color: cs.accentBlue.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: isSelected || _isHovering
+                        ? cs.primaryText
+                        : cs.subtitleText,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_rounded, size: 18, color: cs.accentBlue),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

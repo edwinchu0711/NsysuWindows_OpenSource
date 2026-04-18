@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/elearn_bulletin_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/glass_dropdown.dart';
 
 class AnnouncementPage extends StatefulWidget {
   const AnnouncementPage({Key? key}) : super(key: key);
@@ -160,48 +161,34 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                 // 左邊：顯示筆數
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<int>(
-                    value: _pageSize,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      labelText: "顯示筆數",
-                    ),
-                    items: _pageSizeOptions.map((size) => DropdownMenuItem(
-                      value: size, 
-                      child: Text("$size 筆")
-                    )).toList(),
+                  child: GlassSingleSelectDropdown(
+                    label: "顯示筆數",
+                    items: _pageSizeOptions.map((e) => e.toString()).toList(),
+                    value: _pageSize.toString(),
                     onChanged: _isLoading ? null : (val) {
-                      if (val != null && val != _pageSize) {
-                        setState(() => _pageSize = val);
-                        // 切換筆數時，強制重新從網路抓取
-                        _fetchData(forceRefresh: true); 
+                      if (val != null) {
+                        int newSize = int.parse(val);
+                        if (newSize != _pageSize) {
+                          setState(() => _pageSize = newSize);
+                          _fetchData(forceRefresh: true);
+                        }
                       }
+                    },
+                    displayMap: {
+                      for (var opt in _pageSizeOptions) opt.toString(): "$opt 筆"
                     },
                   ),
                 ),
                 const SizedBox(width: 10),
-                // 右邊：課程篩選
                 Expanded(
                   flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedCourse,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      labelText: "課程篩選",
-                    ),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text("全部課程")),
-                      ..._courseOptions.map((c) => DropdownMenuItem(
-                        value: c, 
-                        child: Text(c, overflow: TextOverflow.ellipsis)
-                      )),
-                    ],
+                  child: GlassSingleSelectDropdown(
+                    label: "課程篩選",
+                    items: ["全部課程", ..._courseOptions],
+                    value: _selectedCourse ?? "全部課程",
                     onChanged: (val) {
                       setState(() {
-                        _selectedCourse = val;
+                        _selectedCourse = (val == "全部課程") ? null : val;
                         _applyFilter();
                       });
                     },
@@ -621,5 +608,6 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 extension on dom.Element {
   List<String> get styles => attributes['style']?.split(';') ?? [];
 }
+
 
 

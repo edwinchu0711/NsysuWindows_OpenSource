@@ -104,24 +104,24 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             child: _isNeedConfirmation
                 ? _buildNeedConfirmationView()
                 : (isDesktop && widget.enableQuery
-                    ? _buildDesktopLayout()
-                    : Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1200),
-                          child: widget.enableQuery
-                              ? TabBarView(
-                                  controller: _tabController,
-                                  children: [
-                                    _buildStatusTab(),
-                                    CourseQueryTab(
-                                      currentCourses: _myCourses,
-                                      onRequestRefresh: _loadMyCourses,
-                                    ),
-                                  ],
-                                )
-                              : _buildStatusTab(),
-                        ),
-                      )),
+                      ? _buildDesktopLayout()
+                      : Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1200),
+                            child: widget.enableQuery
+                                ? TabBarView(
+                                    controller: _tabController,
+                                    children: [
+                                      _buildStatusTab(),
+                                      CourseQueryTab(
+                                        currentCourses: _myCourses,
+                                        onRequestRefresh: _loadMyCourses,
+                                      ),
+                                    ],
+                                  )
+                                : _buildStatusTab(),
+                          ),
+                        )),
           ),
         ],
       ),
@@ -154,10 +154,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             Text(
               "請利用學校官網完成預選課程的確認，再使用本程式進行選課。",
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: colorScheme.subtitleText,
-              ),
+              style: TextStyle(fontSize: 16, color: colorScheme.subtitleText),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
@@ -172,17 +169,17 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.accentBlue,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            TextButton(
-              onPressed: _loadMyCourses,
-              child: const Text("主動重新整理"),
-            ),
+            TextButton(onPressed: _loadMyCourses, child: const Text("主動重新整理")),
           ],
         ),
       ),
@@ -199,7 +196,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           flex: 28,
           child: Container(
             decoration: BoxDecoration(
-              color: colorScheme.pageBackground,
+              color: Colors.transparent,
               border: Border(right: BorderSide(color: colorScheme.borderColor)),
             ),
             child: _buildStatusTab(),
@@ -209,7 +206,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
         Expanded(
           flex: 32,
           child: Container(
-            color: colorScheme.cardBackground,
+            color: Colors.transparent,
             child: _buildMiddleSchedulePane(),
           ),
         ),
@@ -218,7 +215,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           flex: 40,
           child: Container(
             decoration: BoxDecoration(
-              color: colorScheme.cardBackground,
+              color: Colors.transparent,
               border: Border(left: BorderSide(color: colorScheme.borderColor)),
             ),
             child: CourseQueryTab(
@@ -245,7 +242,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: colorScheme.headerBackground,
+            color: Colors.transparent,
             border: Border(bottom: BorderSide(color: colorScheme.borderColor)),
           ),
           child: Text(
@@ -263,101 +260,120 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
               padding: const EdgeInsets.all(12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryCardBackground,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colorScheme.borderColor),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.5),
+                    width: 1.3,
+                  ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: Table(
-                  border: TableBorder.all(color: colorScheme.borderColor, width: 1),
-                  columnWidths: const {0: FixedColumnWidth(50)},
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    TableRow(
-                      decoration: BoxDecoration(color: colorScheme.timetableHeader),
-                      children: [
-                        SizedBox(
-                          height: 35,
-                          child: Center(
-                            child: Text(
-                              "時段",
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: colorScheme.subtitleText,
-                              ),
-                            ),
-                          ),
-                        ),
-                        ...visibleDays.map(
-                          (dayIndex) => Container(
-                            height: 35,
-                            alignment: Alignment.center,
-                            child: Text(
-                              ['一', '二', '三', '四', '五', '六', '日'][dayIndex],
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: colorScheme.subtitleText,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10.5),
+                  child: Table(
+                    border: TableBorder(
+                      horizontalInside: BorderSide(
+                        color: colorScheme.borderColor,
+                        width: 0.8,
+                      ),
+                      verticalInside: BorderSide(
+                        color: colorScheme.borderColor,
+                        width: 0.8,
+                      ),
                     ),
-                    ...visiblePeriods.map((period) {
-                      String timeInfo = _timeMapping[period] ?? "";
-                      return TableRow(
+                    columnWidths: const {0: FixedColumnWidth(50)},
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      TableRow(
+                        decoration: BoxDecoration(
+                          color: colorScheme.timetableHeader,
+                        ),
                         children: [
-                          TableCell(
-                            verticalAlignment: TableCellVerticalAlignment.fill,
-                            child: Container(
-                              color: colorScheme.timetableSlot,
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    period,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: colorScheme.subtitleText,
-                                    ),
-                                  ),
-                                  if (timeInfo.isNotEmpty)
+                          SizedBox(
+                            height: 35,
+                            child: Center(
+                              child: Text(
+                                "時段",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: colorScheme.subtitleText,
+                                ),
+                              ),
+                            ),
+                          ),
+                          ...visibleDays.map(
+                            (dayIndex) => Container(
+                              height: 35,
+                              alignment: Alignment.center,
+                              child: Text(
+                                ['一', '二', '三', '四', '五', '六', '日'][dayIndex],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: colorScheme.subtitleText,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      ...visiblePeriods.map((period) {
+                        String timeInfo = _timeMapping[period] ?? "";
+                        return TableRow(
+                          children: [
+                            TableCell(
+                              verticalAlignment:
+                                  TableCellVerticalAlignment.fill,
+                              child: Container(
+                                color: colorScheme.timetableSlot,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
                                     Text(
-                                      timeInfo,
+                                      period,
                                       style: TextStyle(
-                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
                                         color: colorScheme.subtitleText,
                                       ),
-                                      textAlign: TextAlign.center,
                                     ),
-                                ],
+                                    if (timeInfo.isNotEmpty)
+                                      Text(
+                                        timeInfo,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: colorScheme.subtitleText,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          ...visibleDays.map((dayIndex) {
-                            final coursesInThisSlot =
-                                scheduleMap[dayIndex]?[period] ?? [];
-                            if (coursesInThisSlot.isEmpty)
-                              return const SizedBox(height: 60);
+                            ...visibleDays.map((dayIndex) {
+                              final coursesInThisSlot =
+                                  scheduleMap[dayIndex]?[period] ?? [];
+                              if (coursesInThisSlot.isEmpty)
+                                return const SizedBox(height: 60);
 
-                            return Container(
-                              height: 60,
-                              padding: const EdgeInsets.all(2),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: coursesInThisSlot
-                                    .map((c) => _buildScheduleCell(c))
-                                    .toList(),
-                              ),
-                            );
-                          }),
-                        ],
-                      );
-                    }).toList(),
-                  ],
+                              return Container(
+                                height: 60,
+                                padding: const EdgeInsets.all(2),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: coursesInThisSlot
+                                      .map((c) => _buildScheduleCell(c))
+                                      .toList(),
+                                ),
+                              );
+                            }),
+                          ],
+                        );
+                      }).toList(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -544,7 +560,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      color: colorScheme.headerBackground,
+      color: Colors.transparent,
       child: Column(
         children: [
           Padding(
@@ -568,14 +584,14 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                       tooltip: "返回主選單",
                     ),
                     const SizedBox(width: 4),
-                        Text(
-                          widget.enableQuery ? "選課系統" : "目前選課狀態",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.primaryText,
-                          ),
-                        ),
+                    Text(
+                      widget.enableQuery ? "選課系統" : "目前選課狀態",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primaryText,
+                      ),
+                    ),
                   ],
                 ),
                 // 已移除重新整理按鈕
