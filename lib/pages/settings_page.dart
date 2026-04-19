@@ -8,6 +8,8 @@ import 'package:path/path.dart' as p;
 import '../utils/utils.dart';
 import '../theme/theme_notifier.dart';
 import '../theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 import '../models/ai_config_model.dart';
 import '../services/ai/ai_client.dart';
 import '../services/local_course_service.dart';
@@ -25,9 +27,12 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with SingleTickerProviderStateMixin {
   bool _isPreviewRankEnabled = false;
   ThemeMode _themeMode = ThemeMode.system;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
   List<AiConfig> _aiConfigs = [];
   SettingsCategory _selectedCategory = SettingsCategory.interface;
   late AiConfig _embeddingConfig;
@@ -68,6 +73,13 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
     _simpleApiKeyController = TextEditingController();
     _simpleModelIdController = TextEditingController();
     _loadSettings();
@@ -76,6 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _simpleApiKeyController.dispose();
     _simpleModelIdController.dispose();
     super.dispose();
@@ -105,38 +118,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _isAdvancedModelMode = prefs.getBool('is_advanced_model_mode') ?? false;
 
       // Sync simple mode controllers from current configs
-      if (_aiConfigs.isNotEmpty) {
-        final firstGoogle = _aiConfigs.firstWhere(
-          (c) => c.type == 'google',
-          orElse: () =>
-              AiConfig(id: '', name: '', type: '', model: '', apiKey: ''),
-        );
-        if (firstGoogle.id.isNotEmpty) {
-          _simpleApiKeyController.text = firstGoogle.apiKey;
-          if ([
-            'gemini-3.1-flash-lite-preview',
-            'gemini-flash-lite-latest',
-            'gemma-4-31b-it',
-          ].contains(firstGoogle.model)) {
-            _selectedSimpleModel = firstGoogle.model;
-          } else {
-            _selectedSimpleModel = 'other';
-            _simpleModelIdController.text = firstGoogle.model;
-          }
-        }
-      } else if (_embeddingConfig.apiKey.isNotEmpty) {
-        _simpleApiKeyController.text = _embeddingConfig.apiKey;
-      }
-
-      // Determine simple config status
-      final primaryGoogle = _aiConfigs
-          .where((c) => c.id == 'primary_google')
-          .firstOrNull;
-      if (primaryGoogle != null && primaryGoogle.apiKey.isNotEmpty) {
-        _simpleConfigStatus = _SimpleConfigStatus.enabled;
-      } else {
-        _simpleConfigStatus = _SimpleConfigStatus.disabled;
-      }
+      _syncSimpleModeFromAiConfigs();
     });
 
     // Load database metadata (outside setState since we need async)
@@ -204,6 +186,50 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveAiConfigs() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('ai_configs', AiConfig.encode(_aiConfigs));
+  }
+
+  void _syncSimpleModeFromAiConfigs() {
+    bool hasTarget = false;
+    if (_aiConfigs.isNotEmpty) {
+      final firstGoogle = _aiConfigs.firstWhere(
+        (c) => c.type == 'google',
+        orElse: () =>
+            AiConfig(id: '', name: '', type: '', model: '', apiKey: ''),
+      );
+      if (firstGoogle.id.isNotEmpty) {
+        hasTarget = true;
+        _simpleApiKeyController.text = firstGoogle.apiKey;
+        if ([
+          'gemini-3.1-flash-lite-preview',
+          'gemini-flash-lite-latest',
+          'gemma-4-31b-it',
+        ].contains(firstGoogle.model)) {
+          _selectedSimpleModel = firstGoogle.model;
+        } else {
+          _selectedSimpleModel = 'other';
+          _simpleModelIdController.text = firstGoogle.model;
+        }
+      }
+    }
+
+    if (!hasTarget) {
+      if (_embeddingConfig.apiKey.isNotEmpty) {
+        _simpleApiKeyController.text = _embeddingConfig.apiKey;
+      } else {
+        _simpleApiKeyController.text = '';
+      }
+      _selectedSimpleModel = null;
+      _simpleModelIdController.text = '';
+    }
+
+    final primaryGoogle = _aiConfigs
+        .where((c) => c.id == 'primary_google')
+        .firstOrNull;
+    if (primaryGoogle != null && primaryGoogle.apiKey.isNotEmpty) {
+      _simpleConfigStatus = _SimpleConfigStatus.enabled;
+    } else {
+      _simpleConfigStatus = _SimpleConfigStatus.disabled;
+    }
   }
 
   void _syncSimpleConfigs() {
@@ -686,7 +712,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           label: "簡易模式",
                           isSelected: !_isAdvancedModelMode,
                           onTap: () async {
-                            setState(() => _isAdvancedModelMode = false);
+                            setState(() {
+                              _isAdvancedModelMode = false;
+                              _syncSimpleModeFromAiConfigs();
+                            });
                             final prefs = await SharedPreferences.getInstance();
                             await prefs.setBool(
                               'is_advanced_model_mode',
@@ -718,17 +747,11 @@ class _SettingsPageState extends State<SettingsPage> {
           // Show tutorial at top if no LLM configs saved yet
           if (_aiConfigs.isEmpty) ...[
             _buildSectionTitle("新手教學"),
-            _buildTutorialCard(),
+            _buildTutorialCard(isTop: true),
             const SizedBox(height: 16),
           ],
           // === Simple Mode UI ===
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionTitle("Google API 設定"),
-              _buildSimpleConfigBadge(colorScheme),
-            ],
-          ),
+          _buildSectionTitle("Google API 設定"),
           _buildSettingCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -911,66 +934,63 @@ class _SettingsPageState extends State<SettingsPage> {
                   // Save & Test Buttons
                   Row(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final key = _simpleApiKeyController.text.trim();
-                            final modelId = _selectedSimpleModel == 'other'
-                                ? _simpleModelIdController.text.trim()
-                                : _selectedSimpleModel ?? '';
-                            if (key.isEmpty) {
-                              _showSnackBar("請先輸入 API Key", isError: true);
-                              return;
-                            }
-                            if (modelId.isEmpty) {
-                              _showSnackBar("請先選擇一個模型", isError: true);
-                              return;
-                            }
-                            _syncSimpleConfigs();
-                            setState(() {
-                              if (_simpleConfigStatus ==
-                                  _SimpleConfigStatus.disabled) {
-                                _simpleConfigStatus =
-                                    _SimpleConfigStatus.enabled;
-                              } else {
-                                _simpleConfigStatus =
-                                    _SimpleConfigStatus.justUpdated;
-                              }
-                            });
-                          },
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          label: const Text("儲存設定"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: colorScheme.accentBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      OutlinedButton.icon(
+                        onPressed: _isSimpleTesting
+                            ? null
+                            : _testSimpleConnection,
+                        icon: _isSimpleTesting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.flash_on_rounded, size: 18),
+                        label: Text(_isSimpleTesting ? "連線中..." : "連線測試"),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colorScheme.accentBlue,
+                          side: BorderSide(color: colorScheme.accentBlue),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
+                      const Spacer(),
+                      _buildSimpleConfigBadge(colorScheme),
                       const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _isSimpleTesting
-                              ? null
-                              : _testSimpleConnection,
-                          icon: _isSimpleTesting
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.flash_on_rounded, size: 18),
-                          label: Text(_isSimpleTesting ? "連線中..." : "連線測試"),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: colorScheme.accentBlue,
-                            side: BorderSide(color: colorScheme.accentBlue),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          final key = _simpleApiKeyController.text.trim();
+                          final modelId = _selectedSimpleModel == 'other'
+                              ? _simpleModelIdController.text.trim()
+                              : _selectedSimpleModel ?? '';
+                          if (key.isEmpty) {
+                            _showSnackBar("請先輸入 API Key", isError: true);
+                            return;
+                          }
+                          if (modelId.isEmpty) {
+                            _showSnackBar("請先選擇一個模型", isError: true);
+                            return;
+                          }
+                          _syncSimpleConfigs();
+                          setState(() {
+                            if (_simpleConfigStatus ==
+                                _SimpleConfigStatus.disabled) {
+                              _simpleConfigStatus = _SimpleConfigStatus.enabled;
+                            } else {
+                              _simpleConfigStatus =
+                                  _SimpleConfigStatus.justUpdated;
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.save_rounded, size: 18),
+                        label: const Text("儲存設定"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.accentBlue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
@@ -1055,14 +1075,15 @@ class _SettingsPageState extends State<SettingsPage> {
         // Show tutorial at bottom if configs exist (simple mode only)
         if (_isAdvancedModelMode == false && _aiConfigs.isNotEmpty) ...[
           _buildSectionTitle("新手教學"),
-          _buildTutorialCard(),
+          _buildTutorialCard(isTop: false),
         ],
       ],
     );
   }
 
-  Widget _buildTutorialCard() {
-    return _buildSettingCard(
+  Widget _buildTutorialCard({bool isTop = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    Widget card = _buildSettingCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1079,9 +1100,28 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            const Text("1. 前往 Google AI Studio 官方網站。"),
+            Text.rich(
+              TextSpan(
+                text: "1. 前往 ",
+                style: const TextStyle(fontSize: 14),
+                children: [
+                  TextSpan(
+                    text: "Google AI Studio 官方網站",
+                    style: TextStyle(
+                      color: colorScheme.accentBlue,
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () =>
+                          _launchURL("https://aistudio.google.com/"),
+                  ),
+                  const TextSpan(text: "並登入。"),
+                ],
+              ),
+            ),
             const Text("2. 點擊「Get API key」並建立一個新的 Key。"),
-            const Text("3. 在上面欄位輸入該 Key ，在選擇一個模型即可。"),
+            const Text("3. 在此頁面欄位輸入該 Key ，再選擇一個模型即可。"),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -1106,6 +1146,31 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+
+    if (isTop) {
+      return AnimatedBuilder(
+        animation: _pulseAnimation,
+        builder: (context, child) {
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.accentBlue.withOpacity(
+                    0.3 * _pulseAnimation.value,
+                  ),
+                  blurRadius: 15 * _pulseAnimation.value,
+                  spreadRadius: 2 * _pulseAnimation.value,
+                ),
+              ],
+            ),
+            child: child,
+          );
+        },
+        child: card,
+      );
+    }
+    return card;
   }
 
   Widget _buildSectionTitle(String title) {
@@ -2369,6 +2434,7 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () {
               setState(() {
                 _aiConfigs.removeAt(index);
+                _syncSimpleModeFromAiConfigs();
                 _saveAiConfigs();
               });
               Navigator.pop(context);
@@ -2725,6 +2791,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                       if (idx != -1) _aiConfigs[idx] = newConfig;
                     }
+                    _syncSimpleModeFromAiConfigs();
                     _saveAiConfigs();
                   });
                   Navigator.pop(context);
@@ -2878,5 +2945,18 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString.trim());
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar("無法開啟連結: $urlString", isError: true);
+      }
+    }
   }
 }
