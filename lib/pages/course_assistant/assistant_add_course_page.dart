@@ -46,7 +46,23 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   @override
   void initState() {
     super.initState();
-    _loadExistingAssistantCourses().then((_) => _performSearch());
+    // Use initialCourses passed from parent if available
+    if (widget.initialCourses != null && widget.initialCourses!.isNotEmpty) {
+      _existingAssistantCourseIds = widget.initialCourses!
+          .map((c) => c['code'].toString())
+          .toSet();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadExistingAssistantCourses().then((_) => _performSearch());
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AssistantAddCoursePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCourses != oldWidget.initialCourses) {
+      _loadExistingAssistantCourses();
+    }
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:html/dom.dart' as dom;
 import 'package:intl/intl.dart';
@@ -124,7 +125,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.go('/home'),
           ),
           const SizedBox(width: 10),
           Text("網大公告", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),

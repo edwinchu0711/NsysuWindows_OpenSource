@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
 class InfoPage extends StatefulWidget {
@@ -263,7 +264,7 @@ class _InfoPageState extends State<InfoPage> {
               Icons.arrow_back,
               color: Theme.of(context).colorScheme.primaryText,
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.go('/home'),
           ),
           const SizedBox(width: 10),
           Text(

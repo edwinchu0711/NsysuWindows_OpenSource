@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/graduation_model.dart';
 import '../services/graduation_service.dart';
 import '../theme/app_theme.dart';
@@ -154,7 +155,7 @@ class _GraduationPageState extends State<GraduationPage> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => context.go('/home'),
                   ),
                   const SizedBox(width: 8),
                   Text("畢業檢核", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colorScheme.primaryText)),

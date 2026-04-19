@@ -9,53 +9,28 @@ Licensed under the MIT License.
 */
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-// 原有的頁面 Import
-import 'score_result_page.dart';
-import 'open_score_page.dart';
-import 'captcha_auto_login_page.dart';
-import 'course_schedule_page.dart';
-import 'info_page.dart';
-import 'calendar_page.dart';
-import 'dart:async';
 import 'dart:math';
-import 'course_assistant/course_assistant_page.dart';
 
 // Service Import
 import '../services/open_score_service.dart';
-import '../services/historical_score_service.dart';
-import '../services/course_service.dart';
 import '../services/course_query_service.dart';
-import '../services/exam_task/elearn_task_HW_service.dart';
-import '../services/elearn_bulletin_service.dart';
-import '../services/graduation_service.dart';
-import '../services/storage_service.dart';
 
-// --- 新增的頁面 Import ---
-import 'graduation_page.dart';
-import 'announcement_page.dart';
-import 'exam_task/exam_task_page.dart';
+// ViewModel Import
+import '../viewmodels/main_menu_viewmodel.dart';
 
-// --- 選單頁面 Import ---
-import 'course_selection_schedule_page.dart';
-import 'settings_page.dart';
 import '../theme/app_theme.dart';
 
-class MainMenuPage extends StatefulWidget {
-  final String cookies;
-  final String userAgent;
-
-  const MainMenuPage({Key? key, required this.cookies, required this.userAgent})
-    : super(key: key);
+class MainMenuPage extends ConsumerStatefulWidget {
+  const MainMenuPage({Key? key}) : super(key: key);
 
   @override
-  State<MainMenuPage> createState() => _MainMenuPageState();
+  ConsumerState<MainMenuPage> createState() => _MainMenuPageState();
 }
 
-class _MainMenuPageState extends State<MainMenuPage> {
-  bool _isFirstTimeLoading = false;
+class _MainMenuPageState extends ConsumerState<MainMenuPage> {
   final ValueNotifier<double> _fakeProgressNotifier = ValueNotifier(0.0);
 
   // --- 滑動控制器 ---
@@ -92,6 +67,15 @@ class _MainMenuPageState extends State<MainMenuPage> {
     super.dispose();
   }
 
+  Future<void> _checkAndStartTasks() async {
+    final viewModel = ref.read(mainMenuViewModelProvider.notifier);
+    await viewModel.checkAndStartTasks();
+    // If first time loading, run progress animation
+    if (ref.read(mainMenuViewModelProvider).isFirstTimeLoading) {
+      await _runRealisticLoading();
+    }
+  }
+
   Future<void> _runRealisticLoading() async {
     _fakeProgressNotifier.value = 0.0;
     await Future.delayed(const Duration(milliseconds: 1700));
@@ -125,56 +109,12 @@ class _MainMenuPageState extends State<MainMenuPage> {
     await Future.delayed(const Duration(milliseconds: 2200));
 
     if (mounted) {
-      setState(() {
-        _isFirstTimeLoading = false;
-      });
+      ref.read(mainMenuViewModelProvider.notifier).setLoadingComplete();
     }
   }
 
   Future<void> _checkNewVersion() async {
     // 依據要求捨去版本檢查顯示邏輯
-  }
-
-  Future<void> _checkAndStartTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-    // 檢查是否有 plain_v3 快取
-    bool hasCourseCache = prefs.containsKey('cached_courses_plain_v3');
-
-    if (!hasCourseCache) {
-      prefs.setBool('is_preview_rank_enabled', true);
-      setState(() {
-        _isFirstTimeLoading = true;
-      });
-
-      _startBackgroundTask().catchError((e) {
-        print("背景任務異常(忽略): $e");
-      });
-
-      await _runRealisticLoading();
-    } else {
-      _startBackgroundTask();
-    }
-  }
-
-  Future<void> _startBackgroundTask() async {
-    try {
-      await CourseService.instance.refreshAndCache();
-      if (_isScoreReleaseSeason()) {
-        await OpenScoreService.instance.fetchOpenScores();
-      }
-      await HistoricalScoreService.instance.fetchAllData();
-    } catch (e) {
-      print("❌ 背景抓取發生錯誤: $e");
-    }
-  }
-
-  bool _isScoreReleaseSeason() {
-    DateTime now = DateTime.now();
-    int month = now.month;
-    int day = now.day;
-    bool isWinter = (month == 12 && day >= 15) || (month == 1 && day <= 15);
-    bool isSummer = (month == 5 && day >= 15) || (month == 6 && day <= 15);
-    return isWinter || isSummer;
   }
 
   void _handleSessionExpiry() {
@@ -186,34 +126,14 @@ class _MainMenuPageState extends State<MainMenuPage> {
 
   void _navigateToLogin({bool isRelogin = false}) {
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CaptchaAutoLoginPage(isRelogin: isRelogin),
-      ),
-    );
+    context.go(isRelogin ? '/?relogin=true' : '/');
   }
 
   Future<void> _logout() async {
-    // 預先清除各服務的記憶體狀態 (如果有的話)
-    await Future.wait([
-      CourseService.instance.clearCache(),
-      OpenScoreService.instance.clearCache(),
-      HistoricalScoreService.instance.clearCache(),
-      ElearnService.instance.clearAllCache(),
-      ElearnBulletinService.instance.clearCache(),
-      GraduationService.instance.clearCache(),
-    ]);
-
-    // 使用 StorageService 一次清除所有安全儲存與 SharedPreferences
-    await StorageService.instance.clearAll();
+    await ref.read(mainMenuViewModelProvider.notifier).logout();
 
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => CaptchaAutoLoginPage()),
-      (route) => false,
-    );
+    context.go('/');
   }
 
   @override
@@ -363,7 +283,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
             ),
           ),
 
-          if (_isFirstTimeLoading)
+          if (ref.watch(mainMenuViewModelProvider).isFirstTimeLoading)
             Positioned.fill(
               child: Container(
                 color: (colorScheme.isDark ? Colors.black : Colors.black87)
@@ -437,12 +357,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "學期成績查詢",
           subLabel: "查詢歷年學期成績與學分",
           color: Colors.blue,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ScoreResultPage(cookies: widget.cookies),
-            ),
-          ),
+          onTap: () => context.go('/scores'),
         ),
         _buildListCard(
           context,
@@ -450,15 +365,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "開放成績查詢",
           subLabel: "即時查看本學期已登錄成績",
           color: Colors.teal,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OpenScorePage(
-                cookies: widget.cookies,
-                userAgent: widget.userAgent,
-              ),
-            ),
-          ),
+          onTap: () => context.go('/open-scores'),
         ),
       ]),
       _buildCategoryHeader(
@@ -473,10 +380,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "課表查詢",
           subLabel: "查看完整學期課程時間表",
           color: Colors.orange,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CourseSchedulePage()),
-          ),
+          onTap: () => context.go('/schedule'),
         ),
         _buildListCard(
           context,
@@ -484,12 +388,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "選課助手",
           subLabel: "模擬排課與課程評價搜尋",
           color: Colors.lightBlue,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CourseAssistantPage(),
-            ),
-          ),
+          onTap: () => context.go('/assistant'),
         ),
         _buildListCard(
           context,
@@ -497,12 +396,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "選課系統",
           subLabel: "快速進入選課排課流程",
           color: const Color.fromARGB(255, 255, 29, 13),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CourseSelectionSchedulePage(),
-            ),
-          ),
+          onTap: () => context.go('/selection'),
         ),
       ]),
       _buildCategoryHeader("網路大學", Icons.web_rounded, Colors.redAccent),
@@ -513,10 +407,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "網大公告",
           subLabel: "追蹤最新公告資訊",
           color: Colors.redAccent,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AnnouncementPage()),
-          ),
+          onTap: () => context.go('/announcements'),
         ),
         _buildListCard(
           context,
@@ -524,10 +415,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "作業與考試",
           subLabel: "查看作業與考試期限",
           color: Colors.indigo,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ExamTaskPage()),
-          ),
+          onTap: () => context.go('/tasks'),
         ),
       ]),
       _buildCategoryHeader("其他資訊查詢", Icons.search_rounded, Colors.purple),
@@ -538,10 +426,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "畢業檢核",
           subLabel: "追蹤畢業進度（限大三以上）",
           color: Colors.purple,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const GraduationPage()),
-          ),
+          onTap: () => context.go('/graduation'),
         ),
         _buildListCard(
           context,
@@ -549,10 +434,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "中山行事曆",
           subLabel: "掌握校內重要活動日期",
           color: const Color.fromARGB(255, 228, 55, 113),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CalendarPage()),
-          ),
+          onTap: () => context.go('/calendar'),
         ),
       ]),
       _buildCategoryHeader("其他", Icons.more_horiz_rounded, Colors.blueGrey),
@@ -563,10 +445,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "系統設定",
           subLabel: "名次預覽與介面設定",
           color: Colors.blueGrey,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const SettingsPage()),
-          ),
+          onTap: () => context.go('/settings'),
         ),
         _buildListCard(
           context,
@@ -574,10 +453,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
           label: "使用說明",
           subLabel: "功能指引與開發者資訊",
           color: Colors.blue,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const InfoPage()),
-          ),
+          onTap: () => context.go('/info'),
         ),
         _buildListCard(
           context,

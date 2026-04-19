@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/course_model.dart';
 import '../services/course_service.dart';
@@ -247,7 +248,7 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
                       Icons.arrow_back_ios_new_rounded,
                       size: 20,
                     ),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => context.go('/home'),
                   ),
                   const SizedBox(width: 8),
                   Text(

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/historical_score_service.dart';
 import '../theme/app_theme.dart';
 
 class ScoreResultPage extends StatefulWidget {
-  final String cookies;
-  const ScoreResultPage({Key? key, required this.cookies}) : super(key: key);
+  const ScoreResultPage({Key? key}) : super(key: key);
 
   @override
   State<ScoreResultPage> createState() => _ScoreResultPageState();
@@ -50,7 +50,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 18,
                               ),
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => context.go('/home'),
                               tooltip: "返回主選單",
                             ),
                             Text(

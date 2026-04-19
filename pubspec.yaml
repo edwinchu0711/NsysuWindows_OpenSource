@@ -28,6 +28,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
   permission_handler: ^11.3.0 # 處理安裝未知來源權限 (Android 8+)
   path_provider: ^2.1.5  # 用於存取暫存資料夾
   package_info_plus: ^8.0.0  # 加入這一行

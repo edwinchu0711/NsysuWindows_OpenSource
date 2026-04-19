@@ -11,24 +11,26 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:connectivity_plus/connectivity_plus.dart'; 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/utils.dart';
-import 'main_menu_page.dart';
 import '../services/storage_service.dart';
+import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 
 
 bool _obscurePassword = true;
 
-class CaptchaAutoLoginPage extends StatefulWidget {
+class CaptchaAutoLoginPage extends ConsumerStatefulWidget {
   final bool isRelogin;
   const CaptchaAutoLoginPage({super.key, this.isRelogin = false});
 
   @override
-  State<CaptchaAutoLoginPage> createState() => _CaptchaAutoLoginPageState();
+  ConsumerState<CaptchaAutoLoginPage> createState() => _CaptchaAutoLoginPageState();
 }
 
-class _CaptchaAutoLoginPageState extends State<CaptchaAutoLoginPage> {
+class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
@@ -100,14 +102,8 @@ class _CaptchaAutoLoginPageState extends State<CaptchaAutoLoginPage> {
   void _enterOfflineMode() {
     String userAgent = "Mozilla/5.0 (Offline Mode)";
     if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => MainMenuPage(
-          cookies: "OFFLINE", 
-          userAgent: userAgent
-        )),
-        (route) => false,
-      );
+      ref.read(sessionProvider.notifier).updateSession("OFFLINE", userAgent: userAgent);
+      context.go('/home');
     }
   }
 
@@ -225,14 +221,8 @@ class _CaptchaAutoLoginPageState extends State<CaptchaAutoLoginPage> {
         _isLoading = false;
       });
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => MainMenuPage(
-          cookies: cookieString, 
-          userAgent: userAgent
-        )),
-        (route) => false,
-      );
+      ref.read(sessionProvider.notifier).updateSession(cookieString, userAgent: userAgent);
+      context.go('/home');
     }
   }
   

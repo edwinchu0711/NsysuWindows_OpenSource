@@ -8,9 +8,9 @@ Licensed under the MIT License.
 
 */
 import 'package:flutter/material.dart';
-import 'pages/captcha_auto_login_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // 記得保留這個
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 import 'widgets/custom_title_bar.dart';
 import 'services/storage_service.dart';
@@ -19,6 +19,7 @@ import 'services/course_service.dart';
 import 'services/course_query_service.dart';
 import 'services/local_course_service.dart';
 import 'services/database_embedding_service.dart';
+import 'router.dart';
 
 import 'theme/app_theme.dart';
 import 'theme/theme_notifier.dart';
@@ -103,12 +104,13 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]).then((_) {
     runApp(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: ThemeNotifier.instance,
-        builder: (context, themeMode, _) {
-          return MaterialApp(
+      ProviderScope(
+        child: ValueListenableBuilder<ThemeMode>(
+          valueListenable: ThemeNotifier.instance,
+          builder: (context, themeMode, _) {
+            return MaterialApp.router(
             debugShowCheckedModeBanner: false,
-            home: const CaptchaAutoLoginPage(),
+            routerConfig: router,
 
             // 注入全局 UI 框架
             builder: (context, child) {
@@ -149,6 +151,7 @@ void main() async {
           );
         },
       ),
+    ),
     );
   });
 }

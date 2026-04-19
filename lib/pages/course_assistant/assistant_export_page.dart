@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/course_model.dart'; // 請確認路徑
 import 'package:flutter/services.dart';
@@ -7,7 +8,8 @@ import '../../theme/app_theme.dart';
 
 class AssistantExportPage extends StatefulWidget {
   final bool isSubPane;
-  const AssistantExportPage({Key? key, this.isSubPane = false})
+  final List<Course>? courses;
+  const AssistantExportPage({Key? key, this.isSubPane = false, this.courses})
     : super(key: key);
 
   @override
@@ -22,7 +24,29 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
   @override
   void initState() {
     super.initState();
-    _loadAssistantCourses();
+    if (widget.courses != null && widget.courses!.isNotEmpty) {
+      _assistantCourses = List.from(widget.courses!);
+      _selectedCourseIds = _assistantCourses.map((c) => c.code).toSet();
+      _isLoading = false;
+    } else {
+      _loadAssistantCourses();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AssistantExportPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.courses != null && widget.courses != oldWidget.courses) {
+      final newCodes = widget.courses!.map((c) => c.code).toSet();
+      setState(() {
+        _assistantCourses = List.from(widget.courses!);
+        _selectedCourseIds = _selectedCourseIds.intersection(newCodes);
+        if (_selectedCourseIds.isEmpty && _assistantCourses.isNotEmpty) {
+          _selectedCourseIds = _assistantCourses.map((c) => c.code).toSet();
+        }
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadAssistantCourses() async {
@@ -93,7 +117,11 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context); // 關閉 Dialog
-                  Navigator.pop(context); // 返回助手頁面
+                  if (widget.isSubPane) {
+                    context.go('/assistant');
+                  } else {
+                    Navigator.pop(context); // 返回助手頁面
+                  }
                 },
                 child: const Text("我知道了"),
               ),

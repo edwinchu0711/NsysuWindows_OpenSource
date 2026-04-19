@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -492,7 +493,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     if (!_isSearching)
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => context.go('/home'),
                         tooltip: "返回",
                       ),
                     const SizedBox(width: 4),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/exam_task/elearn_task_HW_service.dart';
@@ -269,7 +270,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.go('/home'),
           ),
           const SizedBox(width: 10),
           Text(

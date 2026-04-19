@@ -1,6 +1,7 @@
 // 檔案名稱：course_selection_schedule_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -31,7 +32,7 @@ class CourseSelectionSchedulePage extends StatefulWidget {
 class _CourseSelectionSchedulePageState
     extends State<CourseSelectionSchedulePage> {
   // --- 原有的時程表資料變數 ---
-  bool _isLoading = true;
+  bool _isLoading = true; // 頁面開啟時先顯示載入中，等轉場動畫完成後再讀資料
   String _dataUpdateTime = "";
   List<MapEntry<String, dynamic>> _mainList = [];
   List<MapEntry<String, dynamic>> _bottomList = [];
@@ -51,10 +52,18 @@ class _CourseSelectionSchedulePageState
   @override
   void initState() {
     super.initState();
-    // 1. 載入 JSON 時程表 (顯示列表用)
-    _checkAndLoadData();
-    // 2. 直接連線學校檢查狀態 (顯示按鈕用)
-    _checkRealTimeSystemStatus();
+    // 等轉場動畫結束 (~350ms) 後才開始讀資料，避免動畫期間的 UI thread 競爭造成卡頓
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      // 1. 載入 JSON 時程表 (顯示列表用)
+      _checkAndLoadData();
+      // 2. 先讀取快取的系統狀態 (即時顯示，避免白畫面)
+      _loadCachedSystemStatus();
+      // 3. 再延遲 300ms 後連線檢查系統狀態
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _checkRealTimeSystemStatus();
+      });
+    });
   }
 
   @override
@@ -86,6 +95,28 @@ class _CourseSelectionSchedulePageState
       return _parseTwDate(endTimeStr);
     } catch (e) {
       return null;
+    }
+  }
+
+  // ==========================================================
+  // 讀取快取的系統狀態 (5 分鐘 TTL)
+  // ==========================================================
+  Future<void> _loadCachedSystemStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final int? cacheTime = prefs.getInt('course_system_status_time');
+    if (cacheTime == null) return;
+
+    final age = DateTime.now().millisecondsSinceEpoch - cacheTime;
+    if (age < const Duration(minutes: 5).inMilliseconds) {
+      final bool? cachedOpen = prefs.getBool('course_system_status_open');
+      final String? cachedMsg = prefs.getString('course_system_status_msg');
+      if (cachedOpen != null && cachedMsg != null && mounted) {
+        setState(() {
+          _isSystemOpen = cachedOpen;
+          _systemStatusMessage = cachedMsg;
+          _isCheckingSystem = false;
+        });
+      }
     }
   }
 
@@ -194,11 +225,17 @@ class _CourseSelectionSchedulePageState
       bool isOpen = !firstLink.contains("query/result.asp") || test;
 
       if (mounted) {
+        final statusMsg = isOpen ? "選課系統開放中" : "目前非選課時段";
         setState(() {
           _isSystemOpen = isOpen;
-          _systemStatusMessage = isOpen ? "選課系統開放中" : "目前非選課時段";
+          _systemStatusMessage = statusMsg;
           _isCheckingSystem = false;
         });
+        // 快取結果 (5 分鐘 TTL)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('course_system_status_open', isOpen);
+        await prefs.setString('course_system_status_msg', statusMsg);
+        await prefs.setInt('course_system_status_time', DateTime.now().millisecondsSinceEpoch);
       }
     } catch (e) {
       print("❌ [偵錯] 檢查流程發生錯誤: $e");
@@ -221,8 +258,6 @@ class _CourseSelectionSchedulePageState
 
   // --- 檢查快取與載入 (保持原樣) ---
   Future<void> _checkAndLoadData({bool forceRefresh = false}) async {
-    setState(() => _isLoading = true);
-
     final prefs = await SharedPreferences.getInstance();
     try {
       if (!forceRefresh) {
@@ -245,6 +280,7 @@ class _CourseSelectionSchedulePageState
         }
       }
 
+      setState(() => _isLoading = true);
       // await _fetchFromGithub(prefs);
       final fetchedData = await fetchScheduleFromNsysu();
 
@@ -676,7 +712,7 @@ class _CourseSelectionSchedulePageState
                         Icons.arrow_back_ios_new_rounded,
                         size: 18,
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => context.go('/home'),
                       tooltip: "返回主選單",
                     ),
                     const SizedBox(width: 4),

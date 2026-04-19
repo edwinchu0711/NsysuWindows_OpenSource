@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../services/open_score_service.dart';
 import '../theme/app_theme.dart';
 
 class OpenScorePage extends StatelessWidget {
-  final String cookies;
-  final String userAgent;
 
   const OpenScorePage({
     Key? key,
-    required this.cookies,
-    required this.userAgent,
   }) : super(key: key);
 
   /// 建立右側狀態顯示區塊 (總分或查無資料)
@@ -112,7 +109,7 @@ class OpenScorePage extends StatelessWidget {
                             Icons.arrow_back_ios_new_rounded,
                             size: 18,
                           ),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => context.go('/home'),
                         ),
                         const SizedBox(width: 4),
                         Text(

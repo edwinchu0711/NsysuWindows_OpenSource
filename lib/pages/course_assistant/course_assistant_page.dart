@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/course_model.dart';
 import '../../models/custom_event_model.dart';
@@ -97,6 +98,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   late final AnimationController _navAnimController;
   late final Animation<double> _navCurve;
   int _prevActionIndex = 0;
+  final Set<AssistantAction> _builtActions = {AssistantAction.addCourse};
 
   @override
   void initState() {
@@ -110,7 +112,10 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
       curve: Curves.easeInOutCubic,
     );
     _navAnimController.value = 1.0; // start at initial position
-    _loadAllData();
+    // Defer heavy data loading until after the first frame to avoid jank during page transition
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadAllData(silent: true);
+    });
   }
 
   @override
@@ -219,7 +224,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
 
   Future<void> _removeCourseFromAssistant(Course course) async {
     setState(() {
-      _assistantCourses.removeWhere((c) => c.code == course.code);
+      _assistantCourses = _assistantCourses.where((c) => c.code != course.code).toList();
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -234,7 +239,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   // ✅ 新增：移除自訂行程
   Future<void> _removeCustomEvent(String eventId) async {
     setState(() {
-      _customEvents.removeWhere((e) => e.id == eventId);
+      _customEvents = _customEvents.where((e) => e.id != eventId).toList();
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -574,7 +579,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => context.go('/home'),
                 tooltip: "返回主選單",
               ),
               const SizedBox(width: 4),
@@ -779,17 +784,18 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   }
 
   Widget _buildRightPaneContent() {
+    _builtActions.add(_currentAction);
     return IndexedStack(
       index: _currentActionIndex,
       children: [
-        AssistantAddCoursePage(
+        _buildIfVisited(AssistantAction.addCourse, AssistantAddCoursePage(
           key: const ValueKey('add_course_pane'),
           isSubPane: true,
           onCourseAdded: _loadAllData,
           initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
           initialEvents: _customEvents.map((e) => e.toJson()).toList(),
-        ),
-        AssistantAddEventPane(
+        )),
+        _buildIfVisited(AssistantAction.addEvent, AssistantAddEventPane(
           key: const ValueKey('add_event_pane'),
           periods: _periods,
           fullWeekDays: _fullWeekDays,
@@ -822,17 +828,18 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
               context,
             ).showSnackBar(const SnackBar(content: Text("行程已加入！")));
           },
-        ),
-        AssistantImportPage(
+        )),
+        _buildIfVisited(AssistantAction.import, AssistantImportPage(
           key: const ValueKey('import_pane'),
           isSubPane: true,
           onImportComplete: _loadAllData,
-        ),
-        AssistantExportPage(
+        )),
+        _buildIfVisited(AssistantAction.export, AssistantExportPage(
           key: const ValueKey('export_pane'),
           isSubPane: true,
-        ),
-        AssistantAiPane(
+          courses: _assistantCourses,
+        )),
+        _buildIfVisited(AssistantAction.aiAssistant, AssistantAiPane(
           key: const ValueKey('ai_assistant_pane'),
           aiService: _aiService,
           aiConfigs: _aiConfigs,
@@ -840,9 +847,13 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
           onConfigChanged: _onAiConfigChanged,
           onRefreshRequested: () => _loadAllData(silent: true),
           hasEmbeddingApiKey: _hasEmbeddingApiKey,
-        ),
+        )),
       ],
     );
+  }
+
+  Widget _buildIfVisited(AssistantAction action, Widget child) {
+    return _builtActions.contains(action) ? child : const SizedBox.shrink();
   }
 
   Widget _buildTimeTable() {
