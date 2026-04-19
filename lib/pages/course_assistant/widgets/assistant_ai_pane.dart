@@ -61,6 +61,14 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
   String? _currentConversationId;
   bool _showSidebar = false;
   String _conversationTitle = "AI 助手";
+  String? _cachedApiKey; // 用於儲存當前的 API Key
+
+  static const List<(String, String)> _predefinedModels = [
+    ('gemini-3.1-flash-lite-preview', "Gemini 3.1 Flash-Lite"),
+    ('gemini-flash-lite-latest', "Flash-Lite-Latest"),
+    ('gemini-flash-latest', "Flash-Latest"),
+    ('gemma-4-31b-it', "Gemma 4"),
+  ];
 
   @override
   void initState() {
@@ -1015,6 +1023,10 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
       color: colorScheme.headerBackground,
       surfaceTintColor: Colors.transparent,
       elevation: 12,
+      constraints: const BoxConstraints(
+        maxHeight: 270, // 限制最大高度，過多時可捲動
+        minWidth: 200,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -1024,6 +1036,24 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
       ),
       padding: EdgeInsets.zero,
       onSelected: (String id) {
+        if (id.startsWith('default:')) {
+          final modelId = id.replaceFirst('default:', '');
+          final modelName = _predefinedModels
+              .firstWhere((m) => m.$1 == modelId)
+              .$2;
+
+          // 建立新的配置，延用當前的 API Key
+          final newConfig = AiConfig(
+            id: 'primary_google',
+            name: modelName,
+            type: 'google',
+            model: modelId,
+            apiKey: _cachedApiKey ?? '',
+          );
+          widget.onConfigChanged?.call(newConfig);
+          return;
+        }
+
         final config = widget.aiConfigs.firstWhere((c) => c.id == id);
         widget.onConfigChanged?.call(config);
       },
@@ -1080,19 +1110,89 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
               ),
       ),
       itemBuilder: (context) {
-        return widget.aiConfigs.map((config) {
-          final isSelected = config.id == widget.selectedConfigId;
-          return PopupMenuItem<String>(
-            value: config.id,
-            padding: EdgeInsets.zero,
-            height: 48,
-            child: _ModelSelectorHoverItem(
-              config: config,
-              isSelected: isSelected,
-              colorScheme: colorScheme,
-            ),
+        final List<PopupMenuEntry<String>> items = [];
+
+        // 1. 找出進階模式建立的自訂模型 (id != 'primary_google')
+        final advancedConfigs = widget.aiConfigs
+            .where((c) => c.id != 'primary_google')
+            .toList();
+
+        // 儲存當前可用的 API Key 備用
+        if (widget.aiConfigs.isNotEmpty) {
+          _cachedApiKey = widget.aiConfigs
+              .firstWhere(
+                (c) => c.type == 'google',
+                orElse: () => widget.aiConfigs.first,
+              )
+              .apiKey;
+        }
+
+        if (advancedConfigs.isNotEmpty) {
+          items.addAll(
+            advancedConfigs.map((config) {
+              final isSelected = config.id == widget.selectedConfigId;
+              return PopupMenuItem<String>(
+                value: config.id,
+                padding: EdgeInsets.zero,
+                height: 48,
+                child: _ModelSelectorHoverItem(
+                  config: config,
+                  isSelected: isSelected,
+                  colorScheme: colorScheme,
+                ),
+              );
+            }),
           );
-        }).toList();
+          items.add(const PopupMenuDivider(height: 1));
+        }
+
+        // 2. 預設模型列表 (僅在簡易模式啟用時顯示)
+        final primaryGoogle = widget.aiConfigs
+            .where((c) => c.id == 'primary_google')
+            .firstOrNull;
+        final isSimpleModeEnabled =
+            primaryGoogle != null && primaryGoogle.apiKey.isNotEmpty;
+
+        if (isSimpleModeEnabled) {
+          items.addAll(
+            _predefinedModels.map((m) {
+              final modelId = m.$1;
+              final modelName = m.$2;
+
+              // 檢查目前是否有 config 使用這個 model
+              final matchedConfig = widget.aiConfigs
+                  .where((c) => c.model == modelId)
+                  .firstOrNull;
+              final isSelected =
+                  matchedConfig != null &&
+                  matchedConfig.id == widget.selectedConfigId;
+
+              // 建立一個臨時 config 供 UI 渲染
+              final tempConfig =
+                  matchedConfig ??
+                  AiConfig(
+                    id: 'primary_google',
+                    name: modelName,
+                    type: 'google',
+                    model: modelId,
+                    apiKey: primaryGoogle.apiKey, // 使用當前簡易模式的 Key
+                  );
+
+              return PopupMenuItem<String>(
+                value: 'default:$modelId',
+                padding: EdgeInsets.zero,
+                height: 48,
+                child: _ModelSelectorHoverItem(
+                  config: tempConfig,
+                  isSelected: isSelected,
+                  colorScheme: colorScheme,
+                ),
+              );
+            }),
+          );
+        }
+
+        return items;
       },
     );
   }

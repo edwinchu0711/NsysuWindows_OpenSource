@@ -128,8 +128,20 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   void _onAiConfigChanged(AiConfig config) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_ai_config_id', config.id);
+
+    // 更新 aiConfigs 清單中的內容 (針對預設模型切換)
+    List<AiConfig> updatedConfigs = List.from(_aiConfigs);
+    int idx = updatedConfigs.indexWhere((c) => c.id == config.id);
+    if (idx != -1) {
+      updatedConfigs[idx] = config;
+    } else {
+      updatedConfigs.add(config);
+    }
+    await prefs.setString('ai_configs', AiConfig.encode(updatedConfigs));
+
     setState(() {
       _selectedAiConfigId = config.id;
+      _aiConfigs = updatedConfigs; // 同步更新本地狀態
 
       if (_aiService != null) {
         final oldHistory = _aiService!.history;
@@ -185,7 +197,8 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         }
       } else {
         // 若無獨立 embedding 設定，嘗試使用主 AI 設定的 API Key
-        _hasEmbeddingApiKey = _aiConfigs.isNotEmpty && _aiConfigs.first.apiKey.isNotEmpty;
+        _hasEmbeddingApiKey =
+            _aiConfigs.isNotEmpty && _aiConfigs.first.apiKey.isNotEmpty;
       }
 
       if (_aiConfigs.isNotEmpty) {
@@ -224,7 +237,9 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
 
   Future<void> _removeCourseFromAssistant(Course course) async {
     setState(() {
-      _assistantCourses = _assistantCourses.where((c) => c.code != course.code).toList();
+      _assistantCourses = _assistantCourses
+          .where((c) => c.code != course.code)
+          .toList();
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -677,7 +692,12 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                       children: _navActions.map((item) {
                         final (action, icon, label) = item;
                         final isSelected = _currentAction == action;
-                        return _buildGlassNavItem(action, icon, label, isSelected);
+                        return _buildGlassNavItem(
+                          action,
+                          icon,
+                          label,
+                          isSelected,
+                        );
                       }).toList(),
                     ),
                   ),
@@ -745,7 +765,12 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
     );
   }
 
-  Widget _buildGlassNavItem(AssistantAction action, IconData icon, String label, bool isSelected) {
+  Widget _buildGlassNavItem(
+    AssistantAction action,
+    IconData icon,
+    String label,
+    bool isSelected,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Tooltip(
@@ -774,12 +799,18 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
 
   int get _currentActionIndex {
     switch (_currentAction) {
-      case AssistantAction.addCourse: return 0;
-      case AssistantAction.addEvent: return 1;
-      case AssistantAction.import: return 2;
-      case AssistantAction.export: return 3;
-      case AssistantAction.aiAssistant: return 4;
-      case AssistantAction.none: return 0;
+      case AssistantAction.addCourse:
+        return 0;
+      case AssistantAction.addEvent:
+        return 1;
+      case AssistantAction.import:
+        return 2;
+      case AssistantAction.export:
+        return 3;
+      case AssistantAction.aiAssistant:
+        return 4;
+      case AssistantAction.none:
+        return 0;
     }
   }
 
@@ -788,66 +819,82 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
     return IndexedStack(
       index: _currentActionIndex,
       children: [
-        _buildIfVisited(AssistantAction.addCourse, AssistantAddCoursePage(
-          key: const ValueKey('add_course_pane'),
-          isSubPane: true,
-          onCourseAdded: _loadAllData,
-          initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
-          initialEvents: _customEvents.map((e) => e.toJson()).toList(),
-        )),
-        _buildIfVisited(AssistantAction.addEvent, AssistantAddEventPane(
-          key: const ValueKey('add_event_pane'),
-          periods: _periods,
-          fullWeekDays: _fullWeekDays,
-          onSave: (title, loc, details, day, periods) async {
-            if (title.trim().isEmpty || periods.isEmpty) {
+        _buildIfVisited(
+          AssistantAction.addCourse,
+          AssistantAddCoursePage(
+            key: const ValueKey('add_course_pane'),
+            isSubPane: true,
+            onCourseAdded: _loadAllData,
+            initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
+            initialEvents: _customEvents.map((e) => e.toJson()).toList(),
+          ),
+        ),
+        _buildIfVisited(
+          AssistantAction.addEvent,
+          AssistantAddEventPane(
+            key: const ValueKey('add_event_pane'),
+            periods: _periods,
+            fullWeekDays: _fullWeekDays,
+            onSave: (title, loc, details, day, periods) async {
+              if (title.trim().isEmpty || periods.isEmpty) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("請填寫標題並至少選擇一節課")));
+                return;
+              }
+              final newEvent = CustomEvent(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                title: title.trim(),
+                location: loc.trim(),
+                details: details.trim(),
+                day: day,
+                periods: periods
+                  ..sort(
+                    (a, b) =>
+                        _periods.indexOf(a).compareTo(_periods.indexOf(b)),
+                  ),
+              );
+              _customEvents.add(newEvent);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString(
+                'custom_events',
+                jsonEncode(_customEvents.map((e) => e.toJson()).toList()),
+              );
+              _loadAllData();
               ScaffoldMessenger.of(
                 context,
-              ).showSnackBar(const SnackBar(content: Text("請填寫標題並至少選擇一節課")));
-              return;
-            }
-            final newEvent = CustomEvent(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              title: title.trim(),
-              location: loc.trim(),
-              details: details.trim(),
-              day: day,
-              periods: periods
-                ..sort(
-                  (a, b) => _periods.indexOf(a).compareTo(_periods.indexOf(b)),
-                ),
-            );
-            _customEvents.add(newEvent);
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString(
-              'custom_events',
-              jsonEncode(_customEvents.map((e) => e.toJson()).toList()),
-            );
-            _loadAllData();
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text("行程已加入！")));
-          },
-        )),
-        _buildIfVisited(AssistantAction.import, AssistantImportPage(
-          key: const ValueKey('import_pane'),
-          isSubPane: true,
-          onImportComplete: _loadAllData,
-        )),
-        _buildIfVisited(AssistantAction.export, AssistantExportPage(
-          key: const ValueKey('export_pane'),
-          isSubPane: true,
-          courses: _assistantCourses,
-        )),
-        _buildIfVisited(AssistantAction.aiAssistant, AssistantAiPane(
-          key: const ValueKey('ai_assistant_pane'),
-          aiService: _aiService,
-          aiConfigs: _aiConfigs,
-          selectedConfigId: _selectedAiConfigId,
-          onConfigChanged: _onAiConfigChanged,
-          onRefreshRequested: () => _loadAllData(silent: true),
-          hasEmbeddingApiKey: _hasEmbeddingApiKey,
-        )),
+              ).showSnackBar(const SnackBar(content: Text("行程已加入！")));
+            },
+          ),
+        ),
+        _buildIfVisited(
+          AssistantAction.import,
+          AssistantImportPage(
+            key: const ValueKey('import_pane'),
+            isSubPane: true,
+            onImportComplete: _loadAllData,
+          ),
+        ),
+        _buildIfVisited(
+          AssistantAction.export,
+          AssistantExportPage(
+            key: const ValueKey('export_pane'),
+            isSubPane: true,
+            courses: _assistantCourses,
+          ),
+        ),
+        _buildIfVisited(
+          AssistantAction.aiAssistant,
+          AssistantAiPane(
+            key: const ValueKey('ai_assistant_pane'),
+            aiService: _aiService,
+            aiConfigs: _aiConfigs,
+            selectedConfigId: _selectedAiConfigId,
+            onConfigChanged: _onAiConfigChanged,
+            onRefreshRequested: () => _loadAllData(silent: true),
+            hasEmbeddingApiKey: _hasEmbeddingApiKey,
+          ),
+        ),
       ],
     );
   }
@@ -931,216 +978,101 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         ),
         clipBehavior: Clip.antiAlias,
         child: Table(
-        border: TableBorder(
-          horizontalInside: BorderSide(color: colorScheme.borderColor, width: 0.8),
-          verticalInside: BorderSide(color: colorScheme.borderColor, width: 0.8),
-        ),
-        columnWidths: const {0: FixedColumnWidth(50)},
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: [
-          TableRow(
-            decoration: BoxDecoration(color: colorScheme.timetableHeader),
-            children: [
-              SizedBox(
-                height: 35,
-                child: Center(
-                  child: Text(
-                    "時段",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: colorScheme.subtitleText,
-                    ),
-                  ),
-                ),
-              ),
-              ...visibleWeekDays.map(
-                (d) => Container(
-                  height: 35,
-                  alignment: Alignment.center,
-                  child: Text(
-                    d,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: colorScheme.primaryText,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          border: TableBorder(
+            horizontalInside: BorderSide(
+              color: colorScheme.borderColor,
+              width: 0.8,
+            ),
+            verticalInside: BorderSide(
+              color: colorScheme.borderColor,
+              width: 0.8,
+            ),
           ),
-          ...visiblePeriods.map((period) {
-            String timeInfo = _timeMapping[period] ?? "";
-            return TableRow(
+          columnWidths: const {0: FixedColumnWidth(50)},
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            TableRow(
+              decoration: BoxDecoration(color: colorScheme.timetableHeader),
               children: [
-                TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.fill,
-                  child: Container(
-                    color: colorScheme.timetableSlot,
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          period,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: colorScheme.primaryText,
-                          ),
-                        ),
-                        if (timeInfo.isNotEmpty)
-                          Text(
-                            timeInfo,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: colorScheme.subtitleText,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                      ],
+                SizedBox(
+                  height: 35,
+                  child: Center(
+                    child: Text(
+                      "時段",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: colorScheme.subtitleText,
+                      ),
                     ),
                   ),
                 ),
-                ...List.generate(maxDay, (dayIndex) {
-                  int currentDay = dayIndex + 1;
-                  List<Course> cellCourses =
-                      courseMap["$currentDay-$period"] ?? [];
-                  List<CustomEvent> cellEvents =
-                      eventMap["$currentDay-$period"] ?? [];
-
-                  // 情況一：完全空堂
-                  if (cellCourses.isEmpty && cellEvents.isEmpty) {
-                    return Container(height: 70);
-                  }
-
-                  // 情況二：這個時段「只有一堂正規課程」
-                  if (cellCourses.length == 1 && cellEvents.isEmpty) {
-                    final cellCourse = cellCourses.first;
-                    return Container(
-                      height: 70, // 保留基本高度，不被壓縮
-                      padding: const EdgeInsets.all(1.0),
-                      child: Material(
-                        color: _getCourseColor(cellCourse.name),
-                        borderRadius: BorderRadius.circular(4),
-                        child: InkWell(
-                          onTap: () {
-                            final isWide =
-                                MediaQuery.of(context).size.width > 900;
-                            if (isWide) {
-                              setState(() {
-                                _selectedCourseForDetail = cellCourse;
-                                _selectedEventForDetail = null;
-                              });
-                            } else {
-                              _showCourseDetail(cellCourse);
-                            }
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: double.infinity, // 內部撐滿高度
-                            padding: const EdgeInsets.all(6.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  keepUntilLastChinese(cellCourse.name),
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.1,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _extractLocation(cellCourse.location),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white70,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                ...visibleWeekDays.map(
+                  (d) => Container(
+                    height: 35,
+                    alignment: Alignment.center,
+                    child: Text(
+                      d,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: colorScheme.primaryText,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            ...visiblePeriods.map((period) {
+              String timeInfo = _timeMapping[period] ?? "";
+              return TableRow(
+                children: [
+                  TableCell(
+                    verticalAlignment: TableCellVerticalAlignment.fill,
+                    child: Container(
+                      color: colorScheme.timetableSlot,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            period,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: colorScheme.primaryText,
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  // 情況三：這個時段「只有一個自訂行程」
-                  if (cellEvents.length == 1 && cellCourses.isEmpty) {
-                    final cellEvent = cellEvents.first;
-                    return Container(
-                      height: 70, // 保留基本高度，不被壓縮
-                      padding: const EdgeInsets.all(1.0),
-                      child: Material(
-                        color: _getCourseColor(cellEvent.title), // 套用彩色
-                        borderRadius: BorderRadius.circular(4),
-                        child: InkWell(
-                          onTap: () {
-                            final isWide =
-                                MediaQuery.of(context).size.width > 900;
-                            if (isWide) {
-                              setState(() {
-                                _selectedEventForDetail = cellEvent;
-                                _selectedCourseForDetail = null;
-                              });
-                            } else {
-                              _showCustomEventDetail(cellEvent);
-                            }
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            height: double.infinity, // 內部撐滿高度
-                            padding: const EdgeInsets.all(6.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  cellEvent.title,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    height: 1.1,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 2),
-                                if (cellEvent.location.isNotEmpty)
-                                  Text(
-                                    cellEvent.location,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white70,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                              ],
+                          if (timeInfo.isNotEmpty)
+                            Text(
+                              timeInfo,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: colorScheme.subtitleText,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ),
+                        ],
                       ),
-                    );
-                  }
+                    ),
+                  ),
+                  ...List.generate(maxDay, (dayIndex) {
+                    int currentDay = dayIndex + 1;
+                    List<Course> cellCourses =
+                        courseMap["$currentDay-$period"] ?? [];
+                    List<CustomEvent> cellEvents =
+                        eventMap["$currentDay-$period"] ?? [];
 
-                  // 情況四：同一個時段有多個項目 (衝堂：包含多堂課、多個行程、或課跟行程重疊)
-                  List<Widget> cellWidgets = [];
+                    // 情況一：完全空堂
+                    if (cellCourses.isEmpty && cellEvents.isEmpty) {
+                      return Container(height: 70);
+                    }
 
-                  // 渲染多堂正規課程
-                  for (var cellCourse in cellCourses) {
-                    cellWidgets.add(
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2.0),
+                    // 情況二：這個時段「只有一堂正規課程」
+                    if (cellCourses.length == 1 && cellEvents.isEmpty) {
+                      final cellCourse = cellCourses.first;
+                      return Container(
+                        height: 70, // 保留基本高度，不被壓縮
+                        padding: const EdgeInsets.all(1.0),
                         child: Material(
                           color: _getCourseColor(cellCourse.name),
                           borderRadius: BorderRadius.circular(4),
@@ -1159,6 +1091,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                             },
                             child: Container(
                               width: double.infinity,
+                              height: double.infinity, // 內部撐滿高度
                               padding: const EdgeInsets.all(6.0),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1166,7 +1099,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                   Text(
                                     keepUntilLastChinese(cellCourse.name),
                                     style: const TextStyle(
-                                      fontSize: 12.5,
+                                      fontSize: 13,
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       height: 1.1,
@@ -1179,7 +1112,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                   Text(
                                     _extractLocation(cellCourse.location),
                                     style: const TextStyle(
-                                      fontSize: 9.5,
+                                      fontSize: 10,
                                       color: Colors.white70,
                                     ),
                                     maxLines: 1,
@@ -1190,17 +1123,17 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  }
+                      );
+                    }
 
-                  // 渲染多個自訂行程
-                  for (var cellEvent in cellEvents) {
-                    cellWidgets.add(
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2.0),
+                    // 情況三：這個時段「只有一個自訂行程」
+                    if (cellEvents.length == 1 && cellCourses.isEmpty) {
+                      final cellEvent = cellEvents.first;
+                      return Container(
+                        height: 70, // 保留基本高度，不被壓縮
+                        padding: const EdgeInsets.all(1.0),
                         child: Material(
-                          color: _getCourseColor(cellEvent.title),
+                          color: _getCourseColor(cellEvent.title), // 套用彩色
                           borderRadius: BorderRadius.circular(4),
                           child: InkWell(
                             onTap: () {
@@ -1217,6 +1150,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                             },
                             child: Container(
                               width: double.infinity,
+                              height: double.infinity, // 內部撐滿高度
                               padding: const EdgeInsets.all(6.0),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1224,7 +1158,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                   Text(
                                     cellEvent.title,
                                     style: const TextStyle(
-                                      fontSize: 12.5,
+                                      fontSize: 13,
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       height: 1.1,
@@ -1238,7 +1172,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                     Text(
                                       cellEvent.location,
                                       style: const TextStyle(
-                                        fontSize: 9.5,
+                                        fontSize: 10,
                                         color: Colors.white70,
                                       ),
                                       maxLines: 1,
@@ -1249,28 +1183,147 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                             ),
                           ),
                         ),
+                      );
+                    }
+
+                    // 情況四：同一個時段有多個項目 (衝堂：包含多堂課、多個行程、或課跟行程重疊)
+                    List<Widget> cellWidgets = [];
+
+                    // 渲染多堂正規課程
+                    for (var cellCourse in cellCourses) {
+                      cellWidgets.add(
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: Material(
+                            color: _getCourseColor(cellCourse.name),
+                            borderRadius: BorderRadius.circular(4),
+                            child: InkWell(
+                              onTap: () {
+                                final isWide =
+                                    MediaQuery.of(context).size.width > 900;
+                                if (isWide) {
+                                  setState(() {
+                                    _selectedCourseForDetail = cellCourse;
+                                    _selectedEventForDetail = null;
+                                  });
+                                } else {
+                                  _showCourseDetail(cellCourse);
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(6.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      keepUntilLastChinese(cellCourse.name),
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _extractLocation(cellCourse.location),
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        color: Colors.white70,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // 渲染多個自訂行程
+                    for (var cellEvent in cellEvents) {
+                      cellWidgets.add(
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: Material(
+                            color: _getCourseColor(cellEvent.title),
+                            borderRadius: BorderRadius.circular(4),
+                            child: InkWell(
+                              onTap: () {
+                                final isWide =
+                                    MediaQuery.of(context).size.width > 900;
+                                if (isWide) {
+                                  setState(() {
+                                    _selectedEventForDetail = cellEvent;
+                                    _selectedCourseForDetail = null;
+                                  });
+                                } else {
+                                  _showCustomEventDetail(cellEvent);
+                                }
+                              },
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(6.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      cellEvent.title,
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    if (cellEvent.location.isNotEmpty)
+                                      Text(
+                                        cellEvent.location,
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          color: Colors.white70,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Container(
+                      constraints: const BoxConstraints(
+                        minHeight: 70,
+                      ), // 多堂課時讓他自適應長高
+                      padding: const EdgeInsets.all(1),
+                      color: Colors.grey[30],
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: cellWidgets,
                       ),
                     );
-                  }
-
-                  return Container(
-                    constraints: const BoxConstraints(
-                      minHeight: 70,
-                    ), // 多堂課時讓他自適應長高
-                    padding: const EdgeInsets.all(1),
-                    color: Colors.grey[30],
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: cellWidgets,
-                    ),
-                  );
-                }),
-              ],
-            );
-          }).toList(),
-        ],
-      ), // Table
+                  }),
+                ],
+              );
+            }).toList(),
+          ],
+        ), // Table
       ), // Container
     ); // Padding
   }

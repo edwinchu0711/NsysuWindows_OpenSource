@@ -244,6 +244,7 @@ class _SettingsPageState extends State<SettingsPage> {
         if ([
           'gemini-3.1-flash-lite-preview',
           'gemini-flash-lite-latest',
+          'gemini-flash-latest',
           'gemma-4-31b-it',
         ].contains(firstGoogle.model)) {
           selectedSimpleModel = firstGoogle.model;

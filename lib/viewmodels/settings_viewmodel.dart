@@ -184,17 +184,14 @@ class SettingsViewModel extends StateNotifier<SettingsState> {
 
     if (aiConfigs.isNotEmpty) {
       final firstGoogle = aiConfigs.firstWhere(
-        (c) => c.type == 'google',
+        (c) => c.id == 'primary_google',
         orElse: () => AiConfig(id: '', name: '', type: '', model: '', apiKey: ''),
       );
       if (firstGoogle.id.isNotEmpty) {
         simpleApiKey = firstGoogle.apiKey;
-        if (['gemini-3.1-flash-lite-preview', 'gemini-flash-lite-latest', 'gemma-4-31b-it']
+        if (['gemini-3.1-flash-lite-preview', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemma-4-31b-it']
             .contains(firstGoogle.model)) {
           selectedSimpleModel = firstGoogle.model;
-        } else {
-          selectedSimpleModel = 'other';
-          simpleModelId = firstGoogle.model;
         }
       }
     }
@@ -348,7 +345,7 @@ class SettingsViewModel extends StateNotifier<SettingsState> {
         maxOutputTokens: 50,
       );
       state = state.copyWith(
-        simpleTestMessage: "連線成功！AI 回應內容：\n$res",
+        simpleTestMessage: "連線成功！AI 回應內容：\n${res.text}",
         isSimpleTestSuccess: true,
         isSimpleTesting: false,
       );
