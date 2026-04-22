@@ -1454,31 +1454,76 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
   /// Single newlines between non-block lines → double newlines (paragraph breaks),
   /// because standard markdown treats single \n as a space.
   static String _preprocessMarkdown(String text) {
+    // NEW: remove HTML <br> tags (case-insensitive), including:
+    // <br>, <br/>, <br />
+    text = text.replaceAll(
+      RegExp(r'<\s*br\s*/?\s*>', caseSensitive: false),
+      '',
+    );
+
     final lines = text.split('\n');
     if (lines.length <= 1) return text;
 
     final buffer = StringBuffer();
-    for (int i = 0; i < lines.length; i++) {
-      buffer.write(lines[i]);
-      if (i < lines.length - 1) {
-        final currentBlank = lines[i].trim().isEmpty;
-        final nextBlank = lines[i + 1].trim().isEmpty;
-        final currentIsBlock = !currentBlank && _isBlockLine(lines[i]);
-        final nextIsBlock = !nextBlank && _isBlockLine(lines[i + 1]);
 
-        if (currentBlank || nextBlank) {
-          buffer.write('\n');
-        } else if (currentIsBlock && nextIsBlock) {
-          // Between two block elements, single newline is fine
-          buffer.write('\n');
-        } else {
-          // block→non-block or non-block→block or non-block→non-block
-          // all need paragraph break for clean separation
-          buffer.write('\n\n');
-        }
+    for (int i = 0; i < lines.length; i++) {
+      final current = lines[i];
+      buffer.write(current);
+
+      if (i >= lines.length - 1) continue;
+
+      final next = lines[i + 1];
+
+      final currentBlank = current.trim().isEmpty;
+      final nextBlank = next.trim().isEmpty;
+
+      final currentIsBlock = !currentBlank && _isBlockLine(current);
+      final nextIsBlock = !nextBlank && _isBlockLine(next);
+
+      final currentIsTable = !currentBlank && _isTableLine(current);
+      final nextIsTable = !nextBlank && _isTableLine(next);
+
+      if (currentBlank || nextBlank) {
+        buffer.write('\n');
+      } else if (currentIsTable && nextIsTable) {
+        buffer.write('\n');
+      } else if (currentIsBlock && nextIsBlock) {
+        buffer.write('\n');
+      } else {
+        buffer.write('\n\n');
       }
     }
+
     return buffer.toString();
+  }
+
+  static bool _isTableLine(String line) {
+    final t = line.trim();
+    if (t.isEmpty) return false;
+    if (!t.contains('|')) return false;
+
+    if (_isTableSeparatorLine(t)) return true;
+
+    final parts = t.split('|').map((e) => e.trim()).toList();
+
+    if (parts.isNotEmpty && parts.first.isEmpty) parts.removeAt(0);
+    if (parts.isNotEmpty && parts.last.isEmpty) parts.removeLast();
+
+    if (parts.length < 2) return false;
+
+    return parts.any((c) => c.isNotEmpty);
+  }
+
+  static bool _isTableSeparatorLine(String line) {
+    var t = line.trim();
+    if (t.startsWith('|')) t = t.substring(1).trimLeft();
+    if (t.endsWith('|')) t = t.substring(0, t.length - 1).trimRight();
+
+    final cols = t.split('|').map((e) => e.trim()).toList();
+    if (cols.length < 2) return false;
+
+    final sepRe = RegExp(r'^:?-{3,}:?$');
+    return cols.every((c) => sepRe.hasMatch(c));
   }
 
   static bool _isBlockLine(String line) {
