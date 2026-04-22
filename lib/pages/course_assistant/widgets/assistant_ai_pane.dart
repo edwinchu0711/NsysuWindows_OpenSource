@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/ai/ai_service.dart';
@@ -52,6 +53,7 @@ class AssistantAiPane extends StatefulWidget {
 class _AssistantAiPaneState extends State<AssistantAiPane> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _isTyping = false;
   bool _isStreaming = false; // true once AI starts sending content
   String _statusText = "AI 正在思考中";
@@ -74,6 +76,48 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
   void initState() {
     super.initState();
     _loadConversations();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (!_focusNode.hasFocus) {
+      // 失去 focus 時強制關閉 IME，防止 Windows IME 繼續接收並累積按鍵
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
+      return;
+    }
+
+    // 獲得 focus 時，延遲一幀後清理 IME 殘留的未組合注音
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final text = _controller.text;
+      if (text.isEmpty) return;
+
+      final runes = text.runes.toList();
+      if (runes.isEmpty) return;
+
+      // 注音符號 (U+3100~U+312F) + 聲調符號
+      final bopomofo = <int>{};
+      for (int i = 0x3100; i <= 0x312F; i++) {
+        bopomofo.add(i);
+      }
+      bopomofo.addAll([0x02C7, 0x02CA, 0x02C9, 0x02CB, 0x02D9]);
+
+      int removeCount = 0;
+      for (int i = runes.length - 1; i >= 0; i--) {
+        if (bopomofo.contains(runes[i])) {
+          removeCount++;
+        } else {
+          break;
+        }
+      }
+
+      if (removeCount > 0) {
+        final clean = String.fromCharCodes(
+          runes.sublist(0, runes.length - removeCount),
+        );
+        _controller.text = clean;
+        _controller.selection = TextSelection.collapsed(offset: clean.length);
+      }
+    });
   }
 
   List<_MissingItem> _checkReadiness() {
@@ -1533,7 +1577,12 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
           Expanded(
             child: TextField(
               controller: _controller,
+              focusNode: _focusNode,
               onSubmitted: (_) => _handleSend(),
+              onTapOutside: (_) {
+                _focusNode.unfocus();
+                SystemChannels.textInput.invokeMethod('TextInput.hide');
+              },
               style: TextStyle(color: colorScheme.primaryText),
               decoration: InputDecoration(
                 hintText: "請輸入您的問題...",
@@ -1567,6 +1616,15 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 }
 

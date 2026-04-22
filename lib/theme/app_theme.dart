@@ -176,7 +176,13 @@ class AppTheme {
         ),
       ),
 
-      // 頁面轉場動畫（與原有設定一致）
+      // Text selection（反白高亮）
+      textSelectionTheme: TextSelectionThemeData(
+        selectionColor: isDark
+            ? const Color(0xFF90CAF9).withValues(alpha: 0.45)
+            : const Color(0xFF1565C0).withValues(alpha: 0.35),
+        selectionHandleColor: colorScheme.primary,
+      ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: CupertinoPageTransitionsBuilder(),

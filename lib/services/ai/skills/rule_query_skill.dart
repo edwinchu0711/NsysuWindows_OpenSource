@@ -1,7 +1,7 @@
 import 'skill.dart';
 import '../skill_context.dart';
 import '../skill_result.dart';
-import '../../database_embedding_service.dart';
+import '../../pdf_rule_service.dart';
 
 class RuleQuerySkill implements Skill {
   @override
@@ -36,71 +36,42 @@ class RuleQuerySkill implements Skill {
     Map<String, dynamic> params,
     SkillContext ctx,
   ) async {
-    // Guard: check database availability
-    if (!DatabaseEmbeddingService.instance.isInitialized) {
-      return const SkillResult(
-        contextInfo: '\n[選課規則資料庫尚未下載，請前往設定 > 資料庫下載]\n',
-        statusMessage: '資料庫未初始化',
-      );
-    }
-
     final query = params['query'] as String?;
     if (query == null || query.isEmpty) {
       return SkillResult.empty;
     }
 
-    ctx.onStatusUpdate?.call("正在查詢選課規則");
+    ctx.onStatusUpdate?.call("正在下載選課須知...");
 
-    try {
-      await DatabaseEmbeddingService.instance.init();
-      final results = await DatabaseEmbeddingService.instance.searchRules(
-        query,
-        k: 8,
-        threshold: 0.40,
-      );
+    final success = await PdfRuleService.instance.fetchAndCache();
 
-      if (results.isEmpty) {
-        return SkillResult(
-          contextInfo: '\n[選課規則查詢結果]\n找不到與「$query」相關的選課規則。建議您參閱選課須知或聯繫教務處。\n',
-          statusMessage: '找不到相關規則',
-        );
-      }
-
-      final buffer = StringBuffer();
-      buffer.writeln('\n[選課規則查詢結果]');
-      buffer.writeln('以下是與「$query」相關的選課規定：\n');
-
-      for (final r in results) {
-        final content = r['content']?.toString() ?? '';
-        final similarity = r['similarity'] as double? ?? 0.0;
-        if (content.isNotEmpty && similarity > 0) {
-          // Clean up markdown artifacts for readability
-          final cleaned = content
-              .replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '')
-              .replaceAll(RegExp(r'!\[.*?\]\(.*?\)'), '')
-              .replaceAll(RegExp(r'<u>(.*?)</u>'), r'$1')
-              .replaceAll(RegExp(r'<mark>(.*?)</mark>'), r'$1')
-              .replaceAll(RegExp(r'<br\s*/?>'), '\n')
-              .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1')
-              .trim();
-          if (cleaned.isNotEmpty) {
-            buffer.writeln('---');
-            buffer.writeln(cleaned);
-          }
-        }
-      }
-      buffer.writeln('\n（以上資訊來自本學期選課須知，如有疑問請洽教務處課務組）');
-
+    if (!success || !PdfRuleService.instance.isLoaded) {
+      final error = PdfRuleService.instance.lastErrorMessage ?? '無法載入選課須知，請稍後再試。';
       return SkillResult(
-        contextInfo: buffer.toString(),
-        statusMessage: '已找到相關選課規則',
-      );
-    } catch (e) {
-      print('[RuleQuerySkill] Error: $e');
-      return SkillResult(
-        contextInfo: '\n[選課規則查詢結果]\n查詢選課規則時發生錯誤，請稍後再試。\n',
-        statusMessage: '查詢失敗',
+        contextInfo: '\n[選課規則查詢結果]\n無法載入選課須知：$error\n',
+        statusMessage: '選課須知載入失敗',
       );
     }
+
+    final fullText = PdfRuleService.instance.fullText ?? '';
+    if (fullText.isEmpty) {
+      return SkillResult(
+        contextInfo: '\n[選課規則查詢結果]\n選課須知內容為空，請稍後再試。\n',
+        statusMessage: '選課須知內容為空',
+      );
+    }
+
+    ctx.onStatusUpdate?.call("已載入選課須知，正在整理回覆");
+
+    final buffer = StringBuffer();
+    buffer.writeln('\n[選課規則查詢結果]');
+    buffer.writeln('以下是本學期選課須知的完整內容：\n');
+    buffer.writeln(fullText);
+    buffer.writeln('\n（以上為本學期選課須知完整內容，如有疑問請洽教務處課務組）');
+
+    return SkillResult(
+      contextInfo: buffer.toString(),
+      statusMessage: '已載入選課須知全文',
+    );
   }
 }
