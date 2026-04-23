@@ -604,6 +604,7 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
           actions: [
+            /*
             if (_data != null &&
                 (_data!['is_in_progress'] == true ||
                     _data!['is_in_progress'] == 1 ||
@@ -636,6 +637,7 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
                   ),
                 ),
               ),
+            */
             if (!widget.isSubmitted)
               IconButton(
                 icon: Icon(
@@ -799,6 +801,7 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
             }).toList(),
           ],
 
+          /*
           if (_data != null &&
               (_data!['is_in_progress'] == true ||
                   _data!['is_in_progress'] == 1)) ...[
@@ -836,6 +839,7 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
             ),
             const SizedBox(height: 20),
           ],
+          */
         ],
       ),
     );

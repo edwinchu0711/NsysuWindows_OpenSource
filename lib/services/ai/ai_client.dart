@@ -285,7 +285,7 @@ class AiClient {
       'model': config.model,
       'messages': messages,
       'temperature': temperature,
-      'max_tokens': 8192,
+      'max_tokens': 128000,
       'stream': true,
     };
 
