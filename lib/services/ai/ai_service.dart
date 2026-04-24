@@ -357,9 +357,9 @@ class AiService {
   }
 
   Future<void> _summarizeHistoryIfNeeded() async {
-    if (_history.length < 8) return;
+    if (_history.length < 24) return;
 
-    final toSummarize = _history.take(4).toList();
+    final toSummarize = _history.take(12).toList();
     final conversationText = toSummarize
         .map((m) {
           final role = m['role'] == 'user' ? '使用者' : '助手';
@@ -368,7 +368,7 @@ class AiService {
         .join('\n');
 
     final summaryPrompt =
-        '請將以下對話摘要為簡潔的重點（1-2 句），保留關鍵的課程名稱、操作結果和使用者偏好：\n$conversationText';
+        '請將以下對話摘要為簡潔的重點（6-8 句），保留關鍵的課程名稱、操作結果和使用者偏好：\n$conversationText';
 
     try {
       final result = await _mainClient.generateContent(

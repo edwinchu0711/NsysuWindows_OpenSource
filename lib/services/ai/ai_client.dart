@@ -53,7 +53,7 @@ class AiClient {
     String enrichedPrompt, {
     String? systemInstruction,
     double temperature = 0.7,
-    int maxOutputTokens = 2048,
+    int maxOutputTokens = 32768,
     bool isJsonMode = false,
     List<Map<String, dynamic>>? tools,
   }) async {
@@ -85,7 +85,7 @@ class AiClient {
     String enrichedPrompt, {
     String? systemInstruction,
     double temperature = 0.7,
-    int maxOutputTokens = 2048,
+    int maxOutputTokens = 32768,
   }) async* {
     if (config.type == 'google') {
       yield* _generateGoogleStream(
@@ -144,6 +144,18 @@ class AiClient {
     final body = {
       'contents': apiContents,
       'generationConfig': generationConfig,
+      'safetySettings': [
+        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_NONE',
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_NONE',
+        },
+      ],
     };
 
     if (systemInstruction != null) {
@@ -212,6 +224,11 @@ class AiClient {
                 final candidates = decoded['candidates'] as List?;
                 if (candidates != null && candidates.isNotEmpty) {
                   final firstCandidate = candidates[0];
+                  final finishReason = firstCandidate['finishReason'];
+                  if (finishReason != null && finishReason != 'STOP') {
+                    print("[GoogleStream] 串流提前結束，原因: $finishReason");
+                  }
+
                   final content = firstCandidate['content'];
                   if (content != null && content['parts'] != null) {
                     final parts = content['parts'] as List;
@@ -285,7 +302,7 @@ class AiClient {
       'model': config.model,
       'messages': messages,
       'temperature': temperature,
-      'max_tokens': 128000,
+      'max_tokens': maxOutputTokens,
       'stream': true,
     };
 
@@ -382,6 +399,18 @@ class AiClient {
         'tools': [
           {'function_declarations': tools.map((t) => t['function']).toList()},
         ],
+      'safetySettings': [
+        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_NONE',
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_NONE',
+        },
+      ],
     };
 
     if (systemInstruction != null) {
