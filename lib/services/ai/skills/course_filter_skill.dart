@@ -124,10 +124,12 @@ class CourseFilterSkill implements Skill {
     String contextInfo = '';
     Map<String, dynamic> outputData = {};
 
-    final isRecommendation = params['isRecommendation'] == true;
+    final isRecommendationRaw = params['isRecommendation'];
+    final isRecommendation = isRecommendationRaw == true || isRecommendationRaw?.toString().toLowerCase() == 'true';
 
     // ── 比較邏輯 ──
-    if (params['isComparison'] == true) {
+    final isComparisonRaw = params['isComparison'];
+    if (isComparisonRaw == true || isComparisonRaw?.toString().toLowerCase() == 'true') {
       ctx.onStatusUpdate?.call('正在進行課程比對');
       contextInfo += await _handleComparison(params, ctx);
     }
@@ -371,7 +373,8 @@ class CourseFilterSkill implements Skill {
     }
 
     // 處理 Filter Conflict 本地端邏輯
-    if (params['filterConflict'] == true) {
+    final filterConflictRaw = params['filterConflict'];
+    if (filterConflictRaw == true || filterConflictRaw?.toString().toLowerCase() == 'true') {
       final Set<String> occupiedSlots = {};
 
       for (var c in ctx.currentCourses) {

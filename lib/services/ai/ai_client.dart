@@ -510,7 +510,8 @@ class AiClient {
       'temperature': temperature,
       'max_tokens': maxOutputTokens,
       if (isJsonMode) 'response_format': {'type': 'json_object'},
-      if (tools != null) 'tools': tools,
+      if (tools != null && tools.isNotEmpty) 'tools': tools,
+      if (tools != null && tools.isNotEmpty) 'tool_choice': 'auto',
     };
 
     final response = await http

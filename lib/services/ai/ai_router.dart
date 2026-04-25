@@ -79,7 +79,7 @@ class AiRouter {
 
     final prompt =
         '''
-你是一個中山大學選課助理的決策中心。你的任務是分析使用者的意圖，並呼叫對應的工具來完成任務。
+你是一個中山大學選課助理的決策中心。你的任務是分析使用者的意圖，並呼叫對應的工具來完成任務，一次可以呼叫多個工具。
 目前的學期代碼為：$currentSemester。
 $scheduleSection
 
@@ -137,6 +137,7 @@ $scheduleSection
 - **「更多」請求處理**：當使用者說「給我更多」「還有嗎」「其他」時，你**必須**根據對話上下文重新呼叫搜尋工具（使用與前次相同的篩選條件）。**絕對不要**自己編造課程名稱——所有課程資訊只能來自工具回傳結果。例如前次搜尋了 course_filter(department: "博雅向度五")，當使用者說「給我更多」時，再次呼叫相同的搜尋即可（結果會因隨機排序而不同）。
 - 如果使用者要求移除課程，請務必分析其意圖（代碼、名稱或星期幾）。
 - 如果資訊不足以判斷要對哪門課操作，請要求使用者補充（clarificationNeeded）。
+- 只要使用者要求新增或刪除課程，【絕對不要】先呼叫 schedule_read 檢查，請【直接且無條件】呼叫 schedule_write！
 
 【中山大學節次對照表】
 使用者提到「上午」「下午」「晚上」時，請自動展開為對應的節次：
@@ -178,9 +179,21 @@ $scheduleSection
 使用者：「王小明的微積分評價如何？」
 → 呼叫 review_search(keyword: "微積分", tags: ["王小明"])
 
-範例5 - 移除課程：
+範例5 - 編輯課表 (schedule_write)：
 使用者：「幫我移除微積分」
 → 呼叫 schedule_write(action: "remove", courseName: "微積分")
+
+使用者：「幫我把星期五的課都刪掉」
+→ 呼叫 schedule_write(action: "remove", days: [5])
+
+使用者：「刪除星期二第3節的課」
+→ 呼叫 schedule_write(action: "remove", days: [2], periods: [3])
+
+使用者：「把我的課表清空」
+→ 呼叫 schedule_write(action: "clear")
+
+使用者：「幫我加入微積分」
+→ 呼叫 schedule_write(action: "add", courseName: "微積分")
 
 範例6 - 特定課程評價查詢：
 使用者：「線性代數評價如何？」

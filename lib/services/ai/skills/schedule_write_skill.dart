@@ -94,9 +94,19 @@ class ScheduleWriteSkill implements Skill {
         ? params['courseCode'] as String
         : null;
 
-    final periodsParam = params['periods'] as List?;
+    final periodsRaw = params['periods'];
+    final periodsParam = (periodsRaw is List)
+        ? periodsRaw
+        : (periodsRaw != null ? [periodsRaw] : null);
     final List<String>? targetPeriods = periodsParam != null
-        ? periodsParam.map((e) => e.toString()).toList()
+        ? periodsParam
+              .map(
+                (e) => e
+                    .toString()
+                    .replaceAll('"', '') // 移除雙引號
+                    .replaceAll("'", ''), // 移除單引號
+              )
+              .toList()
         : null;
 
     if (actionType.isEmpty) {
@@ -121,8 +131,16 @@ class ScheduleWriteSkill implements Skill {
     if (match == null && name.isNotEmpty) {
       // 嘗試語義展開搜尋
       final expandedList = _expandKeywords(name);
-      final List<String>? daysFilter = (params['days'] != null)
-          ? (params['days'] as List).map((e) => e.toString()).toList()
+      final daysRaw = params['days'];
+      final List<String>? daysFilter = (daysRaw != null)
+          ? (daysRaw is List ? daysRaw : [daysRaw])
+                .map(
+                  (e) => e
+                      .toString()
+                      .replaceAll('"', '') // 移除雙引號
+                      .replaceAll("'", ''),
+                ) // 移除單引號
+                .toList()
           : null;
 
       for (final kw in expandedList) {
@@ -221,8 +239,20 @@ class ScheduleWriteSkill implements Skill {
     if (daysParam != null || targetPeriods != null) {
       final daysToMatch = (daysParam != null)
           ? (daysParam is List
-                ? daysParam.map((e) => e.toString()).toList()
-                : [daysParam.toString()])
+                ? daysParam
+                      .map(
+                        (e) => e
+                            .toString()
+                            .replaceAll('"', '') // 移除雙引號
+                            .replaceAll("'", ''),
+                      ) // 移除單引號
+                      .toList()
+                : [
+                    daysParam
+                        .toString()
+                        .replaceAll('"', '') // 移除雙引號
+                        .replaceAll("'", ''),
+                  ]) // 移除單引號
           : null;
 
       final toRemove = ctx.currentCourses.where((course) {

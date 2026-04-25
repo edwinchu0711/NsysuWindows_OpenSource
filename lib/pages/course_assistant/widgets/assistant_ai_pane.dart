@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/ai/ai_service.dart';
@@ -9,6 +11,31 @@ import '../../../theme/app_theme.dart';
 import '../../../models/ai_config_model.dart';
 import '../../../models/chat_conversation.dart';
 import '../../settings_page.dart';
+
+IconData _getAiIconForType(String type) {
+  switch (type) {
+    case 'google':
+      return Icons.auto_awesome;
+    case 'nvidia':
+      return Icons.memory_rounded;
+    case 'openai':
+      return Icons.cloud_rounded;
+    case 'openrouter':
+      return Icons.router_rounded;
+    case 'anthropic':
+      return Icons.chat_rounded;
+    case 'groq':
+      return Icons.bolt_rounded;
+    case 'ollama_cloud':
+      return Icons.cloud_queue_rounded;
+    case 'ollama_local':
+      return Icons.computer_rounded;
+    case 'custom_openai':
+      return Icons.tune_rounded;
+    default:
+      return Icons.api_rounded;
+  }
+}
 
 enum _MissingItem { courseDb, databaseDb, llmApi, embeddingApi }
 
@@ -433,6 +460,38 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
                 const Text(
                   "高品質大型模型（如 Pro 等級）回答較精準但速度較慢；輕量化模型（如 Flash）則能提供幾乎即時的反應。",
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  "• 提升執行速度建議：",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colorScheme.primaryText,
+                      height: 1.5,
+                    ),
+                    children: [
+                      const TextSpan(text: "若需追求更快速的反應體驗，建議可前往 "),
+                      TextSpan(
+                        text: "NVIDIA 官方網站",
+                        style: TextStyle(
+                          color: colorScheme.accentBlue,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () => _launchURL(
+                            "https://build.nvidia.com/settings/api-keys",
+                          ),
+                      ),
+                      const TextSpan(
+                        text: " 申請 API 金鑰，並至「設定 > 模型設定」切換為「進階模式」手動新增高效能模型進行測試。",
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
               ],
             ),
@@ -456,6 +515,24 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
     if (diff.inDays < 1) return '${diff.inHours}小時前';
     if (diff.inDays < 7) return '${diff.inDays}天前';
     return '${dt.month}/${dt.day}';
+  }
+
+  Future<void> _launchURL(String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString.trim());
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw 'Could not launch $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("無法開啟連結: $urlString"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -1067,9 +1144,10 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
       color: colorScheme.headerBackground,
       surfaceTintColor: Colors.transparent,
       elevation: 12,
+      clipBehavior: Clip.antiAlias,
       constraints: const BoxConstraints(
-        maxHeight: 270, // 限制最大高度，過多時可捲動
-        minWidth: 200,
+        maxHeight: 380, // 限制最大高度，過多時可捲動
+        minWidth: 230,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -1115,11 +1193,9 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
         alignment: isNarrow ? Alignment.center : null,
         child: isNarrow
             ? Icon(
-                selectedType == 'google'
-                    ? Icons.auto_awesome
-                    : selectedType.isEmpty
+                selectedType.isEmpty
                     ? Icons.model_training
-                    : Icons.api_rounded,
+                    : _getAiIconForType(selectedType),
                 size: 16,
                 color: colorScheme.accentBlue,
               )
@@ -1127,11 +1203,9 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    selectedType == 'google'
-                        ? Icons.auto_awesome
-                        : selectedType.isEmpty
+                    selectedType.isEmpty
                         ? Icons.model_training
-                        : Icons.api_rounded,
+                        : _getAiIconForType(selectedType),
                     size: 14,
                     color: colorScheme.accentBlue,
                   ),
@@ -1907,7 +1981,7 @@ class _ModelSelectorHoverItemState extends State<_ModelSelectorHoverItem> {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.fromLTRB(8, 4, 12, 4),
         decoration: BoxDecoration(
           color: isSelected
               ? cs.accentBlue.withValues(alpha: 0.1)
@@ -1931,9 +2005,7 @@ class _ModelSelectorHoverItemState extends State<_ModelSelectorHoverItem> {
         child: Row(
           children: [
             Icon(
-              widget.config.type == 'google'
-                  ? Icons.auto_awesome
-                  : Icons.api_rounded,
+              _getAiIconForType(widget.config.type),
               size: 16,
               color: isSelected || _isHovered ? cs.accentBlue : cs.subtitleText,
             ),
@@ -1941,6 +2013,8 @@ class _ModelSelectorHoverItemState extends State<_ModelSelectorHoverItem> {
             Expanded(
               child: Text(
                 widget.config.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: isSelected || _isHovered
                       ? cs.primaryText

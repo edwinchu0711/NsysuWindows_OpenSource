@@ -25,7 +25,8 @@ class ReviewSearchSkill implements Skill {
           'tags': {
             'type': 'array',
             'items': {'type': 'string'},
-            'description': '評價屬性標籤，例如：涼課, 報告, 期末, 分組, 出席, 英文, 向度三。當使用者提到「涼課」「報告課」等評價屬性時，請將其放入此欄位。',
+            'description':
+                '評價屬性標籤，例如：涼課, 報告, 期末, 分組, 出席, 英文, 向度三。當使用者提到「涼課」「報告課」等評價屬性時，請將其放入此欄位。',
           },
           'isRecommendation': {
             'type': 'boolean',
@@ -55,10 +56,19 @@ class ReviewSearchSkill implements Skill {
       );
     }
 
-    final keyword = params['keyword'] as String?;
-    final isRecommendation = params['isRecommendation'] as bool? ?? false;
-    final tagsParam = params['tags'] as List<dynamic>?;
-    final queryCount = params['query_count'] as int? ?? 1;
+    final keyword = params['keyword']?.toString();
+    final isRecommendationRaw = params['isRecommendation'];
+    final isRecommendation = (isRecommendationRaw is bool)
+        ? isRecommendationRaw
+        : (isRecommendationRaw?.toString().toLowerCase() == 'true');
+    final tagsRaw = params['tags'];
+    final tagsParam = (tagsRaw is List)
+        ? tagsRaw
+        : (tagsRaw != null ? [tagsRaw] : null);
+    final queryCountRaw = params['query_count'];
+    final queryCount = (queryCountRaw is int)
+        ? queryCountRaw
+        : (int.tryParse(queryCountRaw?.toString() ?? '') ?? 1);
 
     if (keyword == null || keyword.toLowerCase() == 'null') {
       return SkillResult.empty;
