@@ -367,6 +367,14 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
           color: Colors.teal,
           onTap: () => context.go('/open-scores'),
         ),
+        _buildListCard(
+          context,
+          icon: Icons.trending_up_rounded,
+          label: "分數試算",
+          subLabel: "試算各課程與總平均成績",
+          color: Colors.indigo,
+          onTap: () => context.go('/score-tracking'),
+        ),
       ]),
       _buildCategoryHeader(
         "課程相關功能",

@@ -3,6 +3,7 @@ import 'pages/captcha_auto_login_page.dart';
 import 'pages/main_menu_page.dart';
 import 'pages/score_result_page.dart';
 import 'pages/open_score_page.dart';
+import 'pages/score_tracking_page.dart';
 import 'pages/course_schedule_page.dart';
 import 'pages/course_assistant/course_assistant_page.dart';
 import 'pages/course_selection_schedule_page.dart';
@@ -35,6 +36,11 @@ final router = GoRouter(
       path: '/open-scores',
       name: 'openScores',
       builder: (context, state) => const OpenScorePage(),
+    ),
+    GoRoute(
+      path: '/score-tracking',
+      name: 'scoreTracking',
+      builder: (context, state) => const ScoreTrackingPage(),
     ),
     GoRoute(
       path: '/schedule',

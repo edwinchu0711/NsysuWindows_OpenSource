@@ -8,6 +8,7 @@ class GlassSingleSelectDropdown extends StatefulWidget {
   final String value;
   final Function(String?)? onChanged;
   final Map<String, String>? displayMap;
+  final bool dense;
 
   const GlassSingleSelectDropdown({
     Key? key,
@@ -16,6 +17,7 @@ class GlassSingleSelectDropdown extends StatefulWidget {
     required this.value,
     this.onChanged,
     this.displayMap,
+    this.dense = false,
   }) : super(key: key);
 
   @override
@@ -111,6 +113,7 @@ class _GlassSingleSelectDropdownState extends State<GlassSingleSelectDropdown> {
                             label: label,
                             isSelected: isSelected,
                             colorScheme: colorScheme,
+                            dense: widget.dense,
                             onTap: () {
                               if (widget.onChanged != null) {
                                 widget.onChanged!(item);
@@ -206,6 +209,7 @@ class HoverableSingleSelectOption extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final ColorScheme colorScheme;
+  final bool dense;
 
   const HoverableSingleSelectOption({
     Key? key,
@@ -213,6 +217,7 @@ class HoverableSingleSelectOption extends StatefulWidget {
     required this.isSelected,
     required this.onTap,
     required this.colorScheme,
+    this.dense = false,
   }) : super(key: key);
 
   @override
@@ -238,8 +243,14 @@ class _HoverableSingleSelectOptionState
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: widget.dense ? 6 : 10,
+          ),
+          margin: EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: widget.dense ? 1 : 2,
+          ),
           decoration: BoxDecoration(
             color: isSelected
                 ? cs.accentBlue.withValues(alpha: 0.15)
@@ -274,7 +285,7 @@ class _HoverableSingleSelectOptionState
                         ? cs.primaryText
                         : cs.subtitleText,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 14,
+                    fontSize: widget.dense ? 13 : 14,
                   ),
                 ),
               ),

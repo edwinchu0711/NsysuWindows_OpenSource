@@ -379,131 +379,364 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
       context: context,
       builder: (context) {
         final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.auto_awesome, color: colorScheme.accentBlue),
-              const SizedBox(width: 12),
-              const Text("AI 助手使用指南"),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
+        return DefaultTabController(
+          length: 2,
+          child: AlertDialog(
+            titlePadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "這是什麼？",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "這是一個具備「工具使用能力」的 AI 助理。它不僅能聊天，還能實際操作您的課表、搜尋歷史評價並進行簡單的排課分析。",
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "💡 如何下指令",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.accentBlue,
-                  ),
-                ),
-                const Divider(),
-                const Text("建議將複雜指令拆分為多個簡單指令，以獲得更準確的結果。"),
-                const SizedBox(height: 8),
-                const Text(
-                  "❌ 避免複雜指令：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const Text(
-                  "「幫我看星期二下午有沒有評價不錯的游泳課，若是有的話幫我加進課表，沒有的話推薦我那段期間的博雅向度五課。」",
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "✅ 建議拆分為：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const Text(
-                  "1.「星期二下午有游泳課嗎？評價如何？」\n2.「推薦我那段時間的博雅向度五課程」",
-                  style: TextStyle(fontSize: 13),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "⚡ 影響反應速度的因素",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.accentBlue,
-                  ),
-                ),
-                const Divider(),
-                const Text("回覆速度受以下兩個主要因素影響："),
-                const SizedBox(height: 8),
-                const Text(
-                  "• 請求時段：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const Text(
-                  "尖峰時段，AI 回覆速度會變慢，甚至無法使用。\n離峰時段，AI 回覆速度會變快。\n建議離峰時段使用。",
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "• 指令複雜度：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const Text("指令越模糊或需要處理的數據量越大（如：分析全校跨領域課程），AI 思考的時間也會隨之增加。"),
-                const SizedBox(height: 8),
-                const Text(
-                  "• 模型效能：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const Text(
-                  "高品質大型模型（如 Pro 等級）回答較精準但速度較慢；輕量化模型（如 Flash）則能提供幾乎即時的反應。",
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "• 提升執行速度建議：",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                Text.rich(
-                  TextSpan(
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: colorScheme.primaryText,
-                      height: 1.5,
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                  child: Row(
                     children: [
-                      const TextSpan(text: "若需追求更快速的反應體驗，建議可前往 "),
-                      TextSpan(
-                        text: "NVIDIA 官方網站",
-                        style: TextStyle(
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: colorScheme.accentBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.auto_awesome,
                           color: colorScheme.accentBlue,
-                          decoration: TextDecoration.underline,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "AI 助手說明",
+                        style: TextStyle(
+                          color: colorScheme.primaryText,
                           fontWeight: FontWeight.bold,
                         ),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () => _launchURL(
-                            "https://build.nvidia.com/settings/api-keys",
-                          ),
-                      ),
-                      const TextSpan(
-                        text: " 申請 API 金鑰，並至「設定 > 模型設定」切換為「進階模式」手動新增高效能模型進行測試。",
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                TabBar(
+                  labelColor: colorScheme.accentBlue,
+                  unselectedLabelColor: colorScheme.subtitleText,
+                  indicatorColor: colorScheme.accentBlue,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: colorScheme.borderColor.withValues(alpha: 0.3),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                  tabs: const [
+                    Tab(text: "指令範例"),
+                    Tab(text: "效能與品質"),
+                  ],
+                ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("知道了"),
+            content: SizedBox(
+              width: 750,
+              height: 500,
+              child: TabBarView(
+                children: [
+                  // Tab 1: Instruction Examples
+                  SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoSection(
+                          colorScheme,
+                          title: "這是什麼？",
+                          content:
+                              "這是一個具備「工具使用能力」的 AI 助理。它能實際操作您的課表、搜尋歷史評價並進行排課分析。",
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          "✅ 推薦的詢問方式",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildExampleCard(
+                          colorScheme,
+                          examples: [
+                            "「推薦給我博雅向度一的課程」",
+                            "「OOO 的評價如何？」 (若有評價資料即可回覆)",
+                            "「XXX 的 OOO 的課程評價」",
+                          ],
+                          reason: "使用清晰的課程名稱或向度關鍵字，能獲得最精確的結果。",
+                          isBad: false,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "⚠️ 關於「加入課表」",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildExampleCard(
+                          colorScheme,
+                          examples: ["❌ 「推薦我兩堂體育課，直接幫我加進課表」"],
+                          reason: "請避免在同一個指令中要求搜尋與寫入，AI 容易混淆。",
+                          isBad: true,
+                        ),
+                        _buildExampleCard(
+                          colorScheme,
+                          examples: [
+                            "⭕ 步驟 1：「推薦我兩堂體育課 ...」",
+                            "⭕ 步驟 2：「幫我加進課表」",
+                          ],
+                          reason: "分兩步下達指令，成功率更高！",
+                          isBad: false,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "❌ 較差的詢問方式 (缺乏資料支持)",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.redAccent,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildExampleCard(
+                          colorScheme,
+                          examples: ["「推薦給我期末報告占比很低的課程」", "「推薦給我沒有考試的課」"],
+                          reason: "資料庫並無收錄所有課程的詳細分數安排，僅有學長姐的評價內容。",
+                          isBad: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Tab 2: Performance & Quality
+                  SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoSection(
+                          colorScheme,
+                          title: "模型現狀",
+                          content:
+                              "目前免費模型（如 Gemini Flash Lite）的穩定度、速度和推理能力在處理複雜邏輯時可能偶爾不足。",
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          "⚡ 影響反應速度的因素",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primaryText,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Divider(),
+                        _buildPerformanceItem(
+                          colorScheme,
+                          title: "• 請求時段：",
+                          content: "API 在巔峰時候會回覆慢甚至不回覆，建議遠離巔峰時間，或更換模型試試看。",
+                        ),
+                        _buildPerformanceItem(
+                          colorScheme,
+                          title: "• 指令複雜度：",
+                          content: "指令越模糊或需要處理的數據量越大（如：分析全校課程），AI 思考的時間也會隨之增加。",
+                        ),
+                        _buildPerformanceItem(
+                          colorScheme,
+                          title: "• 模型效能：",
+                          content:
+                              "高品質大型模型（如 Pro 等級）回答較精準但速度較慢；輕量化模型（如 Flash Lite）則幾乎即時。",
+                        ),
+                        const SizedBox(height: 20),
+                        _buildInfoSection(
+                          colorScheme,
+                          title: "如何選擇理想模型？",
+                          content:
+                              "若要自行配置模型，建議選擇：\n• 智力等級較高\n• 上下文視窗 (Context Window) 需超過 64k",
+                        ),
+                        const SizedBox(height: 20),
+                        _buildTipBox(
+                          colorScheme,
+                          "若您覺得目前模型回覆不夠理想，可嘗試前往 NVIDIA 官網申請 API Key 作為替代方案測試。",
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => _launchURL(
+                              "https://build.nvidia.com/settings/api-keys",
+                            ),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text("前往 NVIDIA 申請 API 金鑰"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+                child: const Text(
+                  "知道了",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildPerformanceItem(
+    ColorScheme colorScheme, {
+    required String title,
+    required String content,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          Text(
+            content,
+            style: TextStyle(color: colorScheme.subtitleText, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(
+    ColorScheme colorScheme, {
+    required String title,
+    required String content,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primaryText,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          content,
+          style: TextStyle(
+            color: colorScheme.primaryText.withValues(alpha: 0.8),
+            fontSize: 14,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExampleCard(
+    ColorScheme colorScheme, {
+    required List<String> examples,
+    required String reason,
+    required bool isBad,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.borderColor.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...examples.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                e,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.primaryText.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                isBad ? Icons.info_outline : Icons.check_circle_outline,
+                size: 14,
+                color: isBad ? Colors.orange : Colors.green,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  reason,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colorScheme.subtitleText,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipBox(ColorScheme colorScheme, String text) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.accentBlue.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.lightbulb_outline,
+            size: 16,
+            color: colorScheme.accentBlue,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.accentBlue,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

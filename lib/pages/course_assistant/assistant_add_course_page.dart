@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/course_query_service.dart'; // 請確認路徑是否正確
+import '../../../services/course_evaluation_service.dart';
 import 'package:http/http.dart' as http; // ✅ 新增這行：用來發送網路請求
 import 'package:url_launcher/url_launcher.dart'; // ✅ 新增：用於開啟外部連結
 import '../../../theme/app_theme.dart';
@@ -42,6 +43,43 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   String? _selectedClass;
   bool _filterConflict = false; // 是否過濾衝堂
   List<dynamic>? _localAddedCourses; // 新增：用於即時追蹤本地已加入課程，解決刷新延遲問題
+
+  // 定義統一的選項，避免手機版與電腦版不一致
+  static const Map<String, String> _gradeOptions = {
+    "1": "一年級",
+    "2": "二年級",
+    "3": "三年級",
+    "4": "四年級",
+    "5": "五年級",
+  };
+
+  static const Map<String, String> _dayOptions = {
+    "1": "週一",
+    "2": "週二",
+    "3": "週三",
+    "4": "週四",
+    "5": "週五",
+    "6": "週六",
+    "7": "週日",
+  };
+
+  static const Map<String, String> _periodOptions = {
+    "A": "A (07:00)",
+    "1": "1 (08:10)",
+    "2": "2 (09:10)",
+    "3": "3 (10:10)",
+    "4": "4 (11:10)",
+    "5": "5 (13:10)",
+    "B": "B (12:10)",
+    "6": "6 (14:10)",
+    "7": "7 (15:10)",
+    "8": "8 (16:10)",
+    "9": "9 (17:10)",
+    "C": "C (18:20)",
+    "D": "D (19:15)",
+    "E": "E (20:10)",
+    "F": "F (21:05)",
+  };
 
   @override
   void initState() {
@@ -640,186 +678,188 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.85,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return SingleChildScrollView(
-              controller: scrollController,
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Text(
-                      "課程查詢條件",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primaryText,
-                      ),
-                    ),
+        // 使用 StatefulBuilder 確保在 BottomSheet 內部調用 setState 時，畫面會即時更新
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 20,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                   ),
-                  const SizedBox(height: 20),
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _buildTextField(
-                          "關鍵字搜尋 (課名、教師、系所、學程)",
-                          _mergedQueryCtrl,
-                          hint: "可用空白區隔多個關鍵字，如：資工 周",
+                      Center(
+                        child: Text(
+                          "課程查詢條件",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primaryText,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Column(
+                      const SizedBox(height: 20),
+                      Row(
                         children: [
-                          const Text(
-                            "過濾衝堂",
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          Expanded(
+                            child: _buildTextField(
+                              "關鍵字搜尋 (課名、教師、系所、學程)",
+                              _mergedQueryCtrl,
+                              hint: "可用空白區隔多個關鍵字，如：資工 周",
+                            ),
                           ),
-                          Switch(
-                            value: _filterConflict,
-                            onChanged: (v) =>
-                                setState(() => _filterConflict = v),
-                            activeColor: Theme.of(
-                              context,
-                            ).colorScheme.accentBlue,
+                          const SizedBox(width: 12),
+                          Column(
+                            children: [
+                              const Text(
+                                "過濾衝堂",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              Switch(
+                                value: _filterConflict,
+                                onChanged: (v) {
+                                  // 同步更新父層與 Sheet 內部狀態
+                                  setState(() => _filterConflict = v);
+                                  setSheetState(() {});
+                                },
+                                activeColor: Theme.of(
+                                  context,
+                                ).colorScheme.accentBlue,
+                              ),
+                            ],
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMultiSelectDropdown(
+                              label: "年級 (D2)",
+                              values: _selectedGrades,
+                              options: _gradeOptions,
+                              onChanged: (newSet) {
+                                setState(() => _selectedGrades = newSet);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDropdown(
+                              label: "班級 (CLASS)",
+                              value: _selectedClass,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text("全部"),
+                                ),
+                                DropdownMenuItem(
+                                  value: "0",
+                                  child: Text("不分班"),
+                                ),
+                                DropdownMenuItem(value: "1", child: Text("甲班")),
+                                DropdownMenuItem(value: "2", child: Text("乙班")),
+                                DropdownMenuItem(
+                                  value: "5",
+                                  child: Text("全英班"),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                setState(() => _selectedClass = v);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "上課時間",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.subtitleText,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMultiSelectDropdown(
+                              label: "星期",
+                              values: _selectedDays,
+                              options: _dayOptions,
+                              onChanged: (newSet) {
+                                setState(() => _selectedDays = newSet);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildMultiSelectDropdown(
+                              label: "節次",
+                              values: _selectedPeriods,
+                              options: _periodOptions,
+                              onChanged: (newSet) {
+                                setState(() => _selectedPeriods = newSet);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _performSearch();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.accentBlue,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text(
+                              "開始查詢",
+                              style: TextStyle(fontSize: 18),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: TextButton(
+                          onPressed: _clearSearchFields,
+                          child: const Text(
+                            "重設條件",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMultiSelectDropdown(
-                          label: "年級 (D2)",
-                          values: _selectedGrades,
-                          options: {
-                            "1": "一年級",
-                            "2": "二年級",
-                            "3": "三年級",
-                            "4": "四年級",
-                            "5": "五年級",
-                          },
-                          onChanged: (newSet) =>
-                              setState(() => _selectedGrades = newSet),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildDropdown(
-                          label: "班級 (CLASS)",
-                          value: _selectedClass,
-                          items: const [
-                            DropdownMenuItem(value: null, child: Text("全部")),
-                            DropdownMenuItem(value: "0", child: Text("不分班")),
-                            DropdownMenuItem(value: "1", child: Text("甲班")),
-                            DropdownMenuItem(value: "2", child: Text("乙班")),
-                            DropdownMenuItem(value: "5", child: Text("全英班")),
-                          ],
-                          onChanged: (v) => _selectedClass = v,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    "上課時間",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.subtitleText,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMultiSelectDropdown(
-                          label: "星期",
-                          values: _selectedDays,
-                          options: {
-                            "1": "週一",
-                            "2": "週二",
-                            "3": "週三",
-                            "4": "週四",
-                            "5": "週五",
-                            "6": "週六",
-                            "7": "週日",
-                          },
-                          onChanged: (newSet) =>
-                              setState(() => _selectedDays = newSet),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildMultiSelectDropdown(
-                          label: "節次",
-                          values: _selectedPeriods,
-                          options: {
-                            "A": "A (07:00)",
-                            "1": "1 (08:10)",
-                            "2": "2 (09:10)",
-                            "3": "3 (10:10)",
-                            "4": "4 (11:10)",
-                            "5": "5 (13:10)",
-                            "6": "6 (14:10)",
-                            "7": "7 (15:10)",
-                            "8": "8 (16:10)",
-                            "9": "9 (17:10)",
-                            "B": "B (12:10)",
-                            "C": "C (18:20)",
-                          },
-                          onChanged: (newSet) =>
-                              setState(() => _selectedPeriods = newSet),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _performSearch();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.accentBlue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text(
-                          "開始查詢",
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: TextButton(
-                      onPressed: _clearSearchFields,
-                      child: const Text(
-                        "重設條件",
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -915,7 +955,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               child: _buildMultiSelectDropdown(
                 label: "年級",
                 values: _selectedGrades,
-                options: {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5"},
+                options: _gradeOptions,
                 onChanged: (newSet) => setState(() => _selectedGrades = newSet),
               ),
             ),
@@ -925,15 +965,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               child: _buildMultiSelectDropdown(
                 label: "星期",
                 values: _selectedDays,
-                options: {
-                  "1": "一",
-                  "2": "二",
-                  "3": "三",
-                  "4": "四",
-                  "5": "五",
-                  "6": "六",
-                  "7": "日",
-                },
+                options: _dayOptions,
                 onChanged: (newSet) => setState(() => _selectedDays = newSet),
               ),
             ),
@@ -943,20 +975,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
               child: _buildMultiSelectDropdown(
                 label: "節次",
                 values: _selectedPeriods,
-                options: {
-                  "A": "A",
-                  "1": "1",
-                  "2": "2",
-                  "3": "3",
-                  "4": "4",
-                  "5": "5",
-                  "6": "6",
-                  "7": "7",
-                  "8": "8",
-                  "9": "9",
-                  "B": "B",
-                  "C": "C",
-                },
+                options: _periodOptions,
                 onChanged: (newSet) =>
                     setState(() => _selectedPeriods = newSet),
               ),
@@ -1149,42 +1168,21 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
   // ✅ 核心方法：抓取評分方式
   Future<List<String>> _getCourseEvaluation(String courseId) async {
-    if (_evaluationCache.containsKey(courseId))
+    if (_evaluationCache.containsKey(courseId)) {
       return _evaluationCache[courseId]!;
+    }
     final semStr = CourseQueryService.instance.currentSemester;
     if (semStr.length != 4) return ["無法取得學期資訊"];
     final syear = semStr.substring(0, 3);
     final sem = semStr.substring(3, 4);
-    final url = Uri.parse(
-      'https://selcrs.nsysu.edu.tw/menu5/showoutline.asp?SYEAR=$syear&SEM=$sem&CrsDat=$courseId',
+
+    final evals = await CourseEvaluationService.instance.fetchEvaluation(
+      year: syear,
+      semester: sem,
+      courseId: courseId,
     );
-    try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        String html = utf8.decode(response.bodyBytes, allowMalformed: true);
-        final RegExp exp = RegExp(
-          r'SS4_\d+1[^>]*>([^<]*)</span>[^<]*<span[^>]*SS4_\d+2[^>]*>([^<]*)</span>',
-          caseSensitive: false,
-        );
-        final matches = exp.allMatches(html);
-        List<String> evals = [];
-        int index = 1;
-        for (var match in matches) {
-          String item = match.group(1)?.trim() ?? "";
-          String pct = match.group(2)?.trim() ?? "";
-          if (item.isNotEmpty) {
-            evals.add('$index. $item：${pct.isNotEmpty ? pct : "0"}%');
-            index++;
-          }
-        }
-        if (evals.isEmpty) evals.add("尚無評分方式資料");
-        _evaluationCache[courseId] = evals;
-        return evals;
-      }
-    } catch (e) {
-      return ["載入失敗"];
-    }
-    return ["查無資料"];
+    _evaluationCache[courseId] = evals;
+    return evals;
   }
 
   String _formatClassTime(List<String> times) {
@@ -1511,10 +1509,7 @@ class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.borderColor,
-                  width: 0.5,
-                ),
+                border: Border.all(color: colorScheme.borderColor, width: 0.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1524,7 +1519,13 @@ class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
                       widget.values.isEmpty
                           ? "全部"
                           : widget.values
-                                .map((e) => widget.options[e] ?? e)
+                                .map((e) {
+                                  final label = widget.options[e] ?? e;
+                                  // 如果標籤包含括號時間，在欄位顯示時僅保留前半部 (例如 "A (07:00)" -> "A")
+                                  return label.contains(' (')
+                                      ? label.split(' (')[0]
+                                      : label;
+                                })
                                 .join(', '),
                       style: TextStyle(
                         fontSize: 13,
