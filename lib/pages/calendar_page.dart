@@ -84,7 +84,7 @@ class CalendarService {
           await prefs.setInt(_prefKeyFetchTime, now.millisecondsSinceEpoch);
         }
       } catch (e) {
-        print("抓取行事曆失敗，使用舊快取: $e");
+        debugPrint("抓取行事曆失敗，使用舊快取: $e");
       }
     }
 
@@ -113,7 +113,7 @@ class CalendarService {
           }
         }
       } catch (e) {
-        print("解析 JSON 失敗: $e");
+        debugPrint("解析 JSON 失敗: $e");
       }
     }
 

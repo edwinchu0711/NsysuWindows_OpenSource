@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -51,16 +52,16 @@ class NotificationService {
       sound: true,
     );
 
-    print('使用者權限狀態: ${settings.authorizationStatus}');
+    debugPrint('使用者權限狀態: ${settings.authorizationStatus}');
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       // B. 訂閱主題 (這是關鍵！GitHub 會發給這個主題)
       await messaging.subscribeToTopic('all_users');
-      print("✅ 已訂閱 'all_users' 主題，準備接收 GitHub 推播");
+      debugPrint("✅ 已訂閱 'all_users' 主題，準備接收 GitHub 推播");
 
       // C. 處理前景通知 (當 App 打開時，FCM 預設不會跳通知，要手動觸發 Local Notification)
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print("收到前景訊息: ${message.notification?.title}");
+        debugPrint("收到前景訊息: ${message.notification?.title}");
         
         RemoteNotification? notification = message.notification;
         AndroidNotification? android = message.notification?.android;
@@ -95,10 +96,10 @@ class NotificationService {
   Future<void> toggleNotification(bool enable) async {
     if (enable) {
       await FirebaseMessaging.instance.subscribeToTopic('all_users');
-      print("🔔 已開啟通知 (訂閱 topic)");
+      debugPrint("🔔 已開啟通知 (訂閱 topic)");
     } else {
       await FirebaseMessaging.instance.unsubscribeFromTopic('all_users');
-      print("🔕 已關閉通知 (取消訂閱 topic)");
+      debugPrint("🔕 已關閉通知 (取消訂閱 topic)");
     }
   }
 }

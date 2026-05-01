@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 import 'storage_service.dart';
 
@@ -54,9 +55,9 @@ class CourseEvaluationService {
         String html = utf8.decode(response.bodyBytes, allowMalformed: true);
 
         // Debug：印出 HTML 前 800 字元來診斷
-        print('[CourseEvaluationService] URL: $url');
-        print('[CourseEvaluationService] HTML preview:');
-        print(html.length > 800 ? html.substring(0, 800) : html);
+        // debugPrint('[CourseEvaluationService] URL: $url');
+        // debugPrint('[CourseEvaluationService] HTML preview:');
+        // debugPrinthtml.length > 800 ? html.substring(0, 800) : html);
 
         // 分別抓項目名稱 (SS4_*1) 和百分比 (SS4_*2)，按索引配對
         final nameExp = RegExp(
@@ -86,7 +87,7 @@ class CourseEvaluationService {
           }
         }
 
-        print(
+        debugPrint(
           '[CourseEvaluationService] 抓到名稱: ${names.length} 個, 百分比: ${pcts.length} 個',
         );
 
@@ -110,7 +111,7 @@ class CourseEvaluationService {
         return evals;
       }
     } catch (e) {
-      print('[CourseEvaluationService] Error: $e');
+      debugPrint('[CourseEvaluationService] Error: $e');
       return ["載入失敗"];
     }
     return ["查無資料"];

@@ -3,6 +3,7 @@ import '../skill_context.dart';
 import '../skill_result.dart';
 import '../../database_embedding_service.dart';
 import '../../local_course_service.dart';
+import 'package:flutter/foundation.dart';
 
 class ReviewSearchSkill implements Skill {
   @override
@@ -105,7 +106,7 @@ class ReviewSearchSkill implements Skill {
     final List<String> foundCourseNames = [];
 
     try {
-      print('--- [ReviewSearchSkill] Executing search for: $keyword ---');
+      debugPrint('--- [ReviewSearchSkill] Executing search for: $keyword ---');
       final searchItems = await DatabaseEmbeddingService.instance
           .embedAndSearch(keyword, k: k);
 
@@ -158,7 +159,7 @@ class ReviewSearchSkill implements Skill {
         contextInfo += '\n(歷史資料庫暫時沒有 "$keyword" 的相關資料)\n';
       }
     } catch (e) {
-      print('ReviewSearchSkill error: $e');
+      debugPrint('ReviewSearchSkill error: $e');
       contextInfo += '\n(無法取得評價，錯誤: $e)\n';
     }
 

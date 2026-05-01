@@ -123,7 +123,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         });
       }
     } catch (e) {
-      print("讀取既有助手課表失敗: $e");
+      debugPrint("讀取既有助手課表失敗: $e");
     }
   }
 

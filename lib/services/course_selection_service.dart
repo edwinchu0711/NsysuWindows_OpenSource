@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/utils.dart'; // 請確認路徑
 import 'storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 // --- 資料模型 ---
 class CourseSelectionData {
@@ -69,7 +70,7 @@ class CourseSelectionService {
 
   /// 主要功能：抓取選課結果
   Future<Map<String, dynamic>> fetchSelectionResult() async {
-    print("🔍 [偵錯] 開始執行 fetchSelectionResult...");
+    debugPrint("🔍 [偵錯] 開始執行 fetchSelectionResult...");
 
     try {
       final credentials = await StorageService.instance.getCredentials();
@@ -77,22 +78,22 @@ class CourseSelectionService {
       String password = (credentials['password'] ?? "").trim();
 
       if (studentId.isEmpty || password.isEmpty) {
-        print("❌ [偵錯] 帳號或密碼為空");
+        debugPrint("❌ [偵錯] 帳號或密碼為空");
         throw "找不到帳號密碼";
       }
 
       // 1. 登入
-      print("🔍 [偵錯] 正在登入...");
+      debugPrint("🔍 [偵錯] 正在登入...");
       String? cookie = await _loginViaSSO2(studentId, password);
       if (cookie == null) {
-        print("❌ [偵錯] 登入失敗 (Cookie 為 null)");
+        debugPrint("❌ [偵錯] 登入失敗 (Cookie 為 null)");
         throw "登入失敗，請檢查帳號密碼";
       }
-      print("✅ [偵錯] 登入成功，Cookie 取得");
+      debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
 
       // --- [新步驟] 2. Request main_frame.asp 取得參數 ---
       final mainFrameUrl = Uri.parse("$_baseUrl/menu4/main_frame.asp");
-      print("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
+      debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
 
       final mainFrameResponse = await _client.get(
         mainFrameUrl,
@@ -118,11 +119,11 @@ class CourseSelectionService {
       String studFunParams = "";
       if (paramMatch != null) {
         studFunParams = paramMatch.group(1) ?? "";
-        print("✅ [偵錯] 成功抓取參數串: $studFunParams");
+        debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
       } else {
-        print("⚠️ [偵錯] 在 main_frame 無法抓取參數，將嘗試不帶參數進入 (可能失敗)");
+        debugPrint("⚠️ [偵錯] 在 main_frame 無法抓取參數，將嘗試不帶參數進入 (可能失敗)");
         // 印出 Body 前段供除錯
-        print(
+        debugPrint(
           "📄 [偵錯] main_frame片段: ${mainFrameBody.substring(0, (mainFrameBody.length > 300 ? 300 : mainFrameBody.length))}",
         );
       }
@@ -135,7 +136,7 @@ class CourseSelectionService {
       }
 
       final studFunUrl = Uri.parse(studFunUrlString);
-      print("🔍 [偵錯] 請求選單頁面 (帶參): $studFunUrl");
+      debugPrint("🔍 [偵錯] 請求選單頁面 (帶參): $studFunUrl");
 
       final response = await _client.get(
         studFunUrl,
@@ -146,32 +147,32 @@ class CourseSelectionService {
         },
       );
       String body = utf8.decode(response.bodyBytes, allowMalformed: true);
-      print("📄 [偵錯] Studfun.asp 回傳長度: ${body.length}");
+      debugPrint("📄 [偵錯] Studfun.asp 回傳長度: ${body.length}");
 
       // --- 4. 尋找第一個 <a> 連結 ---
       RegExp hrefReg = RegExp(r'<a\s+href="([^"]+)"', caseSensitive: false);
       Match? match = hrefReg.firstMatch(body);
 
       if (match == null) {
-        print("❌ [偵錯] 在 Studfun.asp 找不到任何 <a> 連結，可能選單結構改變或參數無效");
-        print(
+        debugPrint("❌ [偵錯] 在 Studfun.asp 找不到任何 <a> 連結，可能選單結構改變或參數無效");
+        debugPrint(
           "📄 [偵錯] 頁面片段: ${body.substring(0, (body.length > 500 ? 500 : body.length))}",
         );
         throw "找不到選課入口連結";
       }
 
       String firstLink = match.group(1) ?? "";
-      print("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
+      debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
 
       // --- 5. 判斷選課是否開放 ---
       // if (firstLink.contains("query/result.asp")) {
-      //   print("⚠️ [偵錯] 連結包含 query/result.asp，判斷為選課系統未開放");
+      //   debugPrint("⚠️ [偵錯] 連結包含 query/result.asp，判斷為選課系統未開放");
       //   return {'state': SelectionState.closed, 'data': <CourseSelectionData>[]};
       // }
 
       // --- 6. 進入選課頁面 ---
       String targetUrl = "$_baseUrl/menu4/$firstLink";
-      print("🔍 [偵錯] 準備請求目標選課頁面: $targetUrl");
+      debugPrint("🔍 [偵錯] 準備請求目標選課頁面: $targetUrl");
 
       final selectionRes = await _client.get(
         Uri.parse(targetUrl),
@@ -186,14 +187,14 @@ class CourseSelectionService {
         selectionRes.bodyBytes,
         allowMalformed: true,
       );
-      print("📄 [偵錯] 選課頁面回傳長度: ${selectionBody.length}");
+      debugPrint("📄 [偵錯] 選課頁面回傳長度: ${selectionBody.length}");
 
       // --- 7. 檢查是否需要「預選確認」 ---
       if (selectionBody.contains('value="送出"') &&
           selectionBody.contains(
             '''onclick="document.getElementById('step_id').innerHTML='&lt;input type=hidden name=step value=2 &gt;';document.all['send'].click();"''',
           )) {
-        print("⚠️ [偵錯] 偵測到 '尚未完成預選確認' 按鈕");
+        debugPrint("⚠️ [偵錯] 偵測到 '尚未完成預選確認' 按鈕");
         return {
           'state': SelectionState.needConfirmation,
           'data': <CourseSelectionData>[],
@@ -201,7 +202,7 @@ class CourseSelectionService {
       }
 
       //  / --- [新步驟] 7.5 如果沒有預選確認，強制導向到選課結果頁面 ---
-      print("🔍 [偵錯] 無須確認，導向至已選結果頁面...");
+      debugPrint("🔍 [偵錯] 無須確認，導向至已選結果頁面...");
       final resultUrl = Uri.parse(
         "$_baseUrl/menu4/query/slt_result.asp?admit=0",
       );
@@ -218,18 +219,18 @@ class CourseSelectionService {
 
       // 更新 selectionBody 為新頁面的內容
       selectionBody = utf8.decode(resultRes.bodyBytes, allowMalformed: true);
-      print("📄 [偵錯] 已選結果頁面回傳長度: ${selectionBody.length}");
+      debugPrint("📄 [偵錯] 已選結果頁面回傳長度: ${selectionBody.length}");
 
       // --- 8. 解析表格資料 ---
-      print("🔍 [偵錯] 開始解析表格...");
+      debugPrint("🔍 [偵錯] 開始解析表格...");
 
       // 使用新的 selectionBody (slt_result.asp 的內容) 進行解析
       List<CourseSelectionData> courses = _parseSelectionTable(selectionBody);
-      print("✅ [偵錯] 解析完成，共找到 ${courses.length} 門課");
+      debugPrint("✅ [偵錯] 解析完成，共找到 ${courses.length} 門課");
 
       return {'state': SelectionState.open, 'data': courses};
     } catch (e) {
-      print("❌ [偵錯] 發生例外狀況: $e");
+      debugPrint("❌ [偵錯] 發生例外狀況: $e");
       rethrow;
     }
   }
@@ -237,7 +238,7 @@ class CourseSelectionService {
   // --- HTML 解析邏輯 (維持容錯模式) ---
   List<CourseSelectionData> _parseSelectionTable(String html) {
     List<CourseSelectionData> results = [];
-    print("🛠️ [解析] 啟動結果頁面解析 (slt_result 模式)...");
+    debugPrint("🛠️ [解析] 啟動結果頁面解析 (slt_result 模式)...");
 
     // 1. 統一結尾標籤 (轉小寫方便切割)
     String processedHtml = html.replaceAll(
@@ -247,7 +248,7 @@ class CourseSelectionService {
 
     // 2. 切割列
     List<String> rawRows = processedHtml.split('</tr>');
-    print("📋 [解析] 切割出 ${rawRows.length} 個區塊");
+    debugPrint("📋 [解析] 切割出 ${rawRows.length} 個區塊");
 
     int validRowCount = 0;
 
@@ -290,7 +291,7 @@ class CourseSelectionService {
         // 有些標題寫 "選上<br>與否"，strip後變成 "選上與否"，但有時候資料列也可能只寫"選上"
         // 所以多檢查第二欄標題確保萬無一失
         if (strip(cells[1]).contains("系所別")) {
-          print("   -> 跳過標題列");
+          debugPrint("   -> 跳過標題列");
           continue;
         }
       }
@@ -330,7 +331,7 @@ class CourseSelectionService {
         // 這裡將 "說明" 放進 note，如果需要也可以放進 remarks
         String remarks = note;
 
-        print("   -> ✅ 第 $validRowCount 筆: [$status] $name ($professor)");
+        debugPrint("   -> ✅ 第 $validRowCount 筆: [$status] $name ($professor)");
 
         results.add(
           CourseSelectionData(
@@ -349,13 +350,13 @@ class CourseSelectionService {
           ),
         );
       } catch (e) {
-        print("   -> ⚠️ 解析資料列時發生錯誤 (Row $i): $e");
+        debugPrint("   -> ⚠️ 解析資料列時發生錯誤 (Row $i): $e");
         // 印出該列內容以便除錯
-        // print("        Raw: $cells");
+        // debugPrint("        Raw: $cells");
       }
     }
 
-    print("✅ [解析] 完成，共擷取到 ${results.length} 門課程");
+    debugPrint("✅ [解析] 完成，共擷取到 ${results.length} 門課程");
     return results;
   }
 
@@ -375,7 +376,7 @@ class CourseSelectionService {
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null && !response.body.contains("不符")) return rawCookie;
     } catch (e) {
-      print("❌ [偵錯] Login Error: $e");
+      debugPrint("❌ [偵錯] Login Error: $e");
     }
     return null;
   }

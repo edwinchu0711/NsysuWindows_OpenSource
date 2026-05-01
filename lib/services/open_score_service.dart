@@ -48,10 +48,10 @@ class OpenScoreService {
 
         // 使用 List.from 建立新引用，強制觸發 ValueNotifier 的 listeners
         resultsNotifier.value = List.from(processed);
-        print("📦 OpenScoreService: 已成功載入 ${resultsNotifier.value.length} 筆快取資料");
+        debugPrint("📦 OpenScoreService: 已成功載入 ${resultsNotifier.value.length} 筆快取資料");
       }
     } catch (e) {
-      print("❌ OpenScoreService 載入快取失敗: $e");
+      debugPrint("❌ OpenScoreService 載入快取失敗: $e");
     }
   }
 
@@ -61,9 +61,9 @@ class OpenScoreService {
       // 儲存當前 notifier 中的最新快照
       String encoded = jsonEncode(resultsNotifier.value);
       await StorageService.instance.save(CACHE_KEY, encoded);
-      print("💾 OpenScoreService: 資料已同步至硬碟");
+      debugPrint("💾 OpenScoreService: 資料已同步至硬碟");
     } catch (e) {
-      print("❌ OpenScoreService 儲存快取失敗: $e");
+      debugPrint("❌ OpenScoreService 儲存快取失敗: $e");
     }
   }
 
@@ -75,9 +75,9 @@ class OpenScoreService {
     
     try {
       await StorageService.instance.remove(CACHE_KEY);
-      print("🗑️ OpenScoreService: 快取已清空");
+      debugPrint("🗑️ OpenScoreService: 快取已清空");
     } catch (e) {
-      print("❌ OpenScoreService 刪除失敗: $e");
+      debugPrint("❌ OpenScoreService 刪除失敗: $e");
     }
   }
 
@@ -88,6 +88,7 @@ class OpenScoreService {
     isLoadingNotifier.value = true;
     progressNotifier.value = 0.0;
     statusMessageNotifier.value = "檢查身分中...";
+    final sw = Stopwatch()..start();
 
     try {
       // 確保在嘗試抓取前，記憶體至少有舊的快取資料
@@ -113,9 +114,10 @@ class OpenScoreService {
       await _startLinearFetchingProcess(cookies);
     } catch (e) {
       statusMessageNotifier.value = "連線異常: $e";
-      print("❌ OpenScore 流程錯誤: $e");
+      debugPrint("❌ OpenScore 流程錯誤: $e");
     } finally {
       isLoadingNotifier.value = false;
+      debugPrint('[OS] fetchOpenScores 總耗時 (+${sw.elapsedMilliseconds}ms)');
     }
   }
 
@@ -142,7 +144,7 @@ class OpenScoreService {
         return rawCookie;
       }
     } catch (e) {
-      print("Login Network Error: $e");
+      debugPrint("Login Network Error: $e");
     }
     return null;
   }

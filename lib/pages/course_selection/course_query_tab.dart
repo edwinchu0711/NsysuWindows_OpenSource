@@ -50,7 +50,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
     super.initState();
     _loadCartFromPrefs();
     CourseQueryService.instance.getCourses().catchError((e) {
-      print("背景載入失敗: $e");
+      debugPrint("背景載入失敗: $e");
       return <CourseJsonData>[];
     });
 
@@ -1119,7 +1119,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       }).toList();
       await prefs.setString('selection_cart', jsonEncode(cartList));
     } catch (e) {
-      print("儲存預選清單失敗: $e");
+      debugPrint("儲存預選清單失敗: $e");
     }
   }
 
@@ -1209,7 +1209,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       // 領收完畢後清除
       await prefs.remove('selection_export');
     } catch (e) {
-      print("匯入課程失敗: $e");
+      debugPrint("匯入課程失敗: $e");
     }
   }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'ai_client.dart';
 import 'skills/skill.dart';
 import '../../models/ai_config_model.dart';
+import 'package:flutter/foundation.dart';
 
 class RouterAction {
   final String id;
@@ -248,10 +249,10 @@ $scheduleSection
         );
       }
 
-      print('--- [AiRouter] Routing successful ---');
-      print('    Actions: ${actions.length}');
+      debugPrint('--- [AiRouter] Routing successful ---');
+      debugPrint('    Actions: ${actions.length}');
       for (var a in actions) {
-        print('    - Skill: ${a.skillName}, Params: ${a.parameters}');
+        debugPrint('    - Skill: ${a.skillName}, Params: ${a.parameters}');
       }
 
       return RouterResult(
@@ -262,7 +263,7 @@ $scheduleSection
             : null,
       );
     } catch (e) {
-      print('--- [AiRouter] Error: $e ---');
+      debugPrint('--- [AiRouter] Error: $e ---');
     }
 
     return RouterResult.fallback();

@@ -55,11 +55,11 @@ class _AbnormalWebViewPageState extends State<AbnormalWebViewPage> {
               onWebViewCreated: (controller) => webViewController = controller,
               // 加入錯誤偵測
               onReceivedError: (controller, request, error) {
-                print("🌐 WebView Error: ${error.description}");
+                debugPrint("🌐 WebView Error: ${error.description}");
               },
               onLoadStop: (controller, url) async {
                 String urlString = url.toString();
-                print("📍 目前停留頁面: $urlString (Step: $_processStep)");
+                debugPrint("📍 目前停留頁面: $urlString (Step: $_processStep)");
 
                 // --- 步驟 0: 登入結果判定 ---
                 if (_processStep == 0) {
@@ -72,7 +72,7 @@ class _AbnormalWebViewPageState extends State<AbnormalWebViewPage> {
 
                   // 只要 URL 變了，或是 HTML 內出現登出字眼，就算登入成功
                   if (urlString.contains("menu.asp") || urlString.contains("main") || (html?.contains("登出") ?? false)) {
-                    print("✅ 登入成功，準備進入主框架");
+                    debugPrint("✅ 登入成功，準備進入主框架");
                     _processStep = 1;
                     setState(() => _statusMessage = "初始化環境中...");
                     await controller.loadUrl(urlRequest: URLRequest(url: WebUri(mainFrameUrl)));
@@ -82,7 +82,7 @@ class _AbnormalWebViewPageState extends State<AbnormalWebViewPage> {
 
                 // --- 步驟 1: 主框架載入後提交表單 ---
                 if (_processStep == 1 && urlString.contains("main_frame.asp")) {
-                  print("🚀 已抵達主框架，準備 POST 申請資料");
+                  debugPrint("🚀 已抵達主框架，準備 POST 申請資料");
                   _processStep = 2;
                   setState(() => _statusMessage = "正在送出申請表單...");
                   _performPostSubmit(controller);
@@ -91,7 +91,7 @@ class _AbnormalWebViewPageState extends State<AbnormalWebViewPage> {
 
                 // --- 步驟 2: 處理最終結果 ---
                 if (_processStep == 2 && urlString.contains("abnormal.asp")) {
-                  print("🎯 已抵達結果頁面");
+                  debugPrint("🎯 已抵達結果頁面");
                   _processStep = 3;
                   await _finalizeProcess(controller);
                 }

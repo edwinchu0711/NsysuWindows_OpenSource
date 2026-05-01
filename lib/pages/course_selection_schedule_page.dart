@@ -133,7 +133,7 @@ class _CourseSelectionSchedulePageState
       _isSystemOpen = false;
     });
 
-    print("🔍 [偵錯] 開始執行 _checkRealTimeSystemStatus...");
+    debugPrint("🔍 [偵錯] 開始執行 _checkRealTimeSystemStatus...");
 
     try {
       final credentials = await StorageService.instance.getCredentials();
@@ -146,18 +146,18 @@ class _CourseSelectionSchedulePageState
       }
 
       // 1. 登入 (呼叫 SSO 登入邏輯)
-      print("🔍 [偵錯] 正在登入...");
+      debugPrint("🔍 [偵錯] 正在登入...");
       // 【注意】請確保 _loginViaSSO2 函式存在於此檔案或已正確 Import
       String? cookie = await _loginViaSSO2(studentId, password);
 
       if (cookie == null) {
         throw "SSO 登入失敗 (Cookie 為空)";
       }
-      print("✅ [偵錯] 登入成功，Cookie 取得");
+      debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
 
       // 2. Request main_frame.asp 取得參數
       final mainFrameUrl = Uri.parse("$_baseUrl/menu4/main_frame.asp");
-      print("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
+      debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
 
       final mainFrameResponse = await _client.get(
         mainFrameUrl,
@@ -182,9 +182,9 @@ class _CourseSelectionSchedulePageState
       String studFunParams = "";
       if (paramMatch != null) {
         studFunParams = paramMatch.group(1) ?? "";
-        print("✅ [偵錯] 成功抓取參數串: $studFunParams");
+        debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
       } else {
-        print("⚠️ [偵錯] 在 main_frame 無法抓取參數");
+        debugPrint("⚠️ [偵錯] 在 main_frame 無法抓取參數");
       }
 
       // 3. Request Studfun.asp (帶參數)
@@ -194,7 +194,7 @@ class _CourseSelectionSchedulePageState
       }
 
       final studFunUrl = Uri.parse(studFunUrlString);
-      print("🔍 [偵錯] 請求選單頁面: $studFunUrl");
+      debugPrint("🔍 [偵錯] 請求選單頁面: $studFunUrl");
 
       final response = await _client.get(
         studFunUrl,
@@ -212,12 +212,12 @@ class _CourseSelectionSchedulePageState
 
       if (match == null) {
         // 如果找不到連結，可能是連線逾時或結構改變
-        print("❌ [偵錯] 找不到選課入口連結");
+        debugPrint("❌ [偵錯] 找不到選課入口連結");
         throw "無法讀取選課選單 (無連結)";
       }
 
       String firstLink = match.group(1) ?? "";
-      print("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
+      debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
 
       // 5. 判斷選課是否開放
       // 如果連結包含 query/result.asp，代表是「查詢系統」(未開放)
@@ -238,7 +238,7 @@ class _CourseSelectionSchedulePageState
         await prefs.setInt('course_system_status_time', DateTime.now().millisecondsSinceEpoch);
       }
     } catch (e) {
-      print("❌ [偵錯] 檢查流程發生錯誤: $e");
+      debugPrint("❌ [偵錯] 檢查流程發生錯誤: $e");
       if (mounted) {
         setState(() {
           _isSystemOpen = false;
@@ -294,7 +294,7 @@ class _CourseSelectionSchedulePageState
       // 呼叫資料處理，更新畫面
       _processData(fetchedData);
     } catch (e) {
-      print("載入錯誤: $e");
+      debugPrint("載入錯誤: $e");
       if (mounted) {
         final String? cachedJson = prefs.getString('course_schedule_cache');
         if (cachedJson != null) {
@@ -342,7 +342,7 @@ class _CourseSelectionSchedulePageState
         return DateTime(year, month, day, hour, minute);
       }
     } catch (e) {
-      print("日期解析失敗: $dateStr, error: $e");
+      debugPrint("日期解析失敗: $dateStr, error: $e");
     }
     return null;
   }
@@ -511,7 +511,7 @@ class _CourseSelectionSchedulePageState
         'metadata': {'update_time': DateTime.now().toIso8601String()},
       };
     } catch (e) {
-      print("爬取選課時間失敗: $e");
+      debugPrint("爬取選課時間失敗: $e");
       throw Exception("爬取選課時間失敗: $e");
     }
   }
@@ -1109,7 +1109,7 @@ class _CourseSelectionSchedulePageState
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null && !response.body.contains("不符")) return rawCookie;
     } catch (e) {
-      print("❌ [偵錯] Login Error: $e");
+      debugPrint("❌ [偵錯] Login Error: $e");
     }
     return null;
   }

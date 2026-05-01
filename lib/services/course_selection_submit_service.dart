@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/utils.dart'; // 確保你的 Utils 路徑正確
 import 'storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 enum TransactionType { add, drop }
 
@@ -100,7 +101,7 @@ class CourseSelectionSubmitService {
     final refererUrlStr = "$_baseUrl/menu4/addcourse/ssform.asp?$refererQuery";
     final refererUri = Uri.parse(refererUrlStr);
 
-    print("🚀 正在初始化 Session (GET ssform): $refererUrlStr");
+    debugPrint("🚀 正在初始化 Session (GET ssform): $refererUrlStr");
     
     await _client.get(
       refererUri,
@@ -137,7 +138,7 @@ class CourseSelectionSubmitService {
     // 5. 執行 POST
     final submitUrl = Uri.parse("$_baseUrl/menu4/addcourse/ssprs.asp");
     
-    print("🚀 正在送出 POST 請求...");
+    debugPrint("🚀 正在送出 POST 請求...");
     final response = await _client.post(
       submitUrl,
       headers: {
@@ -207,7 +208,7 @@ class CourseSelectionSubmitService {
         }
       }
     } catch (e) {
-      print("解析 HTML 警告: $e");
+      debugPrint("解析 HTML 警告: $e");
     }
 
     return failures;
@@ -264,7 +265,7 @@ class CourseSelectionSubmitService {
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null && !response.body.contains("不符")) return rawCookie;
     } catch (e) { 
-      print("Login Error: $e"); 
+      debugPrint("Login Error: $e"); 
     }
     return null;
   }

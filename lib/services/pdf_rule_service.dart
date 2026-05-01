@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:flutter/foundation.dart';
 
 class PdfRuleService {
   static final PdfRuleService instance = PdfRuleService._privateConstructor();
@@ -36,7 +37,7 @@ class PdfRuleService {
       await prefs.remove(_cacheKeyUrl);
       await prefs.remove(_cacheKeyAt);
     } catch (e) {
-      print('[PdfRuleService] Failed to clear persistent cache: $e');
+      debugPrint('[PdfRuleService] Failed to clear persistent cache: $e');
     }
   }
 
@@ -58,17 +59,17 @@ class PdfRuleService {
       final cachedAt = DateTime.tryParse(cachedAtStr);
       if (cachedAt == null) return false;
       if (DateTime.now().difference(cachedAt) > _cacheTtl) {
-        print('[PdfRuleService] Persistent cache expired');
+        debugPrint('[PdfRuleService] Persistent cache expired');
         await _clearPersistentCache();
         return false;
       }
       _cachedText = cachedText;
-      print(
+      debugPrint(
         '[PdfRuleService] Loaded ${cachedText.length} chars from persistent cache',
       );
       return true;
     } catch (e) {
-      print('[PdfRuleService] Failed to load persistent cache: $e');
+      debugPrint('[PdfRuleService] Failed to load persistent cache: $e');
       return false;
     }
   }
@@ -80,7 +81,7 @@ class PdfRuleService {
       await prefs.setString(_cacheKeyUrl, url);
       await prefs.setString(_cacheKeyAt, DateTime.now().toIso8601String());
     } catch (e) {
-      print('[PdfRuleService] Failed to save persistent cache: $e');
+      debugPrint('[PdfRuleService] Failed to save persistent cache: $e');
     }
   }
 
@@ -136,7 +137,7 @@ class PdfRuleService {
       // 4. 寫入持久化快取
       await _saveToPersistentCache(text, targetUrl);
 
-      print('[PdfRuleService] Loaded ${text.length} chars from $targetUrl');
+      debugPrint('[PdfRuleService] Loaded ${text.length} chars from $targetUrl');
       return true;
     } on _PdfRuleException catch (e) {
       _lastErrorMessage = e.message;

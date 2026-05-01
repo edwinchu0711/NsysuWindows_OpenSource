@@ -12,6 +12,6 @@ class SessionService {
     if (userAgent != null) {
       userAgentNotifier.value = userAgent;
     }
-    print("🔑 SessionService: Session 已更新");
+    debugPrint("🔑 SessionService: Session 已更新");
   }
 }

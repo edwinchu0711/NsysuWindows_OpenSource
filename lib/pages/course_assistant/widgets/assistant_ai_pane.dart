@@ -185,7 +185,7 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
         _conversations = ChatConversation.decode(json);
       });
     } catch (e) {
-      print("Load conversations error: $e");
+      debugPrint("Load conversations error: $e");
     }
   }
 
@@ -201,7 +201,7 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
         ChatConversation.encode(_conversations),
       );
     } catch (e) {
-      print("Save conversations error: $e");
+      debugPrint("Save conversations error: $e");
     }
   }
 
@@ -332,7 +332,7 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
         }
       }
     } catch (e) {
-      print("Sending Error: $e");
+      debugPrint("Sending Error: $e");
     }
 
     if (mounted) {

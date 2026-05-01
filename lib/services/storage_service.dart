@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 class StorageService {
   static final StorageService instance = StorageService._internal();
@@ -37,13 +38,13 @@ class StorageService {
         await prefs.remove('password');
       }
     } catch (e) {
-      print("⚠️ StorageService: 遷移失敗: $e");
+      debugPrint("⚠️ StorageService: 遷移失敗: $e");
     }
 
     if (!_initCompleter.isCompleted) {
       _initCompleter.complete();
     }
-    print("🔐 StorageService: 初始化與遷移完成");
+    debugPrint("🔐 StorageService: 初始化與遷移完成");
   }
 
   Future<void> _ensureInit() async {
@@ -78,9 +79,9 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(key);
     if (value != null) {
-      print("📂 StorageService: 讀取快取 [$key] (${value.length} 字元)");
+      debugPrint("📂 StorageService: 讀取快取 [$key] (${value.length} 字元)");
     } else {
-      print("ℹ️ StorageService: 找不到快取 [$key]");
+      debugPrint("ℹ️ StorageService: 找不到快取 [$key]");
     }
     return value;
   }
@@ -90,9 +91,9 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     bool success = await prefs.setString(key, value);
     if (success) {
-      print("💾 StorageService: 成功儲存 [$key] (${value.length} 字元)");
+      debugPrint("💾 StorageService: 成功儲存 [$key] (${value.length} 字元)");
     } else {
-      print("❌ StorageService: 儲存失敗 [$key]");
+      debugPrint("❌ StorageService: 儲存失敗 [$key]");
     }
   }
 

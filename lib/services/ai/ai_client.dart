@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../models/ai_config_model.dart';
+import 'package:flutter/foundation.dart';
 
 class AiClientException implements Exception {
   final int statusCode;
@@ -226,7 +227,7 @@ class AiClient {
                   final firstCandidate = candidates[0];
                   final finishReason = firstCandidate['finishReason'];
                   if (finishReason != null && finishReason != 'STOP') {
-                    print("[GoogleStream] 串流提前結束，原因: $finishReason");
+                    debugPrint("[GoogleStream] 串流提前結束，原因: $finishReason");
                   }
 
                   final content = firstCandidate['content'];
@@ -247,7 +248,7 @@ class AiClient {
                   }
                 }
               } catch (e) {
-                print("串流 JSON 解析失敗: $e");
+                debugPrint("串流 JSON 解析失敗: $e");
               }
             } else {
               break;

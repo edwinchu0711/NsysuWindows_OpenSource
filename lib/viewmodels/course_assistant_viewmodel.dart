@@ -5,6 +5,7 @@ import '../models/course_model.dart';
 import '../models/custom_event_model.dart';
 import '../models/ai_config_model.dart';
 import '../services/ai/ai_service.dart';
+import 'package:flutter/foundation.dart';
 
 class CourseAssistantState {
   final List<Course> assistantCourses;
@@ -157,7 +158,7 @@ class CourseAssistantViewModel extends StateNotifier<CourseAssistantState> {
         isLoading: false,
       );
     } catch (e) {
-      print("讀取資料失敗: $e");
+      debugPrint("讀取資料失敗: $e");
       state = state.copyWith(isLoading: false);
     }
   }

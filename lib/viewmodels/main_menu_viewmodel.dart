@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/app_providers.dart';
+import 'package:flutter/foundation.dart';
 
 class MainMenuState {
   final bool isFirstTimeLoading;
@@ -33,6 +34,7 @@ class MainMenuViewModel extends StateNotifier<MainMenuState> {
   MainMenuViewModel(this._ref) : super(const MainMenuState());
 
   Future<void> checkAndStartTasks() async {
+    final sw = Stopwatch()..start();
     final prefs = await SharedPreferences.getInstance();
     bool hasCourseCache = prefs.containsKey('cached_courses_plain_v3');
 
@@ -40,23 +42,32 @@ class MainMenuViewModel extends StateNotifier<MainMenuState> {
       await prefs.setBool('is_preview_rank_enabled', true);
       state = state.copyWith(isFirstTimeLoading: true);
       _startBackgroundTask().catchError((e) {
-        print("背景任務異常(忽略): $e");
+        debugPrint("背景任務異常(忽略): $e");
       });
     } else {
       _startBackgroundTask();
     }
+    debugPrint('[VM] checkAndStartTasks 完成 (+${sw.elapsedMilliseconds}ms)');
   }
 
   Future<void> _startBackgroundTask() async {
+    final sw = Stopwatch()..start();
     try {
+      debugPrint('[BG] refreshAndCache 開始');
       await _ref.read(courseServiceProvider).refreshAndCache();
+      debugPrint('[BG] refreshAndCache 完成 (+${sw.elapsedMilliseconds}ms)');
       if (isScoreReleaseSeason()) {
+        debugPrint('[BG] fetchOpenScores 開始');
         await _ref.read(openScoreServiceProvider).fetchOpenScores();
+        debugPrint('[BG] fetchOpenScores 完成 (+${sw.elapsedMilliseconds}ms)');
       }
+      debugPrint('[BG] fetchAllData 開始');
       await _ref.read(historicalScoreServiceProvider).fetchAllData();
+      debugPrint('[BG] fetchAllData 完成 (+${sw.elapsedMilliseconds}ms)');
     } catch (e) {
-      print("❌ 背景抓取發生錯誤: $e");
+      debugPrint("❌ 背景抓取發生錯誤: $e");
     }
+    debugPrint('[BG] _startBackgroundTask 總耗時 (+${sw.elapsedMilliseconds}ms)');
   }
 
   bool isScoreReleaseSeason() {

@@ -225,7 +225,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         _selectedAiConfigId = target.id;
       }
     } catch (e) {
-      print("讀取資料失敗: $e");
+      debugPrint("讀取資料失敗: $e");
     } finally {
       if (mounted) {
         setState(() {

@@ -45,17 +45,27 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
 
     // 非同步執行，印出路徑供調試
     getApplicationSupportDirectory().then((supportDir) {
-      print('我的設定檔就藏在: ${supportDir.path}');
+      debugPrint('我的設定檔就藏在: ${supportDir.path}');
     });
 
     OpenScoreService.instance.statusMessageNotifier.addListener(
       _handleSessionExpiry,
     );
-    _checkAndStartTasks();
+
+    debugPrint('[HOME] _checkAndStartTasks 開始');
+    final sw1 = Stopwatch()..start();
+    _checkAndStartTasks().then((_) {
+      debugPrint('[HOME] _checkAndStartTasks 完成 (+${sw1.elapsedMilliseconds}ms)');
+    });
+
     _checkNewVersion();
 
     // SSO 登入後觸發課程資料更新 + courses.db 建立
-    CourseQueryService.instance.checkForUpdate();
+    debugPrint('[HOME] checkForUpdate 開始');
+    final sw2 = Stopwatch()..start();
+    CourseQueryService.instance.checkForUpdate().then((_) {
+      debugPrint('[HOME] checkForUpdate 完成 (+${sw2.elapsedMilliseconds}ms)');
+    });
   }
 
   @override

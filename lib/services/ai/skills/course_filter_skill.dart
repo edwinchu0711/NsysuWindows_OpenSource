@@ -5,6 +5,7 @@ import '../../course_query_service.dart';
 import '../../local_course_service.dart';
 import '../../database_embedding_service.dart';
 import 'review_search_skill.dart';
+import 'package:flutter/foundation.dart';
 
 class CourseFilterSkill implements Skill {
   final ReviewSearchSkill _reviewSkill;
@@ -327,12 +328,12 @@ class CourseFilterSkill implements Skill {
     rawKeywordsList.removeWhere((kw) => stopWords.contains(kw));
 
     final expandedKeywords = _expandKeywords(rawKeywordsList);
-    print('--- [CourseFilterSkill] Search Parameters: ---');
-    print('  - Raw Keywords: $rawKeywordsList');
-    print('  - Expanded Keywords: $expandedKeywords');
-    print('  - Days: ${params['days']}');
-    print('  - Tags: ${params['tags']}');
-    print('  - Is Recommendation: $isRecommendation');
+    debugPrint('--- [CourseFilterSkill] Search Parameters: ---');
+    debugPrint('  - Raw Keywords: $rawKeywordsList');
+    debugPrint('  - Expanded Keywords: $expandedKeywords');
+    debugPrint('  - Days: ${params['days']}');
+    debugPrint('  - Tags: ${params['tags']}');
+    debugPrint('  - Is Recommendation: $isRecommendation');
 
     final keywordLogic =
         params['keywordLogic'] as String? ?? (isRecommendation ? 'OR' : 'AND');
@@ -454,7 +455,7 @@ class CourseFilterSkill implements Skill {
     // 隨機打亂順序，增加探索性
     deduplicatedList.shuffle();
 
-    print(
+    debugPrint(
       '--- [CourseFilterSkill] Deduplicated & Shuffled Count: ${deduplicatedList.length} ---',
     );
 
@@ -462,7 +463,7 @@ class CourseFilterSkill implements Skill {
     final displayList = deduplicatedList.take(20).toList();
 
     if (displayList.isNotEmpty) {
-      print(
+      debugPrint(
         '--- [CourseFilterSkill] Top Results: ${displayList.take(3).map((c) => c.name).toList()} ---',
       );
     }

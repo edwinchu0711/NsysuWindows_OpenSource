@@ -65,7 +65,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
 
       if (diff < 3) {
         shouldRefresh = false;
-        print("⏳ 距離上次更新僅 $diff 分鐘，跳過自動刷新，使用快取資料。");
+        debugPrint("⏳ 距離上次更新僅 $diff 分鐘，跳過自動刷新，使用快取資料。");
         if (mounted) {
           setState(() {
             _isLoading = false; // 停止轉圈
@@ -118,7 +118,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
   }
 
   Future<void> _fetchFromNetwork() async {
-    print("🚀 開始重新加載(全部list)...");
+    debugPrint("🚀 開始重新加載(全部list)...");
     setState(() {
       _isLoading = true;
       _statusMessage = "讀取中...";
@@ -144,7 +144,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
         });
       }
     } catch (e) {
-      print("Error: $e");
+      debugPrint("Error: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;

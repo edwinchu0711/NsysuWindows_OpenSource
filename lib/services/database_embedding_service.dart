@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/ai_config_model.dart';
 import 'ai/ai_client.dart';
+import 'package:flutter/foundation.dart';
 
 class DatabaseEmbeddingService {
   static final DatabaseEmbeddingService instance =
@@ -71,9 +72,9 @@ class DatabaseEmbeddingService {
               : <double>[],
         };
       }).toList();
-      print('[DatabaseEmbeddingService] Loaded ${_rulesCache.length} rule chunks');
+      debugPrint('[DatabaseEmbeddingService] Loaded ${_rulesCache.length} rule chunks');
     } catch (e) {
-      print('[DatabaseEmbeddingService] No rules table found or error: $e');
+      debugPrint('[DatabaseEmbeddingService] No rules table found or error: $e');
       _rulesCache = [];
     }
 
@@ -158,13 +159,13 @@ class DatabaseEmbeddingService {
           );
         }
         await prefs.setString('embedding_config', jsonEncode(config.toJson()));
-        print('[DatabaseEmbeddingService] Auto-configured embedding model: $normalizedModel');
+        debugPrint('[DatabaseEmbeddingService] Auto-configured embedding model: $normalizedModel');
       }
 
       // Re-initialize
       reset();
       await init();
-      print('[DatabaseEmbeddingService] Database downloaded and initialized: $filename');
+      debugPrint('[DatabaseEmbeddingService] Database downloaded and initialized: $filename');
     } finally {
       client.close();
     }
@@ -237,7 +238,7 @@ class DatabaseEmbeddingService {
         final currentFilename = prefs.getString('database_db_filename') ?? '';
 
         if (latestFilename.isNotEmpty && latestFilename != currentFilename) {
-          print('[DatabaseEmbeddingService] Auto-updating database: $currentFilename → $latestFilename');
+          debugPrint('[DatabaseEmbeddingService] Auto-updating database: $currentFilename → $latestFilename');
           await downloadDatabase(
             latestFilename,
             embeddingModel: latest['embedding_model'] as String?,
@@ -245,13 +246,13 @@ class DatabaseEmbeddingService {
             createdDate: latest['created_date'] as String?,
           );
         } else {
-          print('[DatabaseEmbeddingService] Database is up to date: $currentFilename');
+          debugPrint('[DatabaseEmbeddingService] Database is up to date: $currentFilename');
         }
       } finally {
         client.close();
       }
     } catch (e) {
-      print('[DatabaseEmbeddingService] Auto-update check failed: $e');
+      debugPrint('[DatabaseEmbeddingService] Auto-update check failed: $e');
     }
   }
 
@@ -494,7 +495,7 @@ class DatabaseEmbeddingService {
 
       return filteredResults.take(k).toList();
     } catch (e) {
-      print('[DatabaseEmbeddingService] searchRules error: $e');
+      debugPrint('[DatabaseEmbeddingService] searchRules error: $e');
       return [];
     }
   }

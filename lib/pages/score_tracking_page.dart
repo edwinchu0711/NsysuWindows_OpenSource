@@ -97,7 +97,7 @@ class _ScoreTrackingPageState extends State<ScoreTrackingPage> {
         _courseDataCache[courseId] = data;
         return data;
       } catch (e) {
-        print("載入課程配分資料失敗: $e");
+        debugPrint("載入課程配分資料失敗: $e");
       }
     }
 

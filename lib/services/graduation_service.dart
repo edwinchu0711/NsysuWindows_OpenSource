@@ -5,6 +5,7 @@ import 'package:html/parser.dart' show parse;
 import '../utils/utils.dart'; 
 import '../models/graduation_model.dart';
 import 'storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 class GraduationService {
   // Singleton
@@ -34,10 +35,10 @@ class GraduationService {
           final String? jsonStr = await StorageService.instance.read(_cacheKeyData);
           if (jsonStr != null && jsonStr.isNotEmpty) {
             try {
-              print("📦 讀取畢業檢核快取資料 (10分鐘內)");
+              debugPrint("📦 讀取畢業檢核快取資料 (10分鐘內)");
               return GraduationData.fromJson(jsonDecode(jsonStr));
             } catch (e) {
-              print("快取解析失敗，將重新抓取: $e");
+              debugPrint("快取解析失敗，將重新抓取: $e");
             }
           }
         }
@@ -58,7 +59,7 @@ class GraduationService {
   }
 
   Future<GraduationData> _fetchFromNetwork(String username, String password) async {
-    print("🌐 開始連線教務處取得畢業檢核...");
+    debugPrint("🌐 開始連線教務處取得畢業檢核...");
     final dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
       responseType: ResponseType.plain,
@@ -123,11 +124,11 @@ class GraduationService {
       await StorageService.instance.save(_cacheKeyData, jsonEncode(data.toJson()));
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_cacheKeyTime, DateTime.now().millisecondsSinceEpoch);
-      print("✅ 畢業檢核資料抓取並快取完成");
+      debugPrint("✅ 畢業檢核資料抓取並快取完成");
       return data;
 
     } catch (e) {
-      print("❌ 畢業檢核抓取錯誤: $e");
+      debugPrint("❌ 畢業檢核抓取錯誤: $e");
       rethrow;
     }
   }

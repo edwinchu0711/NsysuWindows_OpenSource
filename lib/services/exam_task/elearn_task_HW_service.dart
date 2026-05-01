@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:html/parser.dart' as parser;
 import 'package:path_provider/path_provider.dart';
 import '../storage_service.dart';
+import 'package:flutter/foundation.dart';
 
 // --- 模型 ---
 class ElearnTask {
@@ -145,7 +146,7 @@ class ElearnService {
     await prefs.remove('last_elearn_fetch_time'); // 清除時間戳記
     _cookieJar.clear();
     _lastLoginTime = null;
-    print("🧹 ElearnService 快取已清除");
+    debugPrint("🧹 ElearnService 快取已清除");
   }
 
   // 讀取快取 (並重新應用忽略邏輯)
@@ -228,7 +229,7 @@ class ElearnService {
         final safeName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
         final file = File('${downloadDir.path}/$safeName');
         await file.writeAsBytes(response.bodyBytes);
-        print("📁 檔案已存至: ${file.path}");
+        debugPrint("📁 檔案已存至: ${file.path}");
         return file;
       } else {
         throw Exception("下載失敗: ${response.statusCode}");
@@ -248,7 +249,7 @@ class ElearnService {
     bool needsLogin = _cookieJar.isEmpty || _lastLoginTime == null;
     if (!needsLogin) {
       if (DateTime.now().difference(_lastLoginTime!).inMinutes >= 10) {
-        print("⏳ Cookie 已過期 (>10min)，正在自動重新登入...");
+        debugPrint("⏳ Cookie 已過期 (>10min)，正在自動重新登入...");
         needsLogin = true;
       }
     }
@@ -256,7 +257,7 @@ class ElearnService {
       _cookieJar.clear();
       await _login(username, password);
       _lastLoginTime = DateTime.now();
-      print("✅ E-learn 登入成功");
+      debugPrint("✅ E-learn 登入成功");
     }
   }
 
@@ -288,7 +289,7 @@ class ElearnService {
       _updateCookies(res2);
       await _followRedirectChain(res2, client);
     } catch (e) {
-      print("Login Error: $e");
+      debugPrint("Login Error: $e");
       rethrow;
     } finally {
       client.close();

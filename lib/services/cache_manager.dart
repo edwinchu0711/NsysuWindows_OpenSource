@@ -8,6 +8,7 @@ import 'historical_score_service.dart';
 import 'exam_task/elearn_task_HW_service.dart';
 import 'elearn_bulletin_service.dart';
 import 'graduation_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AppCacheManager {
   static const String _versionKey = 'last_installed_version';
@@ -22,7 +23,7 @@ class AppCacheManager {
 
     if (lastVersion != null && lastVersion != currentVersion) {
       // 版本不同，執行清理
-      print("偵測到版本更新：$lastVersion -> $currentVersion，正在清理舊快取...");
+      debugPrint("偵測到版本更新：$lastVersion -> $currentVersion，正在清理舊快取...");
       await performCacheCleanup();
     }
 
@@ -43,12 +44,12 @@ class AppCacheManager {
             await entity.delete();
           }
         }
-        print("快取清理完成");
+        debugPrint("快取清理完成");
       }
 
 
     } catch (e) {
-      print("清理快取發生錯誤: $e");
+      debugPrint("清理快取發生錯誤: $e");
     }
   }
   static Future<void> clearAllServiceCache() async {

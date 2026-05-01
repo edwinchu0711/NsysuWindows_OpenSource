@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -9,6 +11,17 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/utils.dart';
 import '../models/course_isar_model.dart';
 import 'local_course_service.dart';
+import 'package:flutter/foundation.dart';
+
+/// 頂層函式：在 Isolate 中解析 JSON，避免 closure 捕獲不可傳送的 Isar 實例
+List<dynamic> _decodeJsonInIsolate(Uint8List bytes) {
+  return jsonDecode(utf8.decode(bytes));
+}
+
+/// 頂層函式：包裝 Isolate.run，避免在 instance method 內建立 closure 導致捕獲 this
+Future<List<dynamic>> _runDecodeJsonInIsolate(Uint8List bytes) {
+  return Isolate.run(() => _decodeJsonInIsolate(bytes));
+}
 
 class CourseJsonData {
   final String id; // 科號 (T3)
@@ -108,14 +121,13 @@ class CourseQueryService {
   String get currentSemester => _currentSemester;
   List<CourseJsonData> get cachedCourses => List.unmodifiable(_cachedCourses);
 
-  /// 初始化：開啟 Isar、載入本地資料
+  /// 初始化：開啟 Isar（延遲載入課程資料）
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
     _isar = await Isar.open(
       [CourseIsarSchema],
       directory: dir.path,
     );
-    await _loadFromIsar();
   }
 
   /// 從 Isar 載入本地課程到記憶體
@@ -163,16 +175,16 @@ class CourseQueryService {
 
         // 比對本地版本
         if (latestSem != localSem || latestTime != localTs || !_isDataLoaded) {
-          print("🔄 CourseQueryService: 偵測到遠端版本更新 ($localSem/$localTs → $latestSem/$latestTime)");
+          debugPrint("🔄 CourseQueryService: 偵測到遠端版本更新 ($localSem/$localTs → $latestSem/$latestTime)");
           await _downloadAndUpdate(latestSem, latestTime);
         } else {
-          print("✅ CourseQueryService: 本地資料已是最新 ($latestSem/$latestTime)");
+          debugPrint("✅ CourseQueryService: 本地資料已是最新 ($latestSem/$latestTime)");
         }
       } finally {
         client.close();
       }
     } catch (e) {
-      print("⚠️ CourseQueryService: 背景更新檢查失敗: $e（使用本地資料）");
+      debugPrint("⚠️ CourseQueryService: 背景更新檢查失敗: $e（使用本地資料）");
     } finally {
       _isUpdating = false;
     }
@@ -187,7 +199,9 @@ class CourseQueryService {
       final allRes = await client.get(Uri.parse(url));
       if (allRes.statusCode != 200) throw "All JSON API Error: ${allRes.statusCode}";
 
-      final List<dynamic> rawList = jsonDecode(utf8.decode(allRes.bodyBytes));
+      // 將耗時的 JSON 解析移到 Isolate，避免阻塞 UI 執行緒
+      final bytes = allRes.bodyBytes;
+      final List<dynamic> rawList = await _runDecodeJsonInIsolate(bytes);
 
       // 轉換為 Isar 物件
       final courseIsarList =
@@ -214,9 +228,9 @@ class CourseQueryService {
       await _loadFromIsar();
       _currentSemester = semester;
 
-      print("🚀 CourseQueryService: 課程資料更新完成 (${_cachedCourses.length} 筆, $semester/$timestamp)");
+      debugPrint("🚀 CourseQueryService: 課程資料更新完成 (${_cachedCourses.length} 筆, $semester/$timestamp)");
     } catch (e) {
-      print("❌ CourseQueryService: 下載更新失敗: $e");
+      debugPrint("❌ CourseQueryService: 下載更新失敗: $e");
       rethrow;
     } finally {
       client.close();
@@ -232,6 +246,9 @@ class CourseQueryService {
 
     final dbPath = await Utils.getAppDbDirectory();
     final path = join(dbPath, "courses.db");
+
+    // 先關閉 LocalCourseService 的 DB 連線，否則 Windows 會鎖定檔案無法刪除
+    LocalCourseService.instance.reset();
 
     // Delete existing DB first
     final existingFile = File(path);
@@ -364,9 +381,9 @@ class CourseQueryService {
       LocalCourseService.instance.reset();
       await LocalCourseService.instance.init();
 
-      print("✅ CourseQueryService: courses.db 建立完成 (${rawList.length} 筆課程)");
+      debugPrint("✅ CourseQueryService: courses.db 建立完成 (${rawList.length} 筆課程)");
     } catch (e) {
-      print("❌ CourseQueryService: courses.db 建立失敗: $e");
+      debugPrint("❌ CourseQueryService: courses.db 建立失敗: $e");
       try { await db.close(); } catch (_) {}
       rethrow;
     }
@@ -396,6 +413,14 @@ class CourseQueryService {
   Future<List<CourseJsonData>> getCourses({bool forceRefresh = false}) async {
     if (_isDataLoaded && !forceRefresh && _cachedCourses.isNotEmpty) {
       return _cachedCourses;
+    }
+
+    // 先嘗試從本地 Isar 載入，避免每次都要下載
+    if (!forceRefresh && _isar != null) {
+      await _loadFromIsar();
+      if (_cachedCourses.isNotEmpty) {
+        return _cachedCourses;
+      }
     }
 
     // 如果本地沒資料，同步下載

@@ -609,7 +609,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
           _selectedSem = targetSem;
           _hasInitializedSelection = true;
         });
-        print("DEBUG: 自動定位成功 -> $key");
+        debugPrint("DEBUG: 自動定位成功 -> $key");
         return;
       }
     }
@@ -630,7 +630,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
             _selectedSem = sem;
             _hasInitializedSelection = true;
           });
-          print("DEBUG: 保底定位成功 -> $key");
+          debugPrint("DEBUG: 保底定位成功 -> $key");
           return;
         }
       }

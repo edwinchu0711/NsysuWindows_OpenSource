@@ -50,7 +50,7 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
     
     if (_usernameController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
       if (_hasAttemptedInitialAutoLogin) {
-        print("ℹ️ CaptchaAutoLoginPage: 已在此工作階段嘗試過自動登入，略過重複執行 (防止 Hot Reload 重複觸發)");
+        debugPrint("ℹ️ CaptchaAutoLoginPage: 已在此工作階段嘗試過自動登入，略過重複執行 (防止 Hot Reload 重複觸發)");
         return;
       }
       _hasAttemptedInitialAutoLogin = true;
@@ -181,7 +181,7 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
       
 
       bool isFailureMessage = bodyText.contains("錯誤") || bodyText.contains("請重新輸入");
-      print("bodyText: $bodyText");
+      debugPrint("bodyText: $bodyText");
       if (cookies != null && cookies.isNotEmpty && !isFailureMessage) {
         String cookieString = cookies.map((s) => s.split(';').first).join('; ');
 

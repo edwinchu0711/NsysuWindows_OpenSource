@@ -9,7 +9,6 @@ Licensed under the MIT License.
 */
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 import 'widgets/custom_title_bar.dart';
@@ -51,31 +50,46 @@ class BottomUpPageTransitionsBuilder extends PageTransitionsBuilder {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final sw = Stopwatch()..start();
+
   // 初始化安全存儲與遷移
+  debugPrint("[INIT] StorageService 開始");
   await StorageService.instance.init();
+  debugPrint("[INIT] StorageService 完成 (+${sw.elapsedMilliseconds}ms)");
 
   // 初始化主題設定
+  debugPrint("[INIT] ThemeNotifier 開始");
   await ThemeNotifier.instance.init();
+  debugPrint("[INIT] ThemeNotifier 完成 (+${sw.elapsedMilliseconds}ms)");
 
   // 顯式從快取載入資料 (StorageService 已就緒)
+  debugPrint("[INIT] loadFromCache 開始");
   await Future.wait([
     HistoricalScoreService.instance.loadFromCache(),
     CourseService.instance.loadFromCache(),
   ]);
+  debugPrint("[INIT] loadFromCache 完成 (+${sw.elapsedMilliseconds}ms)");
 
   // 初始化 Isar 並從本地載入課程資料
+  debugPrint("[INIT] CourseQueryService 開始");
   await CourseQueryService.instance.init();
+  debugPrint("[INIT] CourseQueryService 完成 (+${sw.elapsedMilliseconds}ms)");
 
   // 初始化本地課程資料庫 (安全處理 DB 不存在的情況)
-  LocalCourseService.instance.init();
+  debugPrint("[INIT] LocalCourseService 開始");
+  await LocalCourseService.instance.init();
+  debugPrint("[INIT] LocalCourseService 完成 (+${sw.elapsedMilliseconds}ms)");
 
   // 初始化 embedding 資料庫，完成後背景檢查更新
-  DatabaseEmbeddingService.instance.init().then((_) {
-    DatabaseEmbeddingService.instance.checkForAutoUpdate();
-  });
+  debugPrint("[INIT] DatabaseEmbeddingService 開始");
+  await DatabaseEmbeddingService.instance.init();
+  debugPrint("[INIT] DatabaseEmbeddingService 完成 (+${sw.elapsedMilliseconds}ms)");
+  DatabaseEmbeddingService.instance.checkForAutoUpdate();
 
   // ★★★ 新增：初始化 desktop 視窗大小設定 ★★★
+  debugPrint("[INIT] windowManager 開始");
   await windowManager.ensureInitialized();
+  debugPrint("[INIT] windowManager 完成 (+${sw.elapsedMilliseconds}ms)");
 
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1200, 800),
@@ -84,6 +98,7 @@ void main() async {
     titleBarStyle: TitleBarStyle.hidden, // 隱藏標題列
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {
+    debugPrint("[INIT] waitUntilReadyToShow callback 觸發 (+${sw.elapsedMilliseconds}ms)");
     await windowManager.maximize(); // 打到最開
     await windowManager.show();
     await windowManager.focus();
@@ -93,22 +108,18 @@ void main() async {
   // 這裡是你原本註解掉的快取清理，我保持原樣
   // try {
   //   await AppCacheManager.checkAndCleanCache();
-  //   print("快取檢查完成");
+  //   debugPrint("快取檢查完成");
   // } catch (e) {
-  //   print("清理快取時發生錯誤: $e");
+  //   debugPrint("清理快取時發生錯誤: $e");
   // }
 
-  // 設定限制方向
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]).then((_) {
-    runApp(
-      ProviderScope(
-        child: ValueListenableBuilder<ThemeMode>(
-          valueListenable: ThemeNotifier.instance,
-          builder: (context, themeMode, _) {
-            return MaterialApp.router(
+  // 桌面應用不需要設定螢幕方向，直接啟動
+  runApp(
+    ProviderScope(
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeNotifier.instance,
+        builder: (context, themeMode, _) {
+          return MaterialApp.router(
             debugShowCheckedModeBanner: false,
             routerConfig: router,
 
@@ -152,6 +163,5 @@ void main() async {
         },
       ),
     ),
-    );
-  });
+  );
 }

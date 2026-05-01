@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:html/parser.dart' as parser;
 import 'storage_service.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 // --- 資料模型 ---
 
@@ -122,7 +123,7 @@ class ElearnBulletinService {
   Future<List<ElearnBulletin>> fetchBulletins({bool forceRefresh = false, int pageSize = 30}) async {
     // 1. 檢查快取時間 (3分鐘內不自動重抓)
     if (!forceRefresh && await _isCacheValid()) {
-      print("🚀 使用公告快取資料");
+      debugPrint("🚀 使用公告快取資料");
       return await loadCachedBulletins();
     }
 
@@ -158,7 +159,7 @@ class ElearnBulletinService {
         final safeName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
         final file = File('${downloadDir.path}/$safeName');
         await file.writeAsBytes(response.bodyBytes);
-        print("📁 公告附件已存至: ${file.path}");
+        debugPrint("📁 公告附件已存至: ${file.path}");
         return file;
       } else {
         throw Exception("下載失敗: ${response.statusCode}");
@@ -176,7 +177,7 @@ class ElearnBulletinService {
     _cookieJar.clear();
     _lastLoginTime = null;
     _lastFetchTime = null;
-    print("🧹 ElearnBulletinService 快取已清除");
+    debugPrint("🧹 ElearnBulletinService 快取已清除");
   }
 
   // --- 內部邏輯 & 爬蟲 ---
@@ -239,7 +240,7 @@ class ElearnBulletinService {
         }
       }
     } catch (e) {
-      print("⚠️ 取得課程名稱失敗: $e");
+      debugPrint("⚠️ 取得課程名稱失敗: $e");
     } finally {
       client.close();
     }
@@ -333,7 +334,7 @@ class ElearnBulletinService {
       _updateCookies(res2);
       await _followRedirectChain(res2, client);
     } catch (e) {
-      print("Login Error: $e");
+      debugPrint("Login Error: $e");
       rethrow;
     } finally {
       client.close();

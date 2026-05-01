@@ -97,12 +97,12 @@ class _CourseExceptionHandlingPageState
   // ==========================================================
 
   Future<String?> _loginViaSSO2(String stuid, String password) async {
-    print("🔍 [_loginViaSSO2] 開始執行 SSO 登入流程...");
+    debugPrint("🔍 [_loginViaSSO2] 開始執行 SSO 登入流程...");
     final loginUri = Uri.parse("$_baseUrl/menu4/Studcheck_sso2.asp");
     String encryptedPass = Utils.base64md5(password);
 
     try {
-      print("📡 [_loginViaSSO2] 發送 POST 請求至 $loginUri (帳號: $stuid)");
+      debugPrint("📡 [_loginViaSSO2] 發送 POST 請求至 $loginUri (帳號: $stuid)");
       final response = await _client.post(
         loginUri,
         headers: {
@@ -113,31 +113,31 @@ class _CourseExceptionHandlingPageState
         body: {"stuid": stuid.toUpperCase(), "SPassword": encryptedPass},
       );
 
-      print("📥 [_loginViaSSO2] 收到伺服器回應，狀態碼: ${response.statusCode}");
+      debugPrint("📥 [_loginViaSSO2] 收到伺服器回應，狀態碼: ${response.statusCode}");
 
       String? rawCookie = response.headers['set-cookie'];
-      print("🍪 [_loginViaSSO2] 解析 Header 中的 Set-Cookie: $rawCookie");
+      debugPrint("🍪 [_loginViaSSO2] 解析 Header 中的 Set-Cookie: $rawCookie");
 
       // 檢查是否包含帳密錯誤的關鍵字
       if (response.body.contains("不符")) {
-        print("❌ [_loginViaSSO2] 登入失敗：網頁提示帳號或密碼不符！");
+        debugPrint("❌ [_loginViaSSO2] 登入失敗：網頁提示帳號或密碼不符！");
         return null;
       }
 
       if (rawCookie != null) {
-        print("✅ [_loginViaSSO2] 登入成功，順利取得 Cookie！");
+        debugPrint("✅ [_loginViaSSO2] 登入成功，順利取得 Cookie！");
         return rawCookie;
       } else {
-        print("⚠️ [_loginViaSSO2] 登入似乎沒有報錯，但 Header 中沒有回傳 Set-Cookie！");
+        debugPrint("⚠️ [_loginViaSSO2] 登入似乎沒有報錯，但 Header 中沒有回傳 Set-Cookie！");
       }
     } catch (e) {
-      print("❌ [_loginViaSSO2] 發生連線例外錯誤: $e");
+      debugPrint("❌ [_loginViaSSO2] 發生連線例外錯誤: $e");
     }
     return null;
   }
 
   Future<void> _fetchAbnormalData() async {
-    print("🚀 [_fetchAbnormalData] 開始抓取異常處理資料...");
+    debugPrint("🚀 [_fetchAbnormalData] 開始抓取異常處理資料...");
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -310,7 +310,7 @@ class _CourseExceptionHandlingPageState
         }
       });
     } catch (e) {
-      print("❌ [_fetchAbnormalData] 錯誤: $e");
+      debugPrint("❌ [_fetchAbnormalData] 錯誤: $e");
       setState(() {
         _errorMessage = e.toString().replaceAll("Exception:", "").trim();
         _isLoading = false;

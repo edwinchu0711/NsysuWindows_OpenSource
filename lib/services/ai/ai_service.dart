@@ -12,6 +12,7 @@ import 'skills/course_filter_skill.dart';
 import 'skills/rule_query_skill.dart';
 import '../course_query_service.dart';
 import '../../models/ai_config_model.dart';
+import 'package:flutter/foundation.dart';
 
 class AiResponse {
   final String message;
@@ -177,7 +178,7 @@ class AiService {
       return AiResponse(errorMsg);
     } catch (e) {
       final errorMsg = "AI 服務發生非預期錯誤：$e";
-      print("AiService Error (config: ${config.name}): $e");
+      debugPrint("AiService Error (config: ${config.name}): $e");
       _history.add({
         "role": "model",
         "parts": [
@@ -338,7 +339,7 @@ class AiService {
         yield AiResponse("", needsRefresh: true);
       }
     } catch (e) {
-      print("AiService Stream Error: $e");
+      debugPrint("AiService Stream Error: $e");
       String errorMsg = "AI 服務發生錯誤，請稍後再試。";
       if (e is AiClientException) {
         errorMsg = "AI 服務錯誤：${e.message}";
@@ -475,12 +476,12 @@ class AiService {
           .generateContent([], prompt, temperature: 0.3, maxOutputTokens: 600)
           .timeout(const Duration(seconds: 15));
       final title = result.text?.trim() ?? '';
-      print(
+      debugPrint(
         '[generateTitle] raw="${result.text}", trimmed="$title", type=${config.type}, model=${config.model}',
       );
       return title.isNotEmpty ? title : fallbackTitle(userMessage);
     } catch (e) {
-      print('[generateTitle] Error: $e');
+      debugPrint('[generateTitle] Error: $e');
       return fallbackTitle(userMessage);
     }
   }

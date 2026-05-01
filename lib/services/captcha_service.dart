@@ -3,6 +3,7 @@ import 'dart:convert'; // base64Decode
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 const int IMG_WIDTH = 124;  // 根據你的模型輸入調整
 const int IMG_HEIGHT = 24;  // 根據你的模型輸入調整
 const String CHARACTERS = "0123456789"; // 只有數字
@@ -16,42 +17,42 @@ class CaptchaPredictor {
   /// 載入模型
   Future<void> loadModel() async {
     try {
-      print('Loading model...');
+      debugPrint('Loading model...');
       _interpreter = await Interpreter.fromAsset('assets/model.tflite');
       
       // 打印模型信息
       var inputTensors = _interpreter.getInputTensors();
       var outputTensors = _interpreter.getOutputTensors();
       
-      print('✅ Model loaded successfully');
-      print('📥 輸入張量數量: ${inputTensors.length}');
-      print('📥 輸入形狀: ${inputTensors[0].shape}');
-      print('📥 輸入類型: ${inputTensors[0].type}');
-      print('📤 輸出張量數量: ${outputTensors.length}');
-      print('📤 輸出形狀: ${outputTensors[0].shape}');
-      print('📤 輸出類型: ${outputTensors[0].type}');
+      debugPrint('✅ Model loaded successfully');
+      debugPrint('📥 輸入張量數量: ${inputTensors.length}');
+      debugPrint('📥 輸入形狀: ${inputTensors[0].shape}');
+      debugPrint('📥 輸入類型: ${inputTensors[0].type}');
+      debugPrint('📤 輸出張量數量: ${outputTensors.length}');
+      debugPrint('📤 輸出形狀: ${outputTensors[0].shape}');
+      debugPrint('📤 輸出類型: ${outputTensors[0].type}');
       
       _loaded = true;
     } catch (e) {
       _loaded = false;
-      print('Error loading model: $e');
+      debugPrint('Error loading model: $e');
     }
   }
 
 
   String predict(Uint8List imageBytes) {
     if (!_loaded) {
-      print('❌ 模型未載入');
+      debugPrint('❌ 模型未載入');
       return "MODEL_NOT_LOADED";
     }
 
     try {
-      print('📊 開始預測，圖片大小: ${imageBytes.length} bytes');
+      debugPrint('📊 開始預測，圖片大小: ${imageBytes.length} bytes');
 
       // 1. 解碼圖片
       img.Image? raw = img.decodeImage(imageBytes);
       if (raw == null) {
-        print('❌ 無法解碼圖片');
+        debugPrint('❌ 無法解碼圖片');
         return "INVALID_IMAGE";
       }
 
@@ -61,7 +62,7 @@ class CaptchaPredictor {
       img.Image resized = img.copyResize(raw, width: IMG_WIDTH, height: IMG_HEIGHT);
       
       var input = _preprocessSmartHSV(resized);
-      print('✅ 預處理完成 (HSV+去噪)，輸入形狀: [1, 24, 124, 1]');
+      debugPrint('✅ 預處理完成 (HSV+去噪)，輸入形狀: [1, 24, 124, 1]');
 
       // 3. 準備 Output Buffers
       final outputsByIndex = <int, List<List<double>>>{
@@ -96,7 +97,7 @@ class CaptchaPredictor {
 
       if (ordered.any((e) => e == null)) {
         // 如果名字對不上，就直接按順序 0,1,2,3 嘗試
-        print("⚠️ Tensor name 解析可能有誤，使用預設順序");
+        debugPrint("⚠️ Tensor name 解析可能有誤，使用預設順序");
          return _decodeOutputSingle(outputsByIndex[0]![0]) +
                 _decodeOutputSingle(outputsByIndex[1]![0]) +
                 _decodeOutputSingle(outputsByIndex[2]![0]) +
@@ -111,8 +112,8 @@ class CaptchaPredictor {
       return d0 + d1 + d2 + d3;
 
     } catch (e, stackTrace) {
-      print('❌ 預測錯誤: $e');
-      print('堆疊: $stackTrace');
+      debugPrint('❌ 預測錯誤: $e');
+      debugPrint('堆疊: $stackTrace');
       return "ERROR";
     }
   }
@@ -243,7 +244,7 @@ class CaptchaPredictor {
   //     }
   //   }
     
-  //   print('   最大值索引: $maxIndex, 信心度: ${(maxValue * 100).toStringAsFixed(2)}%');
+  //   debugPrint('   最大值索引: $maxIndex, 信心度: ${(maxValue * 100).toStringAsFixed(2)}%');
     
   //   return maxIndex.toString();
   // }

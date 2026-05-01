@@ -64,7 +64,7 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
         });
       }
     } catch (e) {
-      print("讀取助手課表失敗: $e");
+      debugPrint("讀取助手課表失敗: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
