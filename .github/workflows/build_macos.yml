@@ -1,0 +1,40 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch: # 僅允許手動觸發
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter Test
+        run: flutter test
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
+      # 轉換為 DMG 安裝包
+      - name: Create DMG
+        run: |
+          cd build/macos/Build/Products/Release
+          hdiutil create -format UDZO -srcfolder *.app macOS-App.dmg
+
+      # 上傳為 GitHub Actions 產物 (Artifact)，方便您直接下載
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-App-DMG
+          path: build/macos/Build/Products/Release/macOS-App.dmg
+          if-no-files-found: error
