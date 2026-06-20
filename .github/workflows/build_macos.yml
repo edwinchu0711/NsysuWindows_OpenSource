@@ -16,6 +16,9 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -23,13 +26,13 @@ jobs:
         run: flutter test
 
       - name: Build macOS App
-        run: flutter build macos --release
+        run: flutter build macos --release --no-codesign
 
       # 轉換為 DMG 安裝包
       - name: Create DMG
         run: |
-          cd build/macos/Build/Products/Release
-          hdiutil create -format UDZO -srcfolder *.app macOS-App.dmg
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          hdiutil create -format UDZO -srcfolder "$APP_PATH" build/macos/Build/Products/Release/macOS-App.dmg
 
       # 上傳為 GitHub Actions 產物 (Artifact)，方便您直接下載
       - name: Upload DMG Artifact
