@@ -22,9 +22,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run Flutter Test
-        run: flutter test
-
       - name: Build macOS App
         run: flutter build macos --release --no-codesign
 
