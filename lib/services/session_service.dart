@@ -5,13 +5,15 @@ class SessionService {
   SessionService._();
 
   final ValueNotifier<String> cookieNotifier = ValueNotifier("OFFLINE");
-  final ValueNotifier<String> userAgentNotifier = ValueNotifier("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+  final ValueNotifier<String> userAgentNotifier = ValueNotifier(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  );
 
   void updateSession(String cookies, {String? userAgent}) {
     cookieNotifier.value = cookies;
     if (userAgent != null) {
       userAgentNotifier.value = userAgent;
     }
-    debugPrint("🔑 SessionService: Session 已更新");
+    // debugPrint("🔑 SessionService: Session 已更新");
   }
 }

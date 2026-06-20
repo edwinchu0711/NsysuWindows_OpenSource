@@ -17,11 +17,6 @@ class LocalCourseService {
   Future<void> init() async {
     if (_initialized) return;
 
-    if (Platform.isWindows || Platform.isLinux) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     final dbPath = await Utils.getAppDbDirectory();
     final path = join(dbPath, "courses.db");
 

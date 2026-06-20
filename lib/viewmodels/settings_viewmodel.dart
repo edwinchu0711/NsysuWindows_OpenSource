@@ -171,7 +171,26 @@ class SettingsViewModel extends StateNotifier<SettingsState> {
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final embeddingConfig = _loadEmbeddingConfig(prefs);
-    final aiConfigs = _loadAiConfigs(prefs);
+    var aiConfigs = _loadAiConfigs(prefs);
+    bool migrated = false;
+    for (int i = 0; i < aiConfigs.length; i++) {
+      if (aiConfigs[i].model == 'gemini-3.1-flash-lite-preview') {
+        aiConfigs[i] = AiConfig(
+          id: aiConfigs[i].id,
+          name: aiConfigs[i].name == 'Gemini 3.1 Flash-Lite'
+              ? 'Flash-Lite-Latest'
+              : aiConfigs[i].name,
+          type: aiConfigs[i].type,
+          model: 'gemini-flash-lite-latest',
+          apiKey: aiConfigs[i].apiKey,
+          baseUrl: aiConfigs[i].baseUrl,
+        );
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      await prefs.setString('ai_configs', AiConfig.encode(aiConfigs));
+    }
     final isAdvancedModelMode = prefs.getBool('is_advanced_model_mode') ?? false;
     final isPreviewRankEnabled = prefs.getBool('is_preview_rank_enabled') ?? false;
     final themeMode = ThemeNotifier.instance.value;
@@ -189,7 +208,7 @@ class SettingsViewModel extends StateNotifier<SettingsState> {
       );
       if (firstGoogle.id.isNotEmpty) {
         simpleApiKey = firstGoogle.apiKey;
-        if (['gemini-3.1-flash-lite-preview', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemma-4-31b-it']
+        if (['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemma-4-31b-it']
             .contains(firstGoogle.model)) {
           selectedSimpleModel = firstGoogle.model;
         }

@@ -13,6 +13,7 @@ import 'pages/graduation_page.dart';
 import 'pages/calendar_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/info_page.dart';
+import 'pages/course_progress_page.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -86,6 +87,11 @@ final router = GoRouter(
       path: '/info',
       name: 'info',
       builder: (context, state) => const InfoPage(),
+    ),
+    GoRoute(
+      path: '/course-progress',
+      name: 'courseProgress',
+      builder: (context, state) => const CourseProgressPage(),
     ),
   ],
 );

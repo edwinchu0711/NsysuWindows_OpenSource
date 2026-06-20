@@ -153,7 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         final res = await client.get(
           Uri.parse(
-            'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/version.json',
+            'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/db_index.json',
           ),
         );
         if (res.statusCode == 200) {
@@ -242,7 +242,6 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       if (firstGoogle.id.isNotEmpty) {
         if ([
-          'gemini-3.1-flash-lite-preview',
           'gemini-flash-lite-latest',
           'gemini-flash-latest',
           'gemma-4-31b-it',

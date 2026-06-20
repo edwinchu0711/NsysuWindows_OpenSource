@@ -10,7 +10,7 @@ class StorageService {
   final _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
-  
+
   final Completer<void> _initCompleter = Completer<void>();
 
   /// [初始化並遷移資料]
@@ -19,7 +19,7 @@ class StorageService {
     // 舊版帳密存在 SharedPreferences，需搬移到 SecureStorage
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // 遷移帳號
       if (prefs.containsKey('username')) {
         String? oldUser = prefs.getString('username');
@@ -28,7 +28,7 @@ class StorageService {
         }
         await prefs.remove('username');
       }
-      
+
       // 遷移密碼
       if (prefs.containsKey('password')) {
         String? oldPass = prefs.getString('password');
@@ -44,7 +44,7 @@ class StorageService {
     if (!_initCompleter.isCompleted) {
       _initCompleter.complete();
     }
-    debugPrint("🔐 StorageService: 初始化與遷移完成");
+    // debugPrint("🔐 StorageService: 初始化與遷移完成");
   }
 
   Future<void> _ensureInit() async {
@@ -67,21 +67,20 @@ class StorageService {
       'password': await _secureStorage.read(key: 'password'),
     };
   }
-  
+
   Future<void> clearAll() async {
     await _secureStorage.deleteAll();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 
-
   Future<String?> read(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(key);
     if (value != null) {
-      debugPrint("📂 StorageService: 讀取快取 [$key] (${value.length} 字元)");
+      // debugPrint("📂 StorageService: 讀取快取 [$key] (${value.length} 字元)");
     } else {
-      debugPrint("ℹ️ StorageService: 找不到快取 [$key]");
+      // debugPrint("ℹ️ StorageService: 找不到快取 [$key]");
     }
     return value;
   }
@@ -91,7 +90,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     bool success = await prefs.setString(key, value);
     if (success) {
-      debugPrint("💾 StorageService: 成功儲存 [$key] (${value.length} 字元)");
+      // debugPrint("💾 StorageService: 成功儲存 [$key] (${value.length} 字元)");
     } else {
       debugPrint("❌ StorageService: 儲存失敗 [$key]");
     }

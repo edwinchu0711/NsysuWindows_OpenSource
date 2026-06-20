@@ -12,10 +12,7 @@ class MainMenuState {
     this.loadingProgress = 0.0,
   });
 
-  MainMenuState copyWith({
-    bool? isFirstTimeLoading,
-    double? loadingProgress,
-  }) {
+  MainMenuState copyWith({bool? isFirstTimeLoading, double? loadingProgress}) {
     return MainMenuState(
       isFirstTimeLoading: isFirstTimeLoading ?? this.isFirstTimeLoading,
       loadingProgress: loadingProgress ?? this.loadingProgress,
@@ -25,15 +22,21 @@ class MainMenuState {
 
 final mainMenuViewModelProvider =
     StateNotifierProvider<MainMenuViewModel, MainMenuState>((ref) {
-  return MainMenuViewModel(ref);
-});
+      return MainMenuViewModel(ref);
+    });
 
 class MainMenuViewModel extends StateNotifier<MainMenuState> {
   final Ref _ref;
+  bool _hasRunTasks = false;
 
   MainMenuViewModel(this._ref) : super(const MainMenuState());
 
   Future<void> checkAndStartTasks() async {
+    if (_hasRunTasks) {
+      return;
+    }
+    _hasRunTasks = true;
+
     final sw = Stopwatch()..start();
     final prefs = await SharedPreferences.getInstance();
     bool hasCourseCache = prefs.containsKey('cached_courses_plain_v3');
@@ -47,35 +50,34 @@ class MainMenuViewModel extends StateNotifier<MainMenuState> {
     } else {
       _startBackgroundTask();
     }
-    debugPrint('[VM] checkAndStartTasks 完成 (+${sw.elapsedMilliseconds}ms)');
   }
 
   Future<void> _startBackgroundTask() async {
     final sw = Stopwatch()..start();
     try {
-      debugPrint('[BG] refreshAndCache 開始');
+      // debugPrint('[BG] refreshAndCache 開始');
       await _ref.read(courseServiceProvider).refreshAndCache();
-      debugPrint('[BG] refreshAndCache 完成 (+${sw.elapsedMilliseconds}ms)');
+      // debugPrint('[BG] refreshAndCache 完成 (+${sw.elapsedMilliseconds}ms)');
       if (isScoreReleaseSeason()) {
-        debugPrint('[BG] fetchOpenScores 開始');
+        // debugPrint('[BG] fetchOpenScores 開始');
         await _ref.read(openScoreServiceProvider).fetchOpenScores();
-        debugPrint('[BG] fetchOpenScores 完成 (+${sw.elapsedMilliseconds}ms)');
+        // debugPrint('[BG] fetchOpenScores 完成 (+${sw.elapsedMilliseconds}ms)');
       }
-      debugPrint('[BG] fetchAllData 開始');
+      // debugPrint('[BG] fetchAllData 開始');
       await _ref.read(historicalScoreServiceProvider).fetchAllData();
-      debugPrint('[BG] fetchAllData 完成 (+${sw.elapsedMilliseconds}ms)');
+      // debugPrint('[BG] fetchAllData 完成 (+${sw.elapsedMilliseconds}ms)');
     } catch (e) {
       debugPrint("❌ 背景抓取發生錯誤: $e");
     }
-    debugPrint('[BG] _startBackgroundTask 總耗時 (+${sw.elapsedMilliseconds}ms)');
+    // debugPrint('[BG] _startBackgroundTask 總耗時 (+${sw.elapsedMilliseconds}ms)');
   }
 
   bool isScoreReleaseSeason() {
     DateTime now = DateTime.now();
     int month = now.month;
     int day = now.day;
-    bool isWinter = (month == 12 && day >= 15) || (month == 1 && day <= 15);
-    bool isSummer = (month == 5 && day >= 15) || (month == 6 && day <= 15);
+    bool isWinter = (month == 12 && day >= 15) || (month == 1 && day <= 25);
+    bool isSummer = (month == 5 && day >= 15) || (month == 6 && day <= 25);
     return isWinter || isSummer;
   }
 
@@ -84,6 +86,7 @@ class MainMenuViewModel extends StateNotifier<MainMenuState> {
   }
 
   Future<void> logout() async {
+    _hasRunTasks = false;
     await Future.wait([
       _ref.read(courseServiceProvider).clearCache(),
       _ref.read(openScoreServiceProvider).clearCache(),

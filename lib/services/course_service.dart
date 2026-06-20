@@ -31,9 +31,7 @@ class CourseService {
           }
         });
         allCoursesNotifier.value = loadedData;
-        debugPrint(
-          "📦 CourseService: 已從快取載入 ${loadedData.keys.length} 個學期的課表 (plain_v3)",
-        );
+        // debugPrint("📦 CourseService: 已從快取載入 ${loadedData.keys.length} 個學期的課表 (plain_v3)",);
       } else {
         debugPrint("ℹ️ CourseService: 快取資料格式不符或為空 (plain_v3)");
       }
@@ -87,7 +85,7 @@ class CourseService {
           data.map((k, v) => MapEntry(k, v.map((c) => c.toJson()).toList())),
         );
         await StorageService.instance.save(CACHE_KEY, encoded);
-        debugPrint("🚀 CourseService: 課表同步完成並儲存 (${data.keys.length} 個學期)");
+        // debugPrint("🚀 CourseService: 課表同步完成並儲存 (${data.keys.length} 個學期)");
       } else {
         debugPrint("⚠️ CourseService: 同步後資料仍為空，未執行儲存");
       }
@@ -96,7 +94,7 @@ class CourseService {
       rethrow;
     } finally {
       isBusyNotifier.value = false;
-      debugPrint('[CS] refreshAndCache 總耗時 (+${sw.elapsedMilliseconds}ms)');
+      // debugPrint('[CS] refreshAndCache 總耗時 (+${sw.elapsedMilliseconds}ms)');
     }
   }
 
@@ -126,7 +124,7 @@ class CourseService {
         tasks.add("${x - i}1");
       }
     } else {
-      debugPrint("⚡ [增量同步] 偵測到已有快取，僅抓取目標學期...");
+      // debugPrint("⚡ [增量同步] 偵測到已有快取，僅抓取目標學期...");
       if (month >= 1 && month <= 6) {
         // 1~6月：抓取 x-1 學年度的 2 學期 (因為 1 學期通常已結束)
         tasks.add("${x - 1}2");
@@ -148,7 +146,7 @@ class CourseService {
 
       if (courses.isNotEmpty) {
         result[yrsm] = courses;
-        debugPrint("✅ $yrsm 更新成功");
+        // debugPrint("✅ $yrsm 更新成功");
       }
     }
 
@@ -184,13 +182,11 @@ class CourseService {
         body: {"stuid": stuid.toUpperCase(), "SPassword": encryptedPass},
       );
 
-      debugPrint(
-        "🌐 CourseService: 登入 Studcheck_sso2 狀態碼: ${response.statusCode}",
-      );
+      // debugPrint("🌐 CourseService: 登入 Studcheck_sso2 狀態碼: ${response.statusCode}",);
       String? rawCookie = response.headers['set-cookie'];
 
       if (rawCookie != null && !response.body.contains("不符")) {
-        debugPrint("✅ CourseService: 登入成功，取得 Cookie");
+        // debugPrint("✅ CourseService: 登入成功，取得 Cookie");
         return rawCookie;
       } else {
         debugPrint(

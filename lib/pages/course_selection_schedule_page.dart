@@ -133,7 +133,7 @@ class _CourseSelectionSchedulePageState
       _isSystemOpen = false;
     });
 
-    debugPrint("🔍 [偵錯] 開始執行 _checkRealTimeSystemStatus...");
+    // debugPrint("🔍 [偵錯] 開始執行 _checkRealTimeSystemStatus...");
 
     try {
       final credentials = await StorageService.instance.getCredentials();
@@ -146,18 +146,18 @@ class _CourseSelectionSchedulePageState
       }
 
       // 1. 登入 (呼叫 SSO 登入邏輯)
-      debugPrint("🔍 [偵錯] 正在登入...");
+      // debugPrint("🔍 [偵錯] 正在登入...");
       // 【注意】請確保 _loginViaSSO2 函式存在於此檔案或已正確 Import
       String? cookie = await _loginViaSSO2(studentId, password);
 
       if (cookie == null) {
         throw "SSO 登入失敗 (Cookie 為空)";
       }
-      debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
+      // debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
 
       // 2. Request main_frame.asp 取得參數
       final mainFrameUrl = Uri.parse("$_baseUrl/menu4/main_frame.asp");
-      debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
+      // debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
 
       final mainFrameResponse = await _client.get(
         mainFrameUrl,
@@ -182,7 +182,7 @@ class _CourseSelectionSchedulePageState
       String studFunParams = "";
       if (paramMatch != null) {
         studFunParams = paramMatch.group(1) ?? "";
-        debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
+        // debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
       } else {
         debugPrint("⚠️ [偵錯] 在 main_frame 無法抓取參數");
       }
@@ -194,7 +194,7 @@ class _CourseSelectionSchedulePageState
       }
 
       final studFunUrl = Uri.parse(studFunUrlString);
-      debugPrint("🔍 [偵錯] 請求選單頁面: $studFunUrl");
+      // debugPrint("🔍 [偵錯] 請求選單頁面: $studFunUrl");
 
       final response = await _client.get(
         studFunUrl,
@@ -217,7 +217,7 @@ class _CourseSelectionSchedulePageState
       }
 
       String firstLink = match.group(1) ?? "";
-      debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
+      // debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
 
       // 5. 判斷選課是否開放
       // 如果連結包含 query/result.asp，代表是「查詢系統」(未開放)
@@ -235,7 +235,10 @@ class _CourseSelectionSchedulePageState
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('course_system_status_open', isOpen);
         await prefs.setString('course_system_status_msg', statusMsg);
-        await prefs.setInt('course_system_status_time', DateTime.now().millisecondsSinceEpoch);
+        await prefs.setInt(
+          'course_system_status_time',
+          DateTime.now().millisecondsSinceEpoch,
+        );
       }
     } catch (e) {
       debugPrint("❌ [偵錯] 檢查流程發生錯誤: $e");

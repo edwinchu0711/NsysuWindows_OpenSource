@@ -1071,7 +1071,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                     if (cellCourses.length == 1 && cellEvents.isEmpty) {
                       final cellCourse = cellCourses.first;
                       return Container(
-                        height: 70, // 保留基本高度，不被壓縮
+                        constraints: const BoxConstraints(minHeight: 70),
                         padding: const EdgeInsets.all(1.0),
                         child: Material(
                           color: _getCourseColor(cellCourse.name),
@@ -1089,36 +1089,34 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                 _showCourseDetail(cellCourse);
                               }
                             },
-                            child: Container(
-                              width: double.infinity,
-                              height: double.infinity, // 內部撐滿高度
-                              padding: const EdgeInsets.all(6.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    keepUntilLastChinese(cellCourse.name),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      height: 1.1,
+                            child: Center(
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(6.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      keepUntilLastChinese(cellCourse.name),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _extractLocation(cellCourse.location),
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white70,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _extractLocation(cellCourse.location),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white70,
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -1130,7 +1128,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                     if (cellEvents.length == 1 && cellCourses.isEmpty) {
                       final cellEvent = cellEvents.first;
                       return Container(
-                        height: 70, // 保留基本高度，不被壓縮
+                        constraints: const BoxConstraints(minHeight: 70),
                         padding: const EdgeInsets.all(1.0),
                         child: Material(
                           color: _getCourseColor(cellEvent.title), // 套用彩色
@@ -1148,37 +1146,35 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                 _showCustomEventDetail(cellEvent);
                               }
                             },
-                            child: Container(
-                              width: double.infinity,
-                              height: double.infinity, // 內部撐滿高度
-                              padding: const EdgeInsets.all(6.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    cellEvent.title,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      height: 1.1,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  if (cellEvent.location.isNotEmpty)
+                            child: Center(
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(6.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
                                     Text(
-                                      cellEvent.location,
+                                      cellEvent.title,
                                       style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white70,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.1,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
                                     ),
-                                ],
+                                    const SizedBox(height: 2),
+                                    if (cellEvent.location.isNotEmpty)
+                                      Text(
+                                        cellEvent.location,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -1224,8 +1220,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                         fontWeight: FontWeight.bold,
                                         height: 1.1,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 2),
@@ -1235,8 +1229,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                         fontSize: 9.5,
                                         color: Colors.white70,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ],
                                 ),
@@ -1282,8 +1274,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                         fontWeight: FontWeight.bold,
                                         height: 1.1,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 2),
@@ -1294,8 +1284,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                           fontSize: 9.5,
                                           color: Colors.white70,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                   ],
                                 ),
@@ -1371,7 +1359,12 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildDetailRow("課號", course.code),
-                _buildDetailRow("學分", "${course.credits} (${course.required})"),
+                _buildDetailRow(
+                  "學分",
+                  course.required.trim().isNotEmpty
+                      ? "${course.credits} (${course.required})"
+                      : course.credits,
+                ),
                 _buildDetailRow("教授", course.professor),
                 _buildDetailRow("地點", _extractLocation(course.location)),
                 _buildDetailRow("時間", prettyTime.replaceAll('\n', ' ')),

@@ -1,7 +1,11 @@
+# 告訴微軟編譯器：我知道協程過時了，請照常編譯，不要報錯擋我
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
 set(CMAKE_POLICY_VERSION_MINIMUM "3.10")
 project(NSYSU LANGUAGES CXX)
+
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.

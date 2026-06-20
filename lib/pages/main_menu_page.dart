@@ -43,29 +43,16 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
     // 初始化 ScrollController
     _scrollController = ScrollController();
 
-    // 非同步執行，印出路徑供調試
-    getApplicationSupportDirectory().then((supportDir) {
-      debugPrint('我的設定檔就藏在: ${supportDir.path}');
-    });
-
     OpenScoreService.instance.statusMessageNotifier.addListener(
       _handleSessionExpiry,
     );
 
-    debugPrint('[HOME] _checkAndStartTasks 開始');
-    final sw1 = Stopwatch()..start();
-    _checkAndStartTasks().then((_) {
-      debugPrint('[HOME] _checkAndStartTasks 完成 (+${sw1.elapsedMilliseconds}ms)');
-    });
+    _checkAndStartTasks();
 
     _checkNewVersion();
 
     // SSO 登入後觸發課程資料更新 + courses.db 建立
-    debugPrint('[HOME] checkForUpdate 開始');
-    final sw2 = Stopwatch()..start();
-    CourseQueryService.instance.checkForUpdate().then((_) {
-      debugPrint('[HOME] checkForUpdate 完成 (+${sw2.elapsedMilliseconds}ms)');
-    });
+    CourseQueryService.instance.checkForUpdate();
   }
 
   @override
@@ -448,6 +435,14 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
         ),
         _buildListCard(
           context,
+          icon: Icons.school_outlined,
+          label: "學程進度",
+          subLabel: "查詢各學程領域之修課進度",
+          color: Colors.cyan,
+          onTap: () => context.go('/course-progress'),
+        ),
+        _buildListCard(
+          context,
           icon: Icons.event_note_rounded,
           label: "中山行事曆",
           subLabel: "掌握校內重要活動日期",
@@ -461,7 +456,7 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
           context,
           icon: Icons.settings_rounded,
           label: "系統設定",
-          subLabel: "名次預覽與介面設定",
+          subLabel: "功能與介面設定",
           color: Colors.blueGrey,
           onTap: () => context.go('/settings'),
         ),

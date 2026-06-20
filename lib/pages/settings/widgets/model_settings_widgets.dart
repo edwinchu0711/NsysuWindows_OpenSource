@@ -247,9 +247,9 @@ class TutorialCard extends StatelessWidget {
                 children: [
                   Icon(Icons.recommend_rounded, color: Colors.blue, size: 20),
                   SizedBox(width: 8),
-                  Expanded(
+                   Expanded(
                     child: Text(
-                      "推薦模型 ID：gemini-3.1-flash-lite-preview , gemini-flash-lite-latest",
+                      "推薦模型 ID：gemini-flash-lite-latest",
                       style: TextStyle(fontSize: 13, color: Colors.blue),
                     ),
                   ),

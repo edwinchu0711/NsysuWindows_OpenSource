@@ -37,6 +37,15 @@ class _ScoreTrackingPageState extends State<ScoreTrackingPage> {
     HistoricalScoreService.instance.summaryNotifier.addListener(
       _autoSelectSemester,
     );
+
+    // 若無快取且未在同步中，主動觸發無預覽的快速同步
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final service = HistoricalScoreService.instance;
+      if (service.coursesNotifier.value.isEmpty &&
+          !service.isLoadingNotifier.value) {
+        service.fetchAllData(fetchPreview: false);
+      }
+    });
   }
 
   @override

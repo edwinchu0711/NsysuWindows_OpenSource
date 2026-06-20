@@ -117,6 +117,7 @@ class CourseQueryService {
   bool _isDataLoaded = false;
   String _currentSemester = "";
   bool _isUpdating = false;
+  bool _hasCheckedForUpdate = false;
 
   String get currentSemester => _currentSemester;
   List<CourseJsonData> get cachedCourses => List.unmodifiable(_cachedCourses);
@@ -127,6 +128,7 @@ class CourseQueryService {
     _isar = await Isar.open(
       [CourseIsarSchema],
       directory: dir.path,
+      inspector: false,
     );
   }
 
@@ -144,9 +146,13 @@ class CourseQueryService {
 
   /// 背景檢查遠端版本是否有更新（public，由 SSO 登入後觸發）
   Future<void> checkForUpdate() async {
-    if (_isUpdating) return;
+    if (_isUpdating || _hasCheckedForUpdate) return;
     _isUpdating = true;
+    _hasCheckedForUpdate = true;
     try {
+      if (!_isDataLoaded) {
+        await _loadFromIsar();
+      }
       final prefs = await SharedPreferences.getInstance();
       final localSem = prefs.getString('course_local_semester') ?? "";
       final localTs = prefs.getString('course_local_timestamp') ?? "";
@@ -175,10 +181,12 @@ class CourseQueryService {
 
         // 比對本地版本
         if (latestSem != localSem || latestTime != localTs || !_isDataLoaded) {
-          debugPrint("🔄 CourseQueryService: 偵測到遠端版本更新 ($localSem/$localTs → $latestSem/$latestTime)");
+          debugPrint(
+            "🔄 CourseQueryService: 偵測到遠端版本更新 ($localSem/$localTs → $latestSem/$latestTime)",
+          );
           await _downloadAndUpdate(latestSem, latestTime);
         } else {
-          debugPrint("✅ CourseQueryService: 本地資料已是最新 ($latestSem/$latestTime)");
+          // debugPrint("✅ CourseQueryService: 本地資料已是最新 ($latestSem/$latestTime)");
         }
       } finally {
         client.close();
@@ -197,15 +205,17 @@ class CourseQueryService {
       final url =
           "https://nsysu-opendev.github.io/NSYSUCourseAPI/$semester/$timestamp/all.json";
       final allRes = await client.get(Uri.parse(url));
-      if (allRes.statusCode != 200) throw "All JSON API Error: ${allRes.statusCode}";
+      if (allRes.statusCode != 200)
+        throw "All JSON API Error: ${allRes.statusCode}";
 
       // 將耗時的 JSON 解析移到 Isolate，避免阻塞 UI 執行緒
       final bytes = allRes.bodyBytes;
       final List<dynamic> rawList = await _runDecodeJsonInIsolate(bytes);
 
       // 轉換為 Isar 物件
-      final courseIsarList =
-          rawList.map((e) => _jsonToIsar(e, semester)).toList();
+      final courseIsarList = rawList
+          .map((e) => _jsonToIsar(e, semester))
+          .toList();
 
       // 寫入 Isar
       if (_isar != null) {
@@ -228,7 +238,7 @@ class CourseQueryService {
       await _loadFromIsar();
       _currentSemester = semester;
 
-      debugPrint("🚀 CourseQueryService: 課程資料更新完成 (${_cachedCourses.length} 筆, $semester/$timestamp)");
+      // debugPrint("🚀 CourseQueryService: 課程資料更新完成 (${_cachedCourses.length} 筆, $semester/$timestamp)");
     } catch (e) {
       debugPrint("❌ CourseQueryService: 下載更新失敗: $e");
       rethrow;
@@ -239,11 +249,6 @@ class CourseQueryService {
 
   /// 從下載的 JSON 建立 courses.db (SQLite)
   Future<void> _buildCoursesDb(List<dynamic> rawList, String semester) async {
-    if (Platform.isWindows || Platform.isLinux) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     final dbPath = await Utils.getAppDbDirectory();
     final path = join(dbPath, "courses.db");
 
@@ -304,8 +309,12 @@ class CourseQueryService {
         )
       ''');
 
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher)');
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_course_tags_tag ON course_tags(tag)');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_course_tags_tag ON course_tags(tag)',
+      );
 
       // Batch insert using transaction
       await db.transaction((txn) async {
@@ -322,15 +331,25 @@ class CourseQueryService {
               c['id']?.toString() ?? '',
               c['url']?.toString() ?? '',
               c['change']?.toString() ?? '',
-              c['changeDescription']?.toString() ?? c['change_description']?.toString() ?? '',
-              c['multiple_compulsory'] != null ? (c['multiple_compulsory'] is bool ? (c['multiple_compulsory'] ? 1 : 0) : (c['multiple_compulsory'] as int)) : 0,
+              c['changeDescription']?.toString() ??
+                  c['change_description']?.toString() ??
+                  '',
+              c['multiple_compulsory'] != null
+                  ? (c['multiple_compulsory'] is bool
+                        ? (c['multiple_compulsory'] ? 1 : 0)
+                        : (c['multiple_compulsory'] as int))
+                  : 0,
               c['department']?.toString() ?? '',
               c['grade']?.toString() ?? '',
               c['class']?.toString() ?? c['class_name']?.toString() ?? '',
               c['name']?.toString() ?? c['name_zh_en']?.toString() ?? '',
               _toFloat(c['credit']),
               semester,
-              c['compulsory'] != null ? (c['compulsory'] is bool ? (c['compulsory'] ? 1 : 0) : (c['compulsory'] as int)) : 0,
+              c['compulsory'] != null
+                  ? (c['compulsory'] is bool
+                        ? (c['compulsory'] ? 1 : 0)
+                        : (c['compulsory'] as int))
+                  : 0,
               _toInt(c['restrict']),
               _toInt(c['select']),
               _toInt(c['selected']),
@@ -338,7 +357,11 @@ class CourseQueryService {
               c['teacher']?.toString() ?? '',
               c['room']?.toString() ?? '',
               c['description']?.toString() ?? '',
-              c['english'] != null ? (c['english'] is bool ? (c['english'] ? 1 : 0) : (c['english'] as int)) : 0,
+              c['english'] != null
+                  ? (c['english'] is bool
+                        ? (c['english'] ? 1 : 0)
+                        : (c['english'] as int))
+                  : 0,
             ],
           );
 
@@ -346,9 +369,17 @@ class CourseQueryService {
           final classTime = c['classTime'];
           if (classTime is List) {
             // Delete old times for this course (safety)
-            await txn.delete('course_times', where: 'course_id = ?', whereArgs: [c['id']]);
+            await txn.delete(
+              'course_times',
+              where: 'course_id = ?',
+              whereArgs: [c['id']],
+            );
 
-            for (int weekday = 0; weekday < classTime.length && weekday < 7; weekday++) {
+            for (
+              int weekday = 0;
+              weekday < classTime.length && weekday < 7;
+              weekday++
+            ) {
               final periods = classTime[weekday]?.toString() ?? '';
               if (periods.isNotEmpty) {
                 await txn.execute(
@@ -362,7 +393,11 @@ class CourseQueryService {
           // Insert course_tags
           final tags = c['tags'];
           if (tags is List) {
-            await txn.delete('course_tags', where: 'course_id = ?', whereArgs: [c['id']]);
+            await txn.delete(
+              'course_tags',
+              where: 'course_id = ?',
+              whereArgs: [c['id']],
+            );
             for (var tag in tags) {
               if (tag != null) {
                 await txn.execute(
@@ -381,10 +416,12 @@ class CourseQueryService {
       LocalCourseService.instance.reset();
       await LocalCourseService.instance.init();
 
-      debugPrint("✅ CourseQueryService: courses.db 建立完成 (${rawList.length} 筆課程)");
+      // debugPrint("✅ CourseQueryService: courses.db 建立完成 (${rawList.length} 筆課程)");
     } catch (e) {
       debugPrint("❌ CourseQueryService: courses.db 建立失敗: $e");
-      try { await db.close(); } catch (_) {}
+      try {
+        await db.close();
+      } catch (_) {}
       rethrow;
     }
   }
@@ -396,7 +433,8 @@ class CourseQueryService {
     if (v is double) return v.toInt();
     final s = v.toString().trim();
     if (s.isEmpty) return null;
-    return int.tryParse(s) ?? int.tryParse(double.tryParse(s)?.toStringAsFixed(0) ?? '');
+    return int.tryParse(s) ??
+        int.tryParse(double.tryParse(s)?.toStringAsFixed(0) ?? '');
   }
 
   /// Helper: convert value to double safely

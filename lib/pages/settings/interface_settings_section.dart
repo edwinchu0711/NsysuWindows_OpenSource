@@ -39,30 +39,26 @@ class InterfaceSettingsSection extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isSelected = themeMode == mode;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isSelected ? colorScheme.accentBlue.withOpacity(0.05) : Colors.transparent,
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: isSelected ? colorScheme.accentBlue : colorScheme.subtitleText),
-        title: Text(
-          _getThemeLabel(context, mode),
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? colorScheme.accentBlue : colorScheme.primaryText,
-          ),
+    return ListTile(
+      tileColor: isSelected ? colorScheme.accentBlue.withOpacity(0.05) : Colors.transparent,
+      leading: Icon(icon, color: isSelected ? colorScheme.accentBlue : colorScheme.subtitleText),
+      title: Text(
+        _getThemeLabel(context, mode),
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? colorScheme.accentBlue : colorScheme.primaryText,
         ),
-        trailing: Radio<ThemeMode>(
-          value: mode,
-          groupValue: themeMode,
-          onChanged: (val) {
-            if (val != null) onThemeChanged(val);
-          },
-          activeColor: colorScheme.accentBlue,
-          visualDensity: VisualDensity.compact,
-        ),
-        onTap: () => onThemeChanged(mode),
       ),
+      trailing: Radio<ThemeMode>(
+        value: mode,
+        groupValue: themeMode,
+        onChanged: (val) {
+          if (val != null) onThemeChanged(val);
+        },
+        activeColor: colorScheme.accentBlue,
+        visualDensity: VisualDensity.compact,
+      ),
+      onTap: () => onThemeChanged(mode),
     );
   }
 

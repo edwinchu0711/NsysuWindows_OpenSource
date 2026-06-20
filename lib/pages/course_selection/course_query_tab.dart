@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../../services/course_selection_service.dart';
 import '../../services/course_query_service.dart';
 import '../../services/course_selection_submit_service.dart' as submit_service;
@@ -12,11 +13,13 @@ import '../../theme/app_theme.dart';
 class CourseQueryTab extends StatefulWidget {
   final List<CourseSelectionData> currentCourses;
   final VoidCallback onRequestRefresh;
+  final bool isLoading;
 
   const CourseQueryTab({
     Key? key,
     required this.currentCourses,
     required this.onRequestRefresh,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
@@ -45,6 +48,28 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   Set<String> _selectedDays = {};
   Set<String> _selectedPeriods = {};
 
+  Timer? _debounceTimer;
+  int _searchSessionId = 0;
+  Timer? _saveCartTimer;
+
+  void _saveCartDebounced() {
+    _saveCartTimer?.cancel();
+    _saveCartTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _saveCart();
+      }
+    });
+  }
+
+  void _onQueryChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _performSearch();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,23 +78,37 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       debugPrint("背景載入失敗: $e");
       return <CourseJsonData>[];
     });
+    _mergedQueryCtrl.addListener(_onQueryChanged);
 
-    // 在進入頁面後，檢查是否有從選課助手匯出的課程
-    // 移至 didUpdateWidget 以確保資料已載入
+    if (!widget.isLoading) {
+      _hasCheckedExported = true;
+      _checkExportedCourses();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _performSearch();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant CourseQueryTab oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_hasCheckedExported && widget.currentCourses.isNotEmpty) {
+    if (!_hasCheckedExported && !widget.isLoading) {
       _hasCheckedExported = true;
       _checkExportedCourses();
+    }
+    if (oldWidget.currentCourses != widget.currentCourses) {
+      _performSearch();
     }
   }
 
   @override
   void dispose() {
+    _mergedQueryCtrl.removeListener(_onQueryChanged);
     _mergedQueryCtrl.dispose();
+    _debounceTimer?.cancel();
+    _saveCartTimer?.cancel();
     for (var p in _pendingItems) {
       p.pointsController?.dispose();
     }
@@ -104,7 +143,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.borderColor)),
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).colorScheme.borderColor),
+        ),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -124,7 +165,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               icon: Icons.shopping_cart_checkout_rounded,
               label: "加退選選單(${_pendingItems.length})",
               isSelected: _showEditListMode,
-               activeColor: Theme.of(context).colorScheme.isDark ? Colors.orange[300]! : Colors.orange[800]!,
+              activeColor: Theme.of(context).colorScheme.isDark
+                  ? Colors.orange[300]!
+                  : Colors.orange[800]!,
               onPressed: () => setState(() {
                 _showEditListMode = true;
                 _showImportCodeMode = false;
@@ -135,7 +178,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               icon: Icons.code_rounded,
               label: "代碼匯入",
               isSelected: _showImportCodeMode,
-               activeColor: Theme.of(context).colorScheme.isDark ? Colors.purple[200]! : Colors.purple[700]!,
+              activeColor: Theme.of(context).colorScheme.isDark
+                  ? Colors.purple[200]!
+                  : Colors.purple[700]!,
               onPressed: () => setState(() {
                 _showImportCodeMode = true;
                 _showEditListMode = false;
@@ -171,13 +216,17 @@ class _CourseQueryTabState extends State<CourseQueryTab>
             Icon(
               icon,
               size: 20,
-               color: isSelected ? activeColor : Theme.of(context).colorScheme.subtitleText,
+              color: isSelected
+                  ? activeColor
+                  : Theme.of(context).colorScheme.subtitleText,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                 color: isSelected ? activeColor : Theme.of(context).colorScheme.subtitleText,
+                color: isSelected
+                    ? activeColor
+                    : Theme.of(context).colorScheme.subtitleText,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -215,8 +264,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                   label: "年級",
                   values: _selectedGrades,
                   options: {"1": "1", "2": "2", "3": "3", "4": "4", "5": "5"},
-                  onChanged: (newSet) =>
-                      setState(() => _selectedGrades = newSet),
+                  onChanged: (newSet) {
+                    setState(() => _selectedGrades = newSet);
+                    _performSearch();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -234,7 +285,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     "6": "六",
                     "7": "日",
                   },
-                  onChanged: (newSet) => setState(() => _selectedDays = newSet),
+                  onChanged: (newSet) {
+                    setState(() => _selectedDays = newSet);
+                    _performSearch();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -257,26 +311,34 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     "B": "B",
                     "C": "C",
                   },
-                  onChanged: (newSet) =>
-                      setState(() => _selectedPeriods = newSet),
+                  onChanged: (newSet) {
+                    setState(() => _selectedPeriods = newSet);
+                    _performSearch();
+                  },
                 ),
               ),
               const SizedBox(width: 8),
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   Text("過濾衝堂", style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.subtitleText)),
-                   SizedBox(
-                     height: 32,
-                     child: Switch(
-                        value: _filterConflict,
-                        activeColor: Theme.of(context).colorScheme.accentBlue,
-                        onChanged: (v) {
-                          setState(() => _filterConflict = v);
-                          _performSearch();
-                        },
-                     ),
-                   ),
+                  Text(
+                    "過濾衝堂",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.subtitleText,
+                    ),
+                  ),
+                  SizedBox(
+                    height: 32,
+                    child: Switch(
+                      value: _filterConflict,
+                      activeColor: Theme.of(context).colorScheme.accentBlue,
+                      onChanged: (v) {
+                        setState(() => _filterConflict = v);
+                        _performSearch();
+                      },
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(width: 8),
@@ -289,7 +351,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     icon: const Icon(Icons.search, size: 16),
                     label: const Text("搜尋"),
                     style: ElevatedButton.styleFrom(
-                       backgroundColor: Theme.of(context).colorScheme.accentBlue,
+                      backgroundColor: Theme.of(context).colorScheme.accentBlue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       minimumSize: const Size(0, 36),
@@ -316,9 +378,20 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-             Icon(Icons.manage_search_rounded, size: 64, color: Theme.of(context).colorScheme.subtitleText.withOpacity(0.1)),
+            Icon(
+              Icons.manage_search_rounded,
+              size: 64,
+              color: Theme.of(
+                context,
+              ).colorScheme.subtitleText.withOpacity(0.1),
+            ),
             const SizedBox(height: 16),
-            Text("設定搜尋條件並點擊搜尋按鈕開始", style: TextStyle(color: Theme.of(context).colorScheme.subtitleText)),
+            Text(
+              "設定搜尋條件並點擊搜尋按鈕開始",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.subtitleText,
+              ),
+            ),
           ],
         ),
       );
@@ -338,20 +411,26 @@ class _CourseQueryTabState extends State<CourseQueryTab>
 
         return Container(
           decoration: BoxDecoration(
-            color: colorScheme.cardBackground,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: colorScheme.borderColor),
-            boxShadow: colorScheme.isDark ? [] : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: colorScheme.isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: ExpansionTile(
-            backgroundColor: colorScheme.secondaryCardBackground.withOpacity(0.5),
+          child: Material(
+            color: colorScheme.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              backgroundColor: colorScheme.secondaryCardBackground.withOpacity(
+                0.5,
+              ),
             tilePadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 8,
@@ -408,14 +487,18 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.3) : Colors.orange[50],
+                      color: colorScheme.isDark
+                          ? Colors.orange[900]!.withOpacity(0.3)
+                          : Colors.orange[50],
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       "機率: ${_calculateProbability(course)}",
                       style: TextStyle(
                         fontSize: 10,
-                        color: colorScheme.isDark ? Colors.orange[200] : Colors.orange[800],
+                        color: colorScheme.isDark
+                            ? Colors.orange[200]
+                            : Colors.orange[800],
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -430,7 +513,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: colorScheme.isDark ? Colors.green[900]!.withOpacity(0.3) : Colors.green[50],
+                      color: colorScheme.isDark
+                          ? Colors.green[900]!.withOpacity(0.3)
+                          : Colors.green[50],
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -524,45 +609,15 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    FutureBuilder<List<String>>(
-                      future: _getCourseEvaluation(course.id),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting)
-                          return const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          );
-                        if (!snapshot.hasData || snapshot.data!.isEmpty)
-                          return Text(
-                            "尚無評分細節",
-                            style: TextStyle(fontSize: 13, color: colorScheme.subtitleText),
-                          );
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: snapshot.data!
-                              .map(
-                                (e) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text(
-                                    "• $e",
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: colorScheme.primaryText,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
+                    _CourseEvaluationView(
+                      onLoad: () => _getCourseEvaluation(course.id),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        );
+        ));
       },
     );
   }
@@ -618,7 +673,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               color: colorScheme.subtitleText.withOpacity(0.1),
             ),
             const SizedBox(height: 16),
-            Text("您的選課清單是空的", style: TextStyle(color: colorScheme.subtitleText)),
+            Text(
+              "您的選課清單是空的",
+              style: TextStyle(color: colorScheme.subtitleText),
+            ),
           ],
         ),
       );
@@ -647,11 +705,21 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isAdd
-                          ? colorScheme.isDark ? Colors.orange[900]!.withOpacity(0.2) : Colors.orange[50]!.withOpacity(0.5)
-                          : colorScheme.isDark ? Colors.red[900]!.withOpacity(0.2) : Colors.red[50]!.withOpacity(0.5),
+                          ? colorScheme.isDark
+                                ? Colors.orange[900]!.withOpacity(0.2)
+                                : Colors.orange[50]!.withOpacity(0.5)
+                          : colorScheme.isDark
+                          ? Colors.red[900]!.withOpacity(0.2)
+                          : Colors.red[50]!.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isAdd ? (colorScheme.isDark ? Colors.orange[700]! : Colors.orange[200]!) : (colorScheme.isDark ? Colors.red[700]! : Colors.red[100]!),
+                        color: isAdd
+                            ? (colorScheme.isDark
+                                  ? Colors.orange[700]!
+                                  : Colors.orange[200]!)
+                            : (colorScheme.isDark
+                                  ? Colors.red[700]!
+                                  : Colors.red[100]!),
                       ),
                     ),
                     child: Column(
@@ -793,7 +861,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                                 ),
                               ),
                               Text(
-                                "${course.courseNo}",
+                                course.courseNo,
                                 style: TextStyle(
                                   color: Colors.grey[500],
                                   fontSize: 12,
@@ -851,12 +919,14 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   }
 
   void _performSearch() async {
+    final sessionId = ++_searchSessionId;
     setState(() {
       _isQueryLoading = true;
       _hasSearched = true;
     });
     try {
       await CourseQueryService.instance.getCourses();
+      if (sessionId != _searchSessionId) return;
 
       final results = CourseQueryService.instance.search(
         query: _mergedQueryCtrl.text.trim(),
@@ -867,17 +937,21 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         filterConflict: _filterConflict,
         existingCourses: _parseSelectedCoursesForConflict(),
       );
-      setState(() {
-        _searchResults = results;
-        _isQueryLoading = false;
-      });
+      if (mounted && sessionId == _searchSessionId) {
+        setState(() {
+          _searchResults = results;
+          _isQueryLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isQueryLoading = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("搜尋失敗: $e")));
+      if (mounted && sessionId == _searchSessionId) {
+        setState(() {
+          _isQueryLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("搜尋失敗: $e")));
+      }
     }
   }
 
@@ -913,7 +987,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(fontSize: 12, color: colorScheme.subtitleText.withOpacity(0.5)),
+            hintStyle: TextStyle(
+              fontSize: 12,
+              color: colorScheme.subtitleText.withOpacity(0.5),
+            ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
               vertical: 10,
@@ -962,7 +1039,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
     if (_pendingItems.any((p) => p.id == course.id)) return;
     setState(() {
       final controller = TextEditingController();
-      controller.addListener(() => _saveCart());
+      controller.addListener(_saveCartDebounced);
       _pendingItems.add(
         PendingTransaction(
           id: course.id,
@@ -994,7 +1071,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               setState(() {
                 _pendingItems.add(
                   PendingTransaction(
-                    id: course.code,
+                    id: course.courseNo,
                     courseNo: course.courseNo,
                     name: course.name,
                     type: TransactionType.drop,
@@ -1022,7 +1099,66 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   }
 
   void _submitSelection() {
-    _processSubmission();
+    List<String> logs = _pendingItems.map((item) {
+      if (item.type == TransactionType.add) {
+        String pts = item.pointsController?.text.trim() ?? "";
+        return "[加選] ${item.name} (點數/志願: ${pts.isEmpty ? '0' : pts})";
+      } else {
+        return "[退選] ${item.name}";
+      }
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("確認送出選課結果"),
+        content: SizedBox(
+          width: 450, // 增加寬度以顯示完整資訊
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("即將執行 ${logs.length} 項操作：\n"),
+                ...logs.map(
+                  (l) => Text(
+                    l,
+                    style: TextStyle(
+                      color: l.startsWith("[退選]")
+                          ? Colors.red
+                          : Colors.blue[800],
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  "注意：送出過程可能需要幾秒鐘。",
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("取消"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              _processSubmission();
+            },
+            child: const Text(
+              "確定送出",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _processSubmission() async {
@@ -1032,6 +1168,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       builder: (loadingContext) =>
           const Center(child: CircularProgressIndicator()),
     );
+
     try {
       List<submit_service.PendingTransaction> serviceItems = _pendingItems.map((
         uiItem,
@@ -1045,31 +1182,67 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           points: uiItem.pointsController?.text.trim() ?? "",
         );
       }).toList();
+
       final result = await submit_service.CourseSelectionSubmitService.instance
           .submitTransactions(serviceItems);
+
       if (!mounted) return;
-      Navigator.pop(context);
-      if (result.success == true) {
+      Navigator.pop(context); // 關閉 Loading
+
+      if (result.success == false && result.failures.isNotEmpty) {
+        _showFailureDialog(result.failures);
+      } else if (result.success == true) {
         _showSuccessDialog();
-        setState(() {
-          for (var p in _pendingItems) p.pointsController?.dispose();
-          _pendingItems.clear();
-          _showEditListMode = false;
-          _saveCart();
-        });
-        widget.onRequestRefresh();
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(result.message ?? "送出失敗")));
+        _showErrorDialog(result.message);
       }
+
+      setState(() {
+        for (var p in _pendingItems) p.pointsController?.dispose();
+        _pendingItems.clear();
+        _showEditListMode = false;
+        _saveCart(); // 送出成功清空後，存檔把快取也清空
+      });
+
+      // 通知父層重整課表
+      widget.onRequestRefresh();
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("出錯了: $e")));
+      _showErrorDialog(e.toString());
     }
+  }
+
+  // --- Dialog Helpers ---
+  void _showFailureDialog(List<submit_service.FailedCourse> failures) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("⚠️ 加退選部分失敗", style: TextStyle(color: Colors.red)),
+        content: SizedBox(
+          width: 320, // 限制寬度
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: failures.length,
+            itemBuilder: (context, index) {
+              final f = failures[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.error_outline, color: Colors.red),
+                title: Text(f.courseName),
+                subtitle: Text("原因：${f.reason}"),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("我知道了"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSuccessDialog() {
@@ -1080,14 +1253,38 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           children: [
             Icon(Icons.check_circle, color: Colors.green),
             SizedBox(width: 8),
-            Text("加退選成功"),
+            Text("請求已送出"),
           ],
         ),
-        content: const Text("請求已送出，請務必稍後至官方網站確認最終課表狀態。"),
+        content: const SizedBox(
+          width: 320, // 限制寬度
+          child: Text(
+            "加退選請求已成功送至系統。\n\n⚠️ 重要提示：\n系統狀態可能會有延遲，請務必稍後使用「電腦開啟學校網站」再次確認您的課表。",
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("我了解"),
+            child: const Text("好，我會確認"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("❌ 送出失敗"),
+        content: SizedBox(
+          width: 320, // 限制寬度
+          child: Text("發生錯誤：\n$message"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("確定"),
           ),
         ],
       ),
@@ -1132,7 +1329,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         _pendingItems.clear();
         for (var map in decoded) {
           final ctrl = TextEditingController(text: map['points']);
-          ctrl.addListener(() => _saveCart());
+          ctrl.addListener(_saveCartDebounced);
           _pendingItems.add(
             PendingTransaction(
               id: map['id'],
@@ -1168,7 +1365,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         final String searchId = itemId.trim().toUpperCase();
         if (_pendingItems.any((p) => p.id.trim().toUpperCase() == searchId) ||
             widget.currentCourses.any(
-              (c) => c.courseNo.trim().toUpperCase() == searchId,
+              (c) => c.code.trim().toUpperCase() == searchId,
             )) {
           continue;
         }
@@ -1179,7 +1376,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         final ctrl = TextEditingController(
           text: item['points']?.toString() ?? "0",
         );
-        ctrl.addListener(() => _saveCart());
+        ctrl.addListener(_saveCartDebounced);
 
         setState(() {
           _pendingItems.add(
@@ -1261,9 +1458,15 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colorScheme.isDark ? Colors.purple[900]!.withOpacity(0.2) : Colors.purple[50],
+              color: colorScheme.isDark
+                  ? Colors.purple[900]!.withOpacity(0.2)
+                  : Colors.purple[50],
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colorScheme.isDark ? Colors.purple[700]! : Colors.purple[100]!),
+              border: Border.all(
+                color: colorScheme.isDark
+                    ? Colors.purple[700]!
+                    : Colors.purple[100]!,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1272,24 +1475,30 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
-                      color: colorScheme.isDark ? Colors.purple[200] : Colors.purple[700],
+                      color: colorScheme.isDark
+                          ? Colors.purple[200]
+                          : Colors.purple[700],
                       size: 20,
                     ),
                     const SizedBox(width: 10),
-                      Text(
-                        "快速匯入說明",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.isDark ? Colors.purple[200] : Colors.purple[900],
-                        ),
+                    Text(
+                      "快速匯入說明",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.isDark
+                            ? Colors.purple[200]
+                            : Colors.purple[900],
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "請貼上從「選課助手」匯出的程式碼內容。系統會解析其中的課程代碼並自動加入您的待加選清單中。",
                   style: TextStyle(
-                    color: colorScheme.isDark ? colorScheme.subtitleText : Colors.purple[800],
+                    color: colorScheme.isDark
+                        ? colorScheme.subtitleText
+                        : Colors.purple[800],
                     fontSize: 13,
                     height: 1.5,
                   ),
@@ -1313,7 +1522,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 icon: const Icon(Icons.paste_rounded, size: 18),
                 label: const Text("剪貼簿貼上"),
                 style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.isDark ? Colors.purple[200] : Colors.purple[700],
+                  foregroundColor: colorScheme.isDark
+                      ? Colors.purple[200]
+                      : Colors.purple[700],
                 ),
               ),
             ],
@@ -1333,7 +1544,11 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 filled: true,
                 fillColor: colorScheme.secondaryCardBackground,
               ),
-              style: TextStyle(fontFamily: 'monospace', fontSize: 13, color: colorScheme.primaryText),
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 13,
+                color: colorScheme.primaryText,
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -1348,7 +1563,9 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.isDark ? Colors.purple[800] : Colors.purple[700],
+                backgroundColor: colorScheme.isDark
+                    ? Colors.purple[800]
+                    : Colors.purple[700],
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1398,7 +1615,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         final String searchId = id.trim().toUpperCase();
         if (_pendingItems.any((p) => p.id.trim().toUpperCase() == searchId) ||
             widget.currentCourses.any(
-              (c) => c.courseNo.trim().toUpperCase() == searchId,
+              (c) => c.code.trim().toUpperCase() == searchId,
             )) {
           skipped++;
           continue;
@@ -1409,7 +1626,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         if (results.isNotEmpty) {
           final course = results.first;
           final ctrl = TextEditingController(text: "0"); // 預設權重
-          ctrl.addListener(() => _saveCart());
+          ctrl.addListener(_saveCartDebounced);
 
           setState(() {
             _pendingItems.add(
@@ -1461,12 +1678,12 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       // timeRoom 範例: "一1234(B101) 二56(B102)"
       String tr = c.timeRoom;
       List<Map<String, dynamic>> pTimes = [];
-      
+
       // 使用 Regex 分解時間與教室
       // 匹配「星期」接著「節次」，後面可能有括號教室
       final reg = RegExp(r'([一二三四五六日])([A1-9BC]+)');
       final matches = reg.allMatches(tr);
-      
+
       for (var m in matches) {
         int? day = dayNames[m.group(1)];
         String periods = m.group(2) ?? "";
@@ -1476,11 +1693,8 @@ class _CourseQueryTabState extends State<CourseQueryTab>
           }
         }
       }
-      
-      results.add({
-        'id': c.code,
-        'parsedTimes': pTimes,
-      });
+
+      results.add({'id': c.code, 'parsedTimes': pTimes});
     }
     return results;
   }
@@ -1512,7 +1726,8 @@ class _GlassMultiSelectDropdown extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<_GlassMultiSelectDropdown> createState() => _GlassMultiSelectDropdownState();
+  State<_GlassMultiSelectDropdown> createState() =>
+      _GlassMultiSelectDropdownState();
 }
 
 class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
@@ -1587,7 +1802,9 @@ class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
                           color: colorScheme.headerBackground,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: colorScheme.borderColor.withValues(alpha: 0.5),
+                            color: colorScheme.borderColor.withValues(
+                              alpha: 0.5,
+                            ),
                             width: 1,
                           ),
                           boxShadow: [
@@ -1668,10 +1885,7 @@ class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.borderColor,
-                  width: 0.5,
-                ),
+                border: Border.all(color: colorScheme.borderColor, width: 0.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1723,10 +1937,12 @@ class _HoverableMultiSelectOption extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<_HoverableMultiSelectOption> createState() => _HoverableMultiSelectOptionState();
+  State<_HoverableMultiSelectOption> createState() =>
+      _HoverableMultiSelectOptionState();
 }
 
-class _HoverableMultiSelectOptionState extends State<_HoverableMultiSelectOption> {
+class _HoverableMultiSelectOptionState
+    extends State<_HoverableMultiSelectOption> {
   bool _isHovering = false;
 
   @override
@@ -1748,12 +1964,16 @@ class _HoverableMultiSelectOptionState extends State<_HoverableMultiSelectOption
           decoration: BoxDecoration(
             color: isSelected
                 ? cs.accentBlue.withValues(alpha: 0.1)
-                : (_isHovering ? cs.accentBlue.withValues(alpha: 0.05) : Colors.transparent),
+                : (_isHovering
+                      ? cs.accentBlue.withValues(alpha: 0.05)
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? cs.accentBlue.withValues(alpha: 0.3)
-                  : (_isHovering ? cs.accentBlue.withValues(alpha: 0.2) : Colors.transparent),
+                  : (_isHovering
+                        ? cs.accentBlue.withValues(alpha: 0.2)
+                        : Colors.transparent),
             ),
             boxShadow: _isHovering && !isSelected
                 ? [
@@ -1768,16 +1988,24 @@ class _HoverableMultiSelectOptionState extends State<_HoverableMultiSelectOption
           child: Row(
             children: [
               Icon(
-                isSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+                isSelected
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
                 size: 18,
-                color: isSelected ? cs.accentBlue : (_isHovering ? cs.accentBlue.withValues(alpha: 0.6) : cs.subtitleText),
+                color: isSelected
+                    ? cs.accentBlue
+                    : (_isHovering
+                          ? cs.accentBlue.withValues(alpha: 0.6)
+                          : cs.subtitleText),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   widget.label,
                   style: TextStyle(
-                    color: isSelected || _isHovering ? cs.primaryText : cs.subtitleText,
+                    color: isSelected || _isHovering
+                        ? cs.primaryText
+                        : cs.subtitleText,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     fontSize: 13,
                   ),
@@ -1787,6 +2015,67 @@ class _HoverableMultiSelectOptionState extends State<_HoverableMultiSelectOption
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CourseEvaluationView extends StatefulWidget {
+  final Future<List<String>> Function() onLoad;
+  const _CourseEvaluationView({Key? key, required this.onLoad}) : super(key: key);
+
+  @override
+  State<_CourseEvaluationView> createState() => _CourseEvaluationViewState();
+}
+
+class _CourseEvaluationViewState extends State<_CourseEvaluationView> {
+  late Future<List<String>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.onLoad();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return FutureBuilder<List<String>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Text(
+            "尚無評分細節",
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.subtitleText,
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: snapshot.data!
+              .map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    "• $e",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.primaryText,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
     );
   }
 }

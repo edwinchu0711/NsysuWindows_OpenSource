@@ -93,7 +93,6 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
   String? _cachedApiKey; // 用於儲存當前的 API Key
 
   static const List<(String, String)> _predefinedModels = [
-    ('gemini-3.1-flash-lite-preview', "Gemini 3.1 Flash-Lite"),
     ('gemini-flash-lite-latest', "Flash-Lite-Latest"),
     ('gemini-flash-latest', "Flash-Latest"),
     ('gemma-4-31b-it', "Gemma 4"),
@@ -104,6 +103,26 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
     super.initState();
     _loadConversations();
     _focusNode.addListener(_onFocusChange);
+    _initializeServicesIfNeeded();
+  }
+
+  Future<void> _initializeServicesIfNeeded() async {
+    bool needsUpdate = false;
+    if (!LocalCourseService.instance.isInitialized) {
+      await LocalCourseService.instance.init();
+      if (LocalCourseService.instance.isInitialized) {
+        needsUpdate = true;
+      }
+    }
+    if (!DatabaseEmbeddingService.instance.isInitialized) {
+      await DatabaseEmbeddingService.instance.init();
+      if (DatabaseEmbeddingService.instance.isInitialized) {
+        needsUpdate = true;
+      }
+    }
+    if (needsUpdate && mounted) {
+      setState(() {});
+    }
   }
 
   void _onFocusChange() {
@@ -1761,25 +1780,139 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
   /// Single newlines between non-block lines → double newlines (paragraph breaks),
   /// because standard markdown treats single \n as a space.
   static String _preprocessMarkdown(String text) {
-    // NEW: remove HTML <br> tags (case-insensitive), including:
-    // <br>, <br/>, <br />
+    // ─────────────────────────────────────────
+    // Rule 2: If a '-' is in the middle of a line and followed by ':' or '：'
+    // within 5 characters, insert a newline before it.
+    // ⚠️ Skip table separator lines (e.g. | :-- | --- |)
+    // ─────────────────────────────────────────
+    text = text.replaceAllMapped(
+      RegExp(r'([^ \t\n])([ \t]*)(-|(?<!\*)\*(?!\*))'),
+      (match) {
+        final lineStart = text.lastIndexOf('\n', match.start) + 1;
+        final lineEnd = text.indexOf('\n', match.start);
+        final fullLine = text.substring(
+          lineStart,
+          lineEnd == -1 ? text.length : lineEnd,
+        );
+        if (RegExp(r'^\s*\|[\s\|\-\:]+\|\s*$').hasMatch(fullLine)) {
+          return match.group(0)!; // 表格分隔線不處理
+        }
+
+        final prefixChar = match.group(1)!;
+        final spaces = match.group(2)!;
+        final marker = match.group(3)!; // 這次抓到的是 '-' 還是 '*'
+        final matchEnd = match.end;
+
+        // 視窗拉長到 12 字元，並先濾掉 * 再判斷冒號，
+        // 這樣 "* **課程衝突**：" 這種粗體標籤也抓得到
+        final rawWindow = text.substring(
+          matchEnd,
+          matchEnd + 12 > text.length ? text.length : matchEnd + 12,
+        );
+        final remaining = rawWindow.replaceAll('*', '');
+
+        // 避免 "--" 雙連字號誤判（* 因為前面已用 lookahead 排除過 "**"，這裡其實一定不會中）
+        if (rawWindow.startsWith(marker)) {
+          return match.group(0)!;
+        }
+
+        const punctuation = '。，、；：！？」』）…—～.,;:!?)"\'';
+        if (spaces.isEmpty && punctuation.contains(prefixChar)) {
+          return '$prefixChar\n$marker';
+        }
+
+        if (remaining.contains(':') || remaining.contains('：')) {
+          return '$prefixChar$spaces\n$marker';
+        }
+
+        return match.group(0)!;
+      },
+    );
+    // ─────────────────────────────────────────
+    // Rule 1: If a line starts with '-' (allowing leading whitespace),
+    // ensure there is a space after it.
+    // ─────────────────────────────────────────
+    text = text.replaceAllMapped(
+      RegExp(r'^(\s*-)([^ \t\n\-])', multiLine: true),
+      (match) => '${match.group(1)} ${match.group(2)}',
+    );
+
+    // ─────────────────────────────────────────
+    // Remove HTML <br> tags (case-insensitive)
+    // ─────────────────────────────────────────
     text = text.replaceAll(
       RegExp(r'<\s*br\s*/?\s*>', caseSensitive: false),
       '',
     );
 
+    // ─────────────────────────────────────────
+    // Single-line fast path
+    // ─────────────────────────────────────────
     final lines = text.split('\n');
-    if (lines.length <= 1) return text;
+    if (lines.length <= 1) {
+      return text.replaceAllMapped(RegExp(r'([^#\n])\s*(#{1,6}\s+)'), (match) {
+        return '${match.group(1)}\n\n${match.group(2)}';
+      });
+    }
 
+    // ─────────────────────────────────────────
+    // Main line-by-line processing
+    // ─────────────────────────────────────────
     final buffer = StringBuffer();
+    bool inCodeBlock = false;
 
     for (int i = 0; i < lines.length; i++) {
-      final current = lines[i];
+      var current = lines[i];
+
+      // Track code block state
+      final isCodeFence = current.trimLeft().startsWith('```');
+      if (isCodeFence) {
+        inCodeBlock = !inCodeBlock;
+      }
+
+      if (!inCodeBlock && !isCodeFence) {
+        // Fix any middle-of-line headings
+        current = current.replaceAllMapped(
+          RegExp(r'([^#\n])\s*(#{1,6}\s+)'),
+          (match) => '${match.group(1)}\n\n${match.group(2)}',
+        );
+
+        // Fix "***text**" → "* **text**"
+        current = current.replaceAllMapped(
+          RegExp(r'^(\s*)\*(\*\*.+)$'),
+          (match) => '${match.group(1)}* ${match.group(2)}',
+        );
+
+        // Escape lone leading * that are NOT list items and NOT bold
+        final trimmed = current.trimLeft();
+        final leadingSpaces = current.substring(
+          0,
+          current.length - trimmed.length,
+        );
+
+        if (trimmed.startsWith('*')) {
+          final afterStar = trimmed.substring(1);
+          final isListItem = afterStar.startsWith(' ');
+          final isBold = afterStar.startsWith('*');
+
+          if (!isListItem && !isBold) {
+            current = '$leadingSpaces\\*$afterStar';
+          }
+        }
+      }
+
       buffer.write(current);
 
+      // Last line — no trailing newline logic needed
       if (i >= lines.length - 1) continue;
 
       final next = lines[i + 1];
+
+      // Always preserve newlines inside code blocks
+      if (inCodeBlock) {
+        buffer.write('\n');
+        continue;
+      }
 
       final currentBlank = current.trim().isEmpty;
       final nextBlank = next.trim().isEmpty;
@@ -1790,13 +1923,28 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
       final currentIsTable = !currentBlank && _isTableLine(current);
       final nextIsTable = !nextBlank && _isTableLine(next);
 
+      final nextIsHeading = !nextBlank && _isHeadingLine(next);
+
       if (currentBlank || nextBlank) {
+        // Preserve existing blank lines as-is
         buffer.write('\n');
+      } else if (nextIsHeading) {
+        // Always ensure a blank line before headings
+        buffer.write('\n\n');
       } else if (currentIsTable && nextIsTable) {
+        // Inside a table: single newline only
         buffer.write('\n');
+      } else if (!currentIsTable && nextIsTable) {
+        // Entering a table: force a blank line before it
+        buffer.write('\n\n');
+      } else if (currentIsTable && !nextIsTable) {
+        // Leaving a table: force a blank line after it
+        buffer.write('\n\n');
       } else if (currentIsBlock && nextIsBlock) {
+        // Consecutive block elements (lists, etc.)
         buffer.write('\n');
       } else {
+        // Default: separate with blank line
         buffer.write('\n\n');
       }
     }
@@ -1804,21 +1952,28 @@ class _AssistantAiPaneState extends State<AssistantAiPane> {
     return buffer.toString();
   }
 
+  // ─────────────────────────────────────────
+  // Helper: detect Markdown table lines
+  // Handles both data rows (| a | b |) and separator rows (| :-- | --- |)
+  // ─────────────────────────────────────────
   static bool _isTableLine(String line) {
-    final t = line.trim();
-    if (t.isEmpty) return false;
-    if (!t.contains('|')) return false;
+    final trimmed = line.trim();
+    if (!trimmed.contains('|')) return false;
 
-    if (_isTableSeparatorLine(t)) return true;
+    // Separator row: | :-- | --- | :--: | :-: |
+    if (RegExp(r'^\|[\s\|\-\:\+]+\|$').hasMatch(trimmed)) return true;
 
-    final parts = t.split('|').map((e) => e.trim()).toList();
+    // Data row: must start AND end with |, and have at least 2 pipes (= 1 column)
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      return trimmed.split('|').length >= 3;
+    }
 
-    if (parts.isNotEmpty && parts.first.isEmpty) parts.removeAt(0);
-    if (parts.isNotEmpty && parts.last.isEmpty) parts.removeLast();
+    return false;
+  }
 
-    if (parts.length < 2) return false;
-
-    return parts.any((c) => c.isNotEmpty);
+  static bool _isHeadingLine(String line) {
+    final t = line.trimLeft();
+    return t.startsWith('#');
   }
 
   static bool _isTableSeparatorLine(String line) {

@@ -1,13 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/open_score_service.dart';
 import '../theme/app_theme.dart';
 
 class OpenScorePage extends StatelessWidget {
+  const OpenScorePage({Key? key}) : super(key: key);
 
-  const OpenScorePage({
-    Key? key,
-  }) : super(key: key);
+  void _showRawHtmlDialog(BuildContext context, String? html) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("原始伺服器回應 (HTML/偵錯資訊)"),
+              IconButton(
+                icon: const Icon(Icons.copy_rounded),
+                tooltip: "複製內容",
+                onPressed: () {
+                  if (html != null) {
+                    Clipboard.setData(ClipboardData(text: html));
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿")));
+                  }
+                },
+              ),
+            ],
+          ),
+          content: Container(
+            width: double.maxFinite,
+            height: MediaQuery.of(context).size.height * 0.6,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                html ?? "無偵錯資訊 (尚未進行抓取或無紀錄)",
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  color: Colors.greenAccent,
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("關閉"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   /// 建立右側狀態顯示區塊 (總分或查無資料)
   Widget _buildTrailingWidget(
@@ -112,13 +163,41 @@ class OpenScorePage extends StatelessWidget {
                           onPressed: () => context.go('/home'),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          "開放成績查詢",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primaryText,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "開放成績查詢",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primaryText,
+                              ),
+                            ),
+                            ValueListenableBuilder<String?>(
+                              valueListenable:
+                                  OpenScoreService.instance.lastUpdatedNotifier,
+                              builder: (context, lastUpdated, child) {
+                                if (lastUpdated == null ||
+                                    lastUpdated.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Text(
+                                  "最近更新: $lastUpdated",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.subtitleText,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -133,6 +212,103 @@ class OpenScorePage extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+
+          // 錯誤提示區塊 (移至標題列下方)
+          ValueListenableBuilder<String?>(
+            valueListenable: OpenScoreService.instance.errorCodeNotifier,
+            builder: (context, errorCode, child) {
+              if (errorCode == null || errorCode.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(
+                          colorScheme.isDark ? 0.2 : 0.07,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withOpacity(0.4)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 1),
+                            child: Icon(
+                              Icons.error_outline_rounded,
+                              color: Colors.red,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  errorCode,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(
+                                      color: Colors.red,
+                                      width: 0.8,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.bug_report_rounded,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    "查看伺服器回應 (HTML)",
+                                    style: TextStyle(fontSize: 11),
+                                  ),
+                                  onPressed: () {
+                                    final html = OpenScoreService
+                                        .instance
+                                        .lastRawHtmlNotifier
+                                        .value;
+                                    _showRawHtmlDialog(context, html);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
 
           // 2. 頁面說明小提醒 (更精簡)
@@ -187,7 +363,7 @@ class OpenScorePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "本功能僅在每年 5/15~6/15 及 12/15~1/15 自動更新，其餘期間若有需要請手動更新。",
+                              "本功能僅在每年 5/15~6/25 及 12/15~1/25 自動更新，其餘期間若有需要請手動更新。",
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -243,15 +419,35 @@ class OpenScorePage extends StatelessWidget {
                       return Center(
                         child: isLoading
                             ? const SizedBox.shrink()
-                            : Text(
-                                "目前沒有成績資料\n請嘗試點擊重新整理按鈕",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.subtitleText,
-                                  fontSize: 14,
-                                ),
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "目前沒有成績資料\n請嘗試點擊重新整理按鈕",
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.subtitleText,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  OutlinedButton.icon(
+                                    icon: const Icon(
+                                      Icons.bug_report_rounded,
+                                      size: 16,
+                                    ),
+                                    label: const Text("查看伺服器回應 (HTML)"),
+                                    onPressed: () {
+                                      final html = OpenScoreService
+                                          .instance
+                                          .lastRawHtmlNotifier
+                                          .value;
+                                      _showRawHtmlDialog(context, html);
+                                    },
+                                  ),
+                                ],
                               ),
                       );
                     }

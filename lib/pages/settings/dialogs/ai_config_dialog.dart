@@ -544,22 +544,18 @@ class _AiConfigDialogState extends State<AiConfigDialog> {
                 _isTestSuccess = null;
               }),
             ),
-            if (_type == 'google' ||
-                _type == 'openai' ||
-                _type == 'nvidia') ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _fetchModels,
-                  icon: const Icon(Icons.list_alt_rounded, size: 18),
-                  label: const Text("查看可用模型"),
-                  style: TextButton.styleFrom(
-                    foregroundColor: colorScheme.accentBlue,
-                  ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _fetchModels,
+                icon: const Icon(Icons.list_alt_rounded, size: 18),
+                label: const Text("查看可用模型"),
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.accentBlue,
                 ),
               ),
-            ],
+            ),
             const SizedBox(height: 12),
             if (_testResultMessage != null)
               TestResultCard(_testResultMessage!, _isTestSuccess),

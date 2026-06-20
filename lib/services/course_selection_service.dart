@@ -70,7 +70,7 @@ class CourseSelectionService {
 
   /// 主要功能：抓取選課結果
   Future<Map<String, dynamic>> fetchSelectionResult() async {
-    debugPrint("🔍 [偵錯] 開始執行 fetchSelectionResult...");
+    // debugPrint("🔍 [偵錯] 開始執行 fetchSelectionResult...");
 
     try {
       final credentials = await StorageService.instance.getCredentials();
@@ -83,17 +83,17 @@ class CourseSelectionService {
       }
 
       // 1. 登入
-      debugPrint("🔍 [偵錯] 正在登入...");
+      // debugPrint("🔍 [偵錯] 正在登入...");
       String? cookie = await _loginViaSSO2(studentId, password);
       if (cookie == null) {
         debugPrint("❌ [偵錯] 登入失敗 (Cookie 為 null)");
         throw "登入失敗，請檢查帳號密碼";
       }
-      debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
+      // debugPrint("✅ [偵錯] 登入成功，Cookie 取得");
 
       // --- [新步驟] 2. Request main_frame.asp 取得參數 ---
       final mainFrameUrl = Uri.parse("$_baseUrl/menu4/main_frame.asp");
-      debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
+      // debugPrint("🔍 [偵錯] 請求 MainFrame: $mainFrameUrl");
 
       final mainFrameResponse = await _client.get(
         mainFrameUrl,
@@ -119,7 +119,7 @@ class CourseSelectionService {
       String studFunParams = "";
       if (paramMatch != null) {
         studFunParams = paramMatch.group(1) ?? "";
-        debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
+        // debugPrint("✅ [偵錯] 成功抓取參數串: $studFunParams");
       } else {
         debugPrint("⚠️ [偵錯] 在 main_frame 無法抓取參數，將嘗試不帶參數進入 (可能失敗)");
         // 印出 Body 前段供除錯
@@ -136,7 +136,7 @@ class CourseSelectionService {
       }
 
       final studFunUrl = Uri.parse(studFunUrlString);
-      debugPrint("🔍 [偵錯] 請求選單頁面 (帶參): $studFunUrl");
+      // debugPrint("🔍 [偵錯] 請求選單頁面 (帶參): $studFunUrl");
 
       final response = await _client.get(
         studFunUrl,
@@ -147,7 +147,7 @@ class CourseSelectionService {
         },
       );
       String body = utf8.decode(response.bodyBytes, allowMalformed: true);
-      debugPrint("📄 [偵錯] Studfun.asp 回傳長度: ${body.length}");
+      // debugPrint("📄 [偵錯] Studfun.asp 回傳長度: ${body.length}");
 
       // --- 4. 尋找第一個 <a> 連結 ---
       RegExp hrefReg = RegExp(r'<a\s+href="([^"]+)"', caseSensitive: false);
@@ -172,7 +172,7 @@ class CourseSelectionService {
 
       // --- 6. 進入選課頁面 ---
       String targetUrl = "$_baseUrl/menu4/$firstLink";
-      debugPrint("🔍 [偵錯] 準備請求目標選課頁面: $targetUrl");
+      //  debugPrint("🔍 [偵錯] 準備請求目標選課頁面: $targetUrl");
 
       final selectionRes = await _client.get(
         Uri.parse(targetUrl),
@@ -202,7 +202,7 @@ class CourseSelectionService {
       }
 
       //  / --- [新步驟] 7.5 如果沒有預選確認，強制導向到選課結果頁面 ---
-      debugPrint("🔍 [偵錯] 無須確認，導向至已選結果頁面...");
+      // debugPrint("🔍 [偵錯] 無須確認，導向至已選結果頁面...");
       final resultUrl = Uri.parse(
         "$_baseUrl/menu4/query/slt_result.asp?admit=0",
       );
@@ -219,14 +219,14 @@ class CourseSelectionService {
 
       // 更新 selectionBody 為新頁面的內容
       selectionBody = utf8.decode(resultRes.bodyBytes, allowMalformed: true);
-      debugPrint("📄 [偵錯] 已選結果頁面回傳長度: ${selectionBody.length}");
+      // debugPrint("📄 [偵錯] 已選結果頁面回傳長度: ${selectionBody.length}");
 
       // --- 8. 解析表格資料 ---
-      debugPrint("🔍 [偵錯] 開始解析表格...");
+      // debugPrint("🔍 [偵錯] 開始解析表格...");
 
       // 使用新的 selectionBody (slt_result.asp 的內容) 進行解析
       List<CourseSelectionData> courses = _parseSelectionTable(selectionBody);
-      debugPrint("✅ [偵錯] 解析完成，共找到 ${courses.length} 門課");
+      // debugPrint("✅ [偵錯] 解析完成，共找到 ${courses.length} 門課");
 
       return {'state': SelectionState.open, 'data': courses};
     } catch (e) {
@@ -248,7 +248,7 @@ class CourseSelectionService {
 
     // 2. 切割列
     List<String> rawRows = processedHtml.split('</tr>');
-    debugPrint("📋 [解析] 切割出 ${rawRows.length} 個區塊");
+    // debugPrint("📋 [解析] 切割出 ${rawRows.length} 個區塊");
 
     int validRowCount = 0;
 
@@ -291,7 +291,7 @@ class CourseSelectionService {
         // 有些標題寫 "選上<br>與否"，strip後變成 "選上與否"，但有時候資料列也可能只寫"選上"
         // 所以多檢查第二欄標題確保萬無一失
         if (strip(cells[1]).contains("系所別")) {
-          debugPrint("   -> 跳過標題列");
+          // debugPrint("   -> 跳過標題列");
           continue;
         }
       }
@@ -356,7 +356,7 @@ class CourseSelectionService {
       }
     }
 
-    debugPrint("✅ [解析] 完成，共擷取到 ${results.length} 門課程");
+    // debugPrint("✅ [解析] 完成，共擷取到 ${results.length} 門課程");
     return results;
   }
 

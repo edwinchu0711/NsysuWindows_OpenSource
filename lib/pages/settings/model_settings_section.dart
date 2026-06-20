@@ -130,7 +130,6 @@ class _ModelSettingsSectionState extends State<ModelSettingsSection>
         hasTarget = true;
         _simpleApiKeyController.text = firstGoogle.apiKey;
         if ([
-          'gemini-3.1-flash-lite-preview',
           'gemini-flash-lite-latest',
           'gemini-flash-latest',
           'gemma-4-31b-it',
@@ -354,16 +353,12 @@ class _ModelSettingsSectionState extends State<ModelSettingsSection>
                 runSpacing: 8,
                 children:
                     [
-                      'gemini-3.1-flash-lite-preview',
                       'gemini-flash-lite-latest',
                       'gemini-flash-latest',
                       'gemma-4-31b-it',
                     ].map((m) {
                       final isSelected = _selectedSimpleModel == m;
                       String label = m;
-                      if (m == 'gemini-3.1-flash-lite-preview') {
-                        label = "Gemini 3.1 Flash-Lite";
-                      }
                       if (m == 'gemini-flash-lite-latest') {
                         label = "Flash-Lite-Latest";
                       }
@@ -855,9 +850,7 @@ class _ModelSettingsSectionState extends State<ModelSettingsSection>
     }
 
     String modelName = "Google";
-    if (_selectedSimpleModel == 'gemini-3.1-flash-lite-preview') {
-      modelName = "Gemini 3.1 Flash-Lite";
-    } else if (_selectedSimpleModel == 'gemini-flash-lite-latest') {
+    if (_selectedSimpleModel == 'gemini-flash-lite-latest') {
       modelName = "Flash-Lite-Latest";
     } else if (_selectedSimpleModel == 'gemini-flash-latest') {
       modelName = "Flash-Latest";

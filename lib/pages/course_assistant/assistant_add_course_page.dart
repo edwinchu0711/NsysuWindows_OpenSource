@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,6 +82,17 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     "F": "F (21:05)",
   };
 
+  Timer? _debounce;
+
+  void _onSearchChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _performSearch();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +102,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           .map((c) => c['code'].toString())
           .toSet();
     }
+    _mergedQueryCtrl.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadExistingAssistantCourses().then((_) => _performSearch());
     });
@@ -105,6 +118,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
   @override
   void dispose() {
+    _mergedQueryCtrl.removeListener(_onSearchChanged);
+    _debounce?.cancel();
     _mergedQueryCtrl.dispose();
     super.dispose();
   }
@@ -734,6 +749,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   // 同步更新父層與 Sheet 內部狀態
                                   setState(() => _filterConflict = v);
                                   setSheetState(() {});
+                                  _performSearch();
                                 },
                                 activeColor: Theme.of(
                                   context,
@@ -754,6 +770,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                               onChanged: (newSet) {
                                 setState(() => _selectedGrades = newSet);
                                 setSheetState(() {});
+                                _performSearch();
                               },
                             ),
                           ),
@@ -781,6 +798,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                               onChanged: (v) {
                                 setState(() => _selectedClass = v);
                                 setSheetState(() {});
+                                _performSearch();
                               },
                             ),
                           ),
@@ -805,6 +823,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                               onChanged: (newSet) {
                                 setState(() => _selectedDays = newSet);
                                 setSheetState(() {});
+                                _performSearch();
                               },
                             ),
                           ),
@@ -817,6 +836,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                               onChanged: (newSet) {
                                 setState(() => _selectedPeriods = newSet);
                                 setSheetState(() {});
+                                _performSearch();
                               },
                             ),
                           ),
@@ -956,7 +976,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 label: "年級",
                 values: _selectedGrades,
                 options: _gradeOptions,
-                onChanged: (newSet) => setState(() => _selectedGrades = newSet),
+                onChanged: (newSet) {
+                  setState(() => _selectedGrades = newSet);
+                  _performSearch();
+                },
               ),
             ),
             const SizedBox(width: 8),
@@ -966,7 +989,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 label: "星期",
                 values: _selectedDays,
                 options: _dayOptions,
-                onChanged: (newSet) => setState(() => _selectedDays = newSet),
+                onChanged: (newSet) {
+                  setState(() => _selectedDays = newSet);
+                  _performSearch();
+                },
               ),
             ),
             const SizedBox(width: 8),
@@ -976,8 +1002,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                 label: "節次",
                 values: _selectedPeriods,
                 options: _periodOptions,
-                onChanged: (newSet) =>
-                    setState(() => _selectedPeriods = newSet),
+                onChanged: (newSet) {
+                  setState(() => _selectedPeriods = newSet);
+                  _performSearch();
+                },
               ),
             ),
             const SizedBox(width: 8),

@@ -87,9 +87,7 @@ class CourseEvaluationService {
           }
         }
 
-        debugPrint(
-          '[CourseEvaluationService] 抓到名稱: ${names.length} 個, 百分比: ${pcts.length} 個',
-        );
+        // debugPrint('[CourseEvaluationService] 抓到名稱: ${names.length} 個, 百分比: ${pcts.length} 個',);
 
         List<String> evals = [];
         int index = 1;

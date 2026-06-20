@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 /// 全域應用主題定義
@@ -115,7 +116,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith<Color?>((states) {
           if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary.withOpacity(0.5);
+            return colorScheme.primary.withValues(alpha: 0.5);
           }
           return isDark ? Colors.white24 : null;
         }),

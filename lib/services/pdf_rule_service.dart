@@ -111,33 +111,60 @@ class PdfRuleService {
     _lastErrorMessage = null;
 
     try {
-      // 1. 取得 PDF URL
-      String targetUrl;
-      if (pdfUrl != null) {
-        targetUrl = pdfUrl;
-      } else {
-        final scrapedUrl = await _scrapePdfUrl();
-        if (scrapedUrl == null) {
-          _lastErrorMessage =
-              '目前無法在選課網站找到選課須知 PDF，可能是學校尚未公告。請稍後再試或直接前往 selcrs.nsysu.edu.tw 查看。';
-          return false;
+      // 1. 先嘗試從 MD 網址取得資料
+      bool mdSuccess = false;
+      const mdUrl = 'https://edwinchu0711.github.io/CourseSelectionDateUpdate/course-selection/course-selection.md';
+      try {
+        final mdResponse = await http
+            .get(Uri.parse(mdUrl))
+            .timeout(const Duration(seconds: 10));
+        if (mdResponse.statusCode == 200) {
+          final mdText = mdResponse.body;
+          if (mdText.length >= 1500) {
+            _cachedText = mdText;
+            _lastErrorMessage = null;
+            await _saveToPersistentCache(mdText, mdUrl);
+            debugPrint('[PdfRuleService] Loaded ${mdText.length} chars from MD URL');
+            mdSuccess = true;
+          } else {
+            debugPrint('[PdfRuleService] MD file content length (${mdText.length}) is less than 1500, falling back to PDF method');
+          }
+        } else {
+          debugPrint('[PdfRuleService] MD file fetch returned HTTP ${mdResponse.statusCode}, falling back to PDF method');
         }
-        targetUrl = scrapedUrl;
+      } catch (e) {
+        debugPrint('[PdfRuleService] MD file fetch failed with error: $e, falling back to PDF method');
       }
 
-      // 2. 下載 PDF
-      final pdfBytes = await _downloadPdf(targetUrl);
+      if (!mdSuccess) {
+        // 2. 取得 PDF URL
+        String targetUrl;
+        if (pdfUrl != null) {
+          targetUrl = pdfUrl;
+        } else {
+          final scrapedUrl = await _scrapePdfUrl();
+          if (scrapedUrl == null) {
+            _lastErrorMessage =
+                '目前無法在選課網站找到選課須知 PDF，可能是學校尚未公告。請稍後再試或直接前往 selcrs.nsysu.edu.tw 查看。';
+            return false;
+          }
+          targetUrl = scrapedUrl;
+        }
 
-      // 3. 提取文字
-      final text = _extractTextFromPdf(pdfBytes);
+        // 3. 下載 PDF
+        final pdfBytes = await _downloadPdf(targetUrl);
 
-      _cachedText = text;
-      _lastErrorMessage = null;
+        // 4. 提取文字
+        final text = _extractTextFromPdf(pdfBytes);
 
-      // 4. 寫入持久化快取
-      await _saveToPersistentCache(text, targetUrl);
+        _cachedText = text;
+        _lastErrorMessage = null;
 
-      debugPrint('[PdfRuleService] Loaded ${text.length} chars from $targetUrl');
+        // 5. 寫入持久化快取
+        await _saveToPersistentCache(text, targetUrl);
+
+        debugPrint('[PdfRuleService] Loaded ${text.length} chars from $targetUrl');
+      }
       return true;
     } on _PdfRuleException catch (e) {
       _lastErrorMessage = e.message;
@@ -182,14 +209,25 @@ class PdfRuleService {
 
       // Fallback: 頁面上所有 PDF 連結，優先含「選課」「須知」的
       final allPdfLinks = _findAllPdfLinks(document, baseUrl);
+      final candidateFallbackUrls = <String>[];
       for (final kw in ['選課', '須知', '課程', '注意']) {
         for (final link in allPdfLinks) {
           if (link.text.contains(kw) || link.url.contains(kw)) {
-            return link.url;
+            candidateFallbackUrls.add(link.url);
+            if (candidateFallbackUrls.length >= 3) break;
           }
         }
+        if (candidateFallbackUrls.isNotEmpty) break;
       }
-      if (allPdfLinks.isNotEmpty) return allPdfLinks.first.url;
+
+      if (candidateFallbackUrls.isNotEmpty) {
+        return _selectLargestFilename(candidateFallbackUrls);
+      }
+
+      if (allPdfLinks.isNotEmpty) {
+        final firstThreeAll = allPdfLinks.take(3).map((l) => l.url).toList();
+        return _selectLargestFilename(firstThreeAll);
+      }
 
       return null;
     } on _PdfRuleException {
@@ -201,8 +239,9 @@ class PdfRuleService {
 
   String? _findPdfLink(dynamic document, String baseUrl) {
     final keywords = ['選課須知', '選課須知及注意事項', '選課手冊'];
-
     final anchors = document.querySelectorAll('a');
+    final candidateUrls = <String>[];
+
     for (final a in anchors) {
       final href = a.attributes['href'] ?? '';
       final text = (a.text ?? '') + (a.attributes['title'] ?? '');
@@ -215,8 +254,13 @@ class PdfRuleService {
       );
 
       if (isPdf && hasKeyword) {
-        return _resolveUrl(baseUrl, href);
+        candidateUrls.add(_resolveUrl(baseUrl, href));
+        if (candidateUrls.length >= 3) break;
       }
+    }
+
+    if (candidateUrls.isNotEmpty) {
+      return _selectLargestFilename(candidateUrls);
     }
 
     // 找含關鍵字的 PDF
@@ -227,12 +271,57 @@ class PdfRuleService {
         final resolved = _resolveUrl(baseUrl, href);
         if (resolved.toLowerCase().endsWith('.pdf') ||
             resolved.toLowerCase().contains('.pdf?')) {
-          return resolved;
+          candidateUrls.add(resolved);
+          if (candidateUrls.length >= 3) break;
         }
       }
     }
 
+    if (candidateUrls.isNotEmpty) {
+      return _selectLargestFilename(candidateUrls);
+    }
+
     return null;
+  }
+
+  String _selectLargestFilename(List<String> urls) {
+    if (urls.isEmpty) return '';
+    if (urls.length == 1) return urls.first;
+
+    String bestUrl = urls.first;
+    String bestFilename = _getFilename(bestUrl);
+
+    for (int i = 1; i < urls.length; i++) {
+      final currentUrl = urls[i];
+      final currentFilename = _getFilename(currentUrl);
+      if (currentFilename.compareTo(bestFilename) > 0) {
+        bestUrl = currentUrl;
+        bestFilename = currentFilename;
+      }
+    }
+    return bestUrl;
+  }
+
+  String _getFilename(String url) {
+    String filename = url;
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+      if (segments.isNotEmpty) {
+        filename = segments.last;
+      }
+    } catch (_) {
+      final lastSlash = url.lastIndexOf('/');
+      if (lastSlash != -1 && lastSlash < url.length - 1) {
+        filename = url.substring(lastSlash + 1);
+      }
+    }
+    // Remove query parameters if any (e.g. filename.pdf?v=123)
+    final questionMarkIndex = filename.indexOf('?');
+    if (questionMarkIndex != -1) {
+      filename = filename.substring(0, questionMarkIndex);
+    }
+    return filename;
   }
 
   String? _findSubLink(dynamic document, String baseUrl) {

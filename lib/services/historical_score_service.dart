@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io'; // 用於 HttpClient
+import 'dart:async';
 import 'package:http/io_client.dart'; // 用於將 HttpClient 包裝成 http.Client
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -7,7 +8,6 @@ import 'package:html/parser.dart' as parser;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/utils.dart';
 import 'storage_service.dart';
-import 'package:html/dom.dart' as dom; // ★ 1. 加上別名避免跟 Flutter 衝突
 
 // --- 資料模型 ---
 class CourseScore {
@@ -48,8 +48,17 @@ class HistoricalScoreService {
     // 改由外部 (如 main.dart) 在存儲系統就緒後顯式調用 loadFromCache()
   }
 
-  final http.Client _client = http.Client();
+  http.Client _client = http.Client();
+
+  void _recreateClient() {
+    try {
+      _client.close();
+    } catch (_) {}
+    _client = http.Client();
+  }
+
   static const String CACHE_KEY = "historical_scores_data_plain_v3";
+  static const String LAST_UPDATED_KEY = "historical_scores_last_updated";
 
   // 狀態監聽器
   final ValueNotifier<Map<String, List<CourseScore>>> coursesNotifier =
@@ -59,6 +68,10 @@ class HistoricalScoreService {
   // ★★★ 新增：存放預覽名次的 Notifier (Key: year-sem, Value: {rank, classSize})
   final ValueNotifier<Map<String, Map<String, String>>> previewRanksNotifier =
       ValueNotifier({});
+  final ValueNotifier<String?> lastUpdatedNotifier = ValueNotifier<String?>(
+    null,
+  );
+  final ValueNotifier<String?> syncErrorNotifier = ValueNotifier<String?>(null);
 
   final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
   final ValueNotifier<String> statusMessageNotifier = ValueNotifier("");
@@ -76,32 +89,38 @@ class HistoricalScoreService {
     validSemestersNotifier.value = {};
     statusMessageNotifier.value = "";
     progressNotifier.value = 0.0;
+    lastUpdatedNotifier.value = null;
+    syncErrorNotifier.value = null;
 
     try {
       await StorageService.instance.remove(CACHE_KEY);
-      debugPrint("🗑️ HistoricalScoreService: 歷年成績快取已完全清除");
+      await StorageService.instance.remove(LAST_UPDATED_KEY);
+      // debugPrint("🗑️ HistoricalScoreService: 歷年成績快取已完全清除");
     } catch (e) {
-      debugPrint("❌ HistoricalScoreService 清除失敗: $e");
+      // debugPrint("❌ HistoricalScoreService 清除失敗: $e");
     }
   }
 
   /// 從本地 SharedPreferences 載入快取
   Future<void> loadFromCache() async {
-    debugPrint("📂 HistoricalScoreService: 開始從快取載入資料...");
+    // debugPrint("📂 HistoricalScoreService: 開始從快取載入資料...");
     try {
+      String? updatedStr = await StorageService.instance.read(LAST_UPDATED_KEY);
+      if (updatedStr != null) {
+        lastUpdatedNotifier.value = updatedStr;
+      }
+
       String? jsonStr = await StorageService.instance.read(CACHE_KEY);
       if (jsonStr != null && jsonStr.isNotEmpty && jsonStr.startsWith('{')) {
-        debugPrint(
-          "✅ HistoricalScoreService: 讀取到純文字快取資料，長度: ${jsonStr.length}",
-        );
+        // debugPrint("✅ HistoricalScoreService: 讀取到純文字快取資料，長度: ${jsonStr.length}",);
         Map<String, dynamic> decoded = json.decode(jsonStr);
         _processAndNotify(decoded);
-        debugPrint("✅ HistoricalScoreService: 快取資料解析並通知完成 (plain_v3)");
+        // debugPrint("✅ HistoricalScoreService: 快取資料解析並通知完成 (plain_v3)");
       } else {
-        debugPrint("ℹ️ HistoricalScoreService: 找不到可用快取資料或格式不正確 (plain_v3)");
+        // debugPrint("ℹ️ HistoricalScoreService: 找不到可用快取資料或格式不正確 (plain_v3)");
       }
     } catch (e) {
-      debugPrint("❌ HistoricalScoreService: 讀取快取失敗: $e");
+      // debugPrint("❌ HistoricalScoreService: 讀取快取失敗: $e");
     }
   }
 
@@ -134,18 +153,39 @@ class HistoricalScoreService {
         };
       });
       await StorageService.instance.save(CACHE_KEY, json.encode(dataToSave));
+      if (lastUpdatedNotifier.value != null) {
+        await StorageService.instance.save(
+          LAST_UPDATED_KEY,
+          lastUpdatedNotifier.value!,
+        );
+      }
     } catch (e) {
-      debugPrint("儲存快取失敗: $e");
+      // debugPrint("儲存快取失敗: $e");
     }
   }
 
   /// [主要進入點]
-  Future<void> fetchAllData({bool forceFullRefresh = false}) async {
-    if (isLoadingNotifier.value) return;
+  Future<void> _warmUpSession(String cookies) async {
+    await _client.get(
+      Uri.parse("https://selcrs.nsysu.edu.tw/scoreqry/sco_query_prs_sso2.asp"),
+      headers: {"Cookie": cookies, "User-Agent": "Mozilla/5.0"},
+    );
+  }
+
+  /// [主要進入點]
+  Future<void> fetchAllData({
+    bool forceFullRefresh = false,
+    bool fetchPreview = true,
+  }) async {
+    if (isLoadingNotifier.value) {
+      // debugPrint("HistoricalScoreService: 已經在同步中，忽略此次 fetchAllData()");
+      return;
+    }
 
     isLoadingNotifier.value = true;
     progressNotifier.value = 0.0;
     statusMessageNotifier.value = "檢查帳號資訊...";
+    syncErrorNotifier.value = null;
     final sw = Stopwatch()..start();
 
     try {
@@ -153,6 +193,7 @@ class HistoricalScoreService {
       String? username = credentials['username']?.trim();
       String? password = credentials['password']?.trim();
 
+      // 1. 讀取使用者設定
       final prefs = await SharedPreferences.getInstance();
       bool isPreviewSettingOn =
           prefs.getBool('is_preview_rank_enabled') ?? false;
@@ -175,10 +216,9 @@ class HistoricalScoreService {
       bool isFallRange =
           (m == 10 && d >= 15) || (m == 11) || (m == 12) || (m == 1 && d <= 5);
 
-      // 最終決定是否執行預覽抓取 (設定開啟 + 時間符合)
+      // 最終決定是否執行預覽抓取 (設定開啟 + 時間符合 + fetchPreview 參數為 true)
       bool shouldFetchPreview =
-          isPreviewSettingOn && !(isSpringRange || isFallRange);
-      debugPrint("今天是${m}月${d}日");
+          fetchPreview && isPreviewSettingOn && !(isSpringRange || isFallRange);
 
       // ===== 3. 準備學期任務 =====
       int x = now.year - 1911;
@@ -205,12 +245,15 @@ class HistoricalScoreService {
         }
       }
 
-      // ===== 4. 登入成績系統 =====
-      statusMessageNotifier.value = "正在登入系統...";
-      String? sessionCookie = await _loginToScoreSystem(username, password);
-      if (sessionCookie == null) {
-        statusMessageNotifier.value = "登入失敗";
-        return;
+      // 啟動預覽名次非同步抓取
+      Future<Map<String, Map<String, String>>>? previewFuture;
+      if (shouldFetchPreview) {
+        // debugPrint("🚀 啟動非同步抓取預覽名次...");
+        previewFuture = _fetchPreviewRanks(
+          username,
+          password,
+          null, // 不傳 progress callback 以免干擾主進度條
+        ).timeout(const Duration(seconds: 45));
       }
 
       Map<String, List<CourseScore>> newCourses = Map.from(
@@ -218,31 +261,76 @@ class HistoricalScoreService {
       );
       Map<String, ScoreSummary> newSummary = Map.from(summaryNotifier.value);
 
-      // 計算總工作量 (依據是否抓取預覽來調整分母)
       int scoreTaskCount = tasks.length;
-      int previewTaskCount = shouldFetchPreview ? 8 : 0; // 如果時間不對，這裡就是 0
-      int totalWork = scoreTaskCount + previewTaskCount;
+      bool hasAnyData = false;
+      const int maxFetchRetry = 7;
 
-      int completed = 0;
+      // ===== 4. 登入與抓取學期成績 (加入重試與重建 client 機制) =====
+      for (int i = 1; i <= maxFetchRetry; i++) {
+        // 每次嘗試都重建 Client，清除所有舊的連線與快取
+        _recreateClient();
 
-      // ===== 5. 抓取學期成績 =====
-      for (var task in tasks) {
-        String year = task.key;
-        String sem = task.value;
-        statusMessageNotifier.value = "同步中: $year-$sem";
-
-        final result = await _fetchSingleSemester(sessionCookie, year, sem);
-
-        if (result != null && result.courses.isNotEmpty) {
-          String key = "$year-$sem";
-          newCourses[key] = result.courses;
-          newSummary[key] = result.summary;
+        if (i > 1) {
+          statusMessageNotifier.value = "連線重試中 ($i/$maxFetchRetry)...";
+          await Future.delayed(Duration(milliseconds: 800 * i));
         }
 
-        completed++;
-        progressNotifier.value = totalWork > 0 ? (completed / totalWork) : 0.0;
-        await Future.delayed(const Duration(milliseconds: 120));
+        statusMessageNotifier.value = "正在登入系統 ($i/$maxFetchRetry)...";
+        String? sessionCookie = await _loginToScoreSystem(username, password);
+        if (sessionCookie == null) {
+          continue;
+        }
+
+        // 給 backend 初始化時間與暖機
+        await Future.delayed(const Duration(milliseconds: 800));
+        try {
+          await _warmUpSession(sessionCookie);
+        } catch (_) {}
+
+        int completed = 0;
+        hasAnyData = false;
+
+        for (var task in tasks) {
+          String year = task.key;
+          String sem = task.value;
+          statusMessageNotifier.value = "同步中: $year-$sem ($i/$maxFetchRetry)";
+
+          final result = await _fetchSingleSemester(sessionCookie, year, sem);
+
+          if (result != null && result.courses.isNotEmpty) {
+            String key = "$year-$sem";
+            newCourses[key] = result.courses;
+            newSummary[key] = result.summary;
+            hasAnyData = true;
+
+            // 即時更新 Notifier，讓 UI 在同步過程中能先顯示已抓取的學期
+            _processAndNotifyFromMaps(
+              newCourses,
+              newSummary,
+              previewRanksNotifier.value,
+            );
+          }
+
+          completed++;
+          progressNotifier.value = scoreTaskCount > 0
+              ? (completed / scoreTaskCount) * 0.9
+              : 0.0;
+          await Future.delayed(const Duration(milliseconds: 120));
+        }
+
+        // 如果有抓到任何資料，視為正常並跳出重試
+        if (hasAnyData) {
+          break;
+        }
       }
+
+      if (!hasAnyData) {
+        syncErrorNotifier.value = "同步失敗，查無成績資料，請重新登入、重啟App或稍後再試。";
+        statusMessageNotifier.value = "同步失敗，查無成績資料，請重新登入、重啟App或稍後再試。";
+        return;
+      }
+
+      syncErrorNotifier.value = null;
 
       _processAndNotifyFromMaps(
         newCourses,
@@ -250,40 +338,36 @@ class HistoricalScoreService {
         previewRanksNotifier.value,
       );
 
-      // ===== 6. 抓取預覽名次 (依據條件執行) =====
-      if (shouldFetchPreview) {
-        statusMessageNotifier.value = "正在抓取預覽名次...";
+      // ===== 6. 合併預覽名次 =====
+      if (previewFuture != null) {
+        statusMessageNotifier.value = "正在完成預覽名次合併...";
+        try {
+          Map<String, Map<String, String>> fetched = await previewFuture;
+          Map<String, Map<String, String>> newPreview = Map.from(
+            previewRanksNotifier.value,
+          );
+          newPreview.addAll(fetched);
 
-        Map<String, Map<String, String>> fetched = await _fetchPreviewRanks(
-          username,
-          password,
-          (done, total) {
-            statusMessageNotifier.value = "預覽名次抓取中 ($done / $total)";
-            progressNotifier.value = (completed + done) / totalWork;
-          },
-        );
-
-        Map<String, Map<String, String>> newPreview = Map.from(
-          previewRanksNotifier.value,
-        );
-        newPreview.addAll(fetched);
-
-        _processAndNotifyFromMaps(newCourses, newSummary, newPreview);
-      } else if (isPreviewSettingOn && !shouldFetchPreview) {
-        // (可選) 如果使用者開了設定，但因為時間不對而被略過，可以在這稍微停頓或Log
-        // 但為了體驗流暢，通常直接結束即可
-        debugPrint("DEBUG: 預覽名次功能已開啟，但目前不在開放時段，故略過。");
+          _processAndNotifyFromMaps(newCourses, newSummary, newPreview);
+        } catch (e) {
+          // debugPrint("HistoricalScoreService: 合併預覽名次發生錯誤或逾時: $e");
+        }
       }
 
       progressNotifier.value = 1.0;
+      final updateTime = DateTime.now();
+      String formatted =
+          "${updateTime.year}/${updateTime.month.toString().padLeft(2, '0')}/${updateTime.day.toString().padLeft(2, '0')} ${updateTime.hour.toString().padLeft(2, '0')}:${updateTime.minute.toString().padLeft(2, '0')}:${updateTime.second.toString().padLeft(2, '0')}";
+      lastUpdatedNotifier.value = formatted;
       await _saveToCache();
       statusMessageNotifier.value = "同步完成";
     } catch (e) {
       statusMessageNotifier.value = "同步發生異常";
-      debugPrint("Historical Fetch Error: $e");
+      syncErrorNotifier.value = "同步發生異常: $e";
+      // debugPrint("Historical Fetch Error: $e");
     } finally {
       isLoadingNotifier.value = false;
-      debugPrint('[HS] fetchAllData 總耗時 (+${sw.elapsedMilliseconds}ms)');
+      // debugPrint('[HS] fetchAllData 總耗時 (+${sw.elapsedMilliseconds}ms)');
     }
   }
 
@@ -293,8 +377,6 @@ class HistoricalScoreService {
     String password,
     void Function(int done, int total)? onProgress,
   ) async {
-    debugPrint("--- [DEBUG] 開始執行 _fetchPreviewRanks ---");
-
     Map<String, Map<String, String>> results = {};
 
     final ioClient = HttpClient()
@@ -305,40 +387,48 @@ class HistoricalScoreService {
     Map<String, String> cookieJar = {};
 
     try {
-      await _sendRequest(
-        client,
-        'GET',
-        "https://epp.nsysu.edu.tw/Index.php?ccsForm=Login",
-        cookieJar,
-      );
+      // 進行身分驗證，限制在 5 秒內完成，超時或失敗則跳過預覽名次抓取
+      try {
+        await Future(() async {
+          await _sendRequest(
+            client,
+            'GET',
+            "https://epp.nsysu.edu.tw/Index.php?ccsForm=Login",
+            cookieJar,
+          );
 
-      final loginReq =
-          http.Request(
-              'POST',
-              Uri.parse("https://epp.nsysu.edu.tw/Index.php?ccsForm=Login"),
-            )
-            ..followRedirects = false
-            ..headers.addAll({
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Cookie": _generateCookieHeader(cookieJar),
-            })
-            ..bodyFields = {
-              "login_name": username,
-              "login_password": password,
-              "login_identity": "3",
-              "Button_DoLogin": "登入",
-            };
+          final loginReq =
+              http.Request(
+                  'POST',
+                  Uri.parse("https://epp.nsysu.edu.tw/Index.php?ccsForm=Login"),
+                )
+                ..followRedirects = false
+                ..headers.addAll({
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                  "Content-Type": "application/x-www-form-urlencoded",
+                  "Cookie": _generateCookieHeader(cookieJar),
+                })
+                ..bodyFields = {
+                  "login_name": username,
+                  "login_password": password,
+                  "login_identity": "3",
+                  "Button_DoLogin": "登入",
+                };
 
-      final loginRes = await http.Response.fromStream(
-        await client.send(loginReq),
-      );
-      _updateCookieJar(loginRes, cookieJar);
+          final loginRes = await http.Response.fromStream(
+            await client.send(loginReq),
+          );
+          _updateCookieJar(loginRes, cookieJar);
+        }).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        // debugPrint("⚠️ 預覽名次身分驗證超時或失敗 (5秒)，跳過名次抓取: $e");
+        return results;
+      }
 
       final gridRes = await _sendRequest(
         client,
         'GET',
-        "https://epp.nsysu.edu.tw/Apps/CRSGrid.php?course=pro",
+        "https://epp.nsysu.edu.tw/Apps/SCOList.php?SCO_MAINPageSize=100&SCO_MAINPage=1",
         cookieJar,
       );
 
@@ -346,31 +436,89 @@ class HistoricalScoreService {
         utf8.decode(gridRes.bodyBytes, allowMalformed: true),
       );
 
-      List<String> urls = doc
-          .querySelectorAll('a span[style]')
-          .where(
-            (e) => e.attributes['style']!
-                .replaceAll(' ', '')
-                .toUpperCase()
-                .contains("COLOR:#009933"),
-          )
-          .map(
-            (e) =>
-                "https://epp.nsysu.edu.tw/Apps/${e.parent!.attributes['href']}",
-          )
-          .toList();
-
-      if (urls.length > 8) {
-        urls = urls.sublist(urls.length - 8);
+      var gridTable = doc.querySelector('#ContentSCO_MAIN table.Grid');
+      if (gridTable == null) {
+        gridTable = doc.querySelector('table.Grid');
       }
 
-      int total = urls.length;
+      Map<String, List<String>> groupToCourseCodes = {};
+
+      if (gridTable != null) {
+        var rows = gridTable.querySelectorAll('tr');
+        for (var row in rows) {
+          if (row.classes.contains('Caption') ||
+              row.classes.contains('Separator')) {
+            continue;
+          }
+          var tds = row.querySelectorAll('td');
+          if (tds.length < 5) continue;
+
+          String year = tds[0].text
+              .replaceAll(RegExp(r'[\s\u00A0]+'), '')
+              .trim();
+          if (year.isEmpty || int.tryParse(year) == null) continue;
+
+          String semText = tds[1].text;
+          String sem = "1";
+          if (semText.contains("二") || semText.contains("下")) {
+            sem = "2";
+          } else if (semText.contains("暑")) {
+            sem = "3";
+          }
+
+          String courseCode = tds[3].text
+              .replaceAll(RegExp(r'[\s\u00A0]+'), '')
+              .trim();
+          if (courseCode.isEmpty) continue;
+
+          String key = "$year-$sem";
+          groupToCourseCodes.putIfAbsent(key, () => []).add(courseCode);
+        }
+      }
+
+      // 篩選出最新（排序後最上面）的 3 個不同學年度學期
+      List<String> sortedKeys = groupToCourseCodes.keys.toList();
+      sortedKeys.sort((a, b) {
+        var partsA = a.split('-');
+        var partsB = b.split('-');
+        int yA = int.parse(partsA[0]);
+        int yB = int.parse(partsB[0]);
+        if (yA != yB) return yB.compareTo(yA);
+        int sA = int.parse(partsA[1]);
+        int sB = int.parse(partsB[1]);
+        return sB.compareTo(sA);
+      });
+
+      List<String> targetKeys = sortedKeys.take(3).toList();
+
+      List<MapEntry<String, String>> fetchTasks = [];
+      for (String key in targetKeys) {
+        var codes = groupToCourseCodes[key] ?? [];
+        int limit = codes.length < 2 ? codes.length : 2;
+        for (int i = 0; i < limit; i++) {
+          fetchTasks.add(MapEntry(key, codes[i]));
+        }
+      }
+
+      int total = fetchTasks.length;
       int done = 0;
 
       RegExp commentRegExp = RegExp(r'<!--([\s\S]*?)-->', dotAll: true);
+      Set<String> completedGroups = {};
 
-      for (String url in urls) {
+      for (var task in fetchTasks) {
+        String key = task.key;
+        String courseCode = task.value;
+
+        if (completedGroups.contains(key)) {
+          done++;
+          onProgress?.call(done, total);
+          continue;
+        }
+
         try {
+          String url =
+              "https://epp.nsysu.edu.tw/Apps/CRSView.php?CRS_COD=$courseCode";
           final res = await _sendRequest(client, 'GET', url, cookieJar);
           String html = utf8.decode(res.bodyBytes, allowMalformed: true);
 
@@ -384,16 +532,21 @@ class HistoricalScoreService {
             var tds = tr.querySelectorAll('td');
             if (tds.length < 9) continue;
 
-            String? key = _safeParseSemester(tds[0].text.trim());
-            if (key == null) continue;
-            debugPrint("抓到了");
+            String? parsedKey = _safeParseSemester(tds[0].text.trim());
+            if (parsedKey == null) continue;
 
-            results[key] = {
-              "rank": tds[7].text.trim(),
-              "classSize": tds[8].text.trim(),
-            };
+            if (parsedKey == key) {
+              String rank = tds[7].text.trim();
+              String classSize = tds[8].text.trim();
+              results[key] = {"rank": rank, "classSize": classSize};
+              // debugPrint("🏆 預覽名次抓取成功: $key -> 名次: $rank, 班級人數: $classSize (來自課號: $courseCode)",);
+              completedGroups.add(key);
+              break;
+            }
           }
-        } catch (_) {}
+        } catch (e) {
+          // debugPrint("❌ 抓取課歷名次錯誤 (課號 $courseCode): $e");
+        }
 
         done++;
         onProgress?.call(done, total);
@@ -437,7 +590,7 @@ class HistoricalScoreService {
       // 5. 輸出標準格式
       return "$year-$semCode"; // 回傳 "112-1"
     } catch (e) {
-      debugPrint("⚠️ 解析學期字串錯誤: $raw ($e)");
+      // debugPrint("⚠️ 解析學期字串錯誤: $raw ($e)");
       return null;
     }
   }
@@ -501,31 +654,6 @@ class HistoricalScoreService {
           cookieJar[key] = value;
         }
       }
-    }
-  }
-
-  // 輔助：將 "112學年度第二學期" 轉為 "112-2"
-  String? _parseChineseSemester(String text) {
-    text = text.replaceAll(RegExp(r'\s+'), ''); // 去空白
-    if (!text.contains('學年度')) return null;
-
-    try {
-      var parts = text.split('學年度');
-      String yearStr = parts[0]; // "112" 或 "一一二"
-      String semStr = parts[1]; // "第二學期"
-
-      // 簡單轉換中文數字
-      int year = _chineseToNumber(yearStr);
-
-      String sem = "1";
-      if (semStr.contains("第二"))
-        sem = "2";
-      else if (semStr.contains("暑"))
-        sem = "3";
-
-      return "$year-$sem";
-    } catch (e) {
-      return null;
     }
   }
 
@@ -654,7 +782,7 @@ class HistoricalScoreService {
         return rawCookie;
       }
     } catch (e) {
-      debugPrint("Login Error: $e");
+      // debugPrint("Login Error: $e");
     }
     return null;
   }
@@ -692,7 +820,7 @@ class HistoricalScoreService {
       if (value['previewRank'] != null) {
         pMap[key] = Map<String, String>.from(value['previewRank']);
       }
-      // debugPrintpMap);
+      // // debugPrintpMap);
     });
 
     _processAndNotifyFromMaps(cMap, sMap, pMap);
@@ -703,72 +831,68 @@ class HistoricalScoreService {
     Map<String, ScoreSummary> sMap,
     Map<String, Map<String, String>> pMap,
   ) {
-    debugPrint("\n====== 🟢 開始執行 _processAndNotifyFromMaps ======");
+    // debugPrint("\n====== 🟢 開始執行 _processAndNotifyFromMaps ======");
 
     // 1. 先印出三張表所有的 Keys，確認格式是否一致 (例如 "112-1" vs "112-01")
-    debugPrint("🔍 [cMap Keys] (課程): ${cMap.keys.toList()}");
-    debugPrint("🔍 [sMap Keys] (摘要): ${sMap.keys.toList()}");
-    debugPrint("🔍 [pMap Keys] (預覽): ${pMap.keys.toList()}");
+    // debugPrint("🔍 [cMap Keys] (課程): ${cMap.keys.toList()}");
+    // debugPrint("🔍 [sMap Keys] (摘要): ${sMap.keys.toList()}");
+    // debugPrint("🔍 [pMap Keys] (預覽): ${pMap.keys.toList()}");
 
     // 顯示 pMap 的詳細內容，確認是否有抓到東西
     if (pMap.isNotEmpty) {
-      debugPrint("📋 [pMap 詳細內容]:");
-      pMap.forEach((k, v) => debugPrint("   -> Key: $k, Value: $v"));
+      // debugPrint("📋 [pMap 詳細內容]:");
+      // pMap.forEach((k, v) => debugPrint("   -> Key: $k, Value: $v"));
     } else {
-      debugPrint("⚠️ [pMap] 是空的！(抓取預覽名次可能失敗)");
+      // debugPrint("⚠️ [pMap] 是空的！(抓取預覽名次可能失敗)");
     }
 
     // ===== 核心合併邏輯 =====
-    debugPrint("\n🔄 開始合併 pMap 到 sMap...");
+    // debugPrint("\n🔄 開始合併 pMap 到 sMap...");
 
     pMap.forEach((key, preview) {
-      debugPrint("   👉 正在處理預覽 Key: [$key]");
+      // debugPrint("   👉 正在處理預覽 Key: [$key]");
 
       // 檢測 sMap 是否有這個 Key
       if (!sMap.containsKey(key)) {
-        debugPrint("      ⚠️ sMap 找不到 [$key]，正在補建空資料...");
+        // debugPrint("      ⚠️ sMap 找不到 [$key]，正在補建空資料...");
         sMap[key] = ScoreSummary(); // 建立空的 Summary
         // 順便補上空的課程列表，避免 UI 端報錯
         if (!cMap.containsKey(key)) {
           cMap[key] = [];
-          debugPrint("      ⚠️ cMap 也找不到 [$key]，已補上空列表");
+          // debugPrint("      ⚠️ cMap 也找不到 [$key]，已補上空列表");
         }
       } else {
-        debugPrint("      ✅ sMap 已存在 [$key]，準備檢查是否需要覆蓋...");
+        // debugPrint("      ✅ sMap 已存在 [$key]，準備檢查是否需要覆蓋...");
       }
 
       final summary = sMap[key]!;
 
       // 印出合併前的狀態
-      debugPrint(
-        "      [合併前] Rank: ${summary.rank}, ClassSize: ${summary.classSize}",
-      );
+      // debugPrint( "      [合併前] Rank: ${summary.rank}, ClassSize: ${summary.classSize}",);
 
       // 邏輯判斷：只有正式成績是 "-" 或空字串時才補
       bool updated = false;
 
       if ((summary.rank == "-" || summary.rank.isEmpty) &&
           preview['rank'] != null) {
-        debugPrint("      ⚡ 更新 Rank: ${summary.rank} -> ${preview['rank']}");
+        // debugPrint("      ⚡ 更新 Rank: ${summary.rank} -> ${preview['rank']}");
         summary.rank = preview['rank']!;
         updated = true;
       }
 
       if ((summary.classSize == "-" || summary.classSize.isEmpty) &&
           preview['classSize'] != null) {
-        debugPrint(
-          "      ⚡ 更新 ClassSize: ${summary.classSize} -> ${preview['classSize']}",
-        );
+        // debugPrint("      ⚡ 更新 ClassSize: ${summary.classSize} -> ${preview['classSize']}",);
         summary.classSize = preview['classSize']!;
         updated = true;
       }
 
       if (!updated) {
-        debugPrint("      💤 未進行任何更新 (可能正式成績已有值，或預覽資料為空)");
+        // debugPrint("      💤 未進行任何更新 (可能正式成績已有值，或預覽資料為空)");
       }
     });
 
-    debugPrint("✅ 合併作業結束。\n");
+    // debugPrint("✅ 合併作業結束。\n");
 
     // ===== 更新 Notifier =====
     coursesNotifier.value = cMap;
@@ -781,7 +905,7 @@ class HistoricalScoreService {
 
     // 這裡改用合併後的 keys (包含 cMap 和 sMap)
     Set<String> allKeys = {...cMap.keys, ...sMap.keys};
-    debugPrint("📊 最終有效的 Keys (顯示在選單): $allKeys");
+    // debugPrint("📊 最終有效的 Keys (顯示在選單): $allKeys");
 
     for (var key in allKeys) {
       var parts = key.split('-');
@@ -799,7 +923,7 @@ class HistoricalScoreService {
     validYearsNotifier.value = ySet;
     validSemestersNotifier.value = semMap;
 
-    debugPrint("====== 🏁 流程結束 ======\n");
+    // debugPrint("====== 🏁 流程結束 ======\n");
   }
 
   // (原有) 解析 HTML
@@ -853,5 +977,11 @@ class HistoricalScoreService {
     }
 
     return (courses: courses, summary: summary);
+  }
+
+  void dispose() {
+    try {
+      _client.close();
+    } catch (_) {}
   }
 }

@@ -432,8 +432,19 @@ class AiClient {
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      final firstCandidate = decoded['candidates'][0];
+      final candidates = decoded['candidates'] as List?;
+      if (candidates == null || candidates.isEmpty) {
+        throw AiClientException(statusCode: 200, message: "AI 沒有回傳任何 candidates");
+      }
+      final firstCandidate = candidates[0];
       final content = firstCandidate['content'];
+      if (content == null || content['parts'] == null) {
+        final finishReason = firstCandidate['finishReason'];
+        throw AiClientException(
+          statusCode: 200,
+          message: "AI 回應被安全機制過濾或未產生內容 (原因: $finishReason)",
+        );
+      }
       final parts = content['parts'] as List;
 
       String? text;

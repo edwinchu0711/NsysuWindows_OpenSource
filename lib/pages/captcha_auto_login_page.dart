@@ -8,6 +8,7 @@ Licensed under the MIT License.
 
 */
 import 'dart:async';
+import 'package:path_provider/path_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,7 +20,6 @@ import '../services/storage_service.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 
-
 bool _obscurePassword = true;
 
 class CaptchaAutoLoginPage extends ConsumerStatefulWidget {
@@ -27,7 +27,8 @@ class CaptchaAutoLoginPage extends ConsumerStatefulWidget {
   const CaptchaAutoLoginPage({super.key, this.isRelogin = false});
 
   @override
-  ConsumerState<CaptchaAutoLoginPage> createState() => _CaptchaAutoLoginPageState();
+  ConsumerState<CaptchaAutoLoginPage> createState() =>
+      _CaptchaAutoLoginPageState();
 }
 
 class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
@@ -47,17 +48,20 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
 
   Future<void> _initSystem() async {
     await _loadCredentials();
-    
-    if (_usernameController.text.isNotEmpty && _passwordController.text.isNotEmpty) {
+
+    if (_usernameController.text.isNotEmpty &&
+        _passwordController.text.isNotEmpty) {
       if (_hasAttemptedInitialAutoLogin) {
-        debugPrint("ℹ️ CaptchaAutoLoginPage: 已在此工作階段嘗試過自動登入，略過重複執行 (防止 Hot Reload 重複觸發)");
+        debugPrint(
+          "ℹ️ CaptchaAutoLoginPage: 已在此工作階段嘗試過自動登入，略過重複執行 (防止 Hot Reload 重複觸發)",
+        );
         return;
       }
       _hasAttemptedInitialAutoLogin = true;
 
       dynamic connectivityResult = await (Connectivity().checkConnectivity());
-      bool isNone = (connectivityResult is List) 
-          ? connectivityResult.contains(ConnectivityResult.none) 
+      bool isNone = (connectivityResult is List)
+          ? connectivityResult.contains(ConnectivityResult.none)
           : connectivityResult == ConnectivityResult.none;
 
       if (isNone) {
@@ -102,7 +106,9 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
   void _enterOfflineMode() {
     String userAgent = "Mozilla/5.0 (Offline Mode)";
     if (mounted) {
-      ref.read(sessionProvider.notifier).updateSession("OFFLINE", userAgent: userAgent);
+      ref
+          .read(sessionProvider.notifier)
+          .updateSession("OFFLINE", userAgent: userAgent);
       context.go('/home');
     }
   }
@@ -127,13 +133,15 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
 
   Future<void> _startLoginProcess() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("請輸入學號和密碼")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("請輸入學號和密碼")));
       return;
     }
 
     dynamic connectivityResult = await (Connectivity().checkConnectivity());
-    bool isNone = (connectivityResult is List) 
-        ? connectivityResult.contains(ConnectivityResult.none) 
+    bool isNone = (connectivityResult is List)
+        ? connectivityResult.contains(ConnectivityResult.none)
         : connectivityResult == ConnectivityResult.none;
 
     if (isNone) {
@@ -154,11 +162,13 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
         _handleLoginError("帳號或密碼錯誤");
         return;
       }
-      final dio = Dio(BaseOptions(
-        connectTimeout: Duration(seconds: 10),
-        followRedirects: false, 
-        validateStatus: (status) => status! < 500,
-      ));
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: Duration(seconds: 10),
+          followRedirects: false,
+          validateStatus: (status) => status! < 500,
+        ),
+      );
 
       final String base64md5Password = Utils.base64md5(password);
 
@@ -175,13 +185,13 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
           responseType: ResponseType.plain,
         ),
       );
-      
+
       String bodyText = response.data.toString();
       List<String>? cookies = response.headers['set-cookie'];
-      
 
-      bool isFailureMessage = bodyText.contains("錯誤") || bodyText.contains("請重新輸入");
-      debugPrint("bodyText: $bodyText");
+      bool isFailureMessage =
+          bodyText.contains("錯誤") || bodyText.contains("請重新輸入");
+      // debugPrint("bodyText: $bodyText");
       if (cookies != null && cookies.isNotEmpty && !isFailureMessage) {
         String cookieString = cookies.map((s) => s.split(';').first).join('; ');
 
@@ -191,12 +201,10 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
             return;
           }
           _onLoginSuccess(cookieString);
-        } 
-        else {
+        } else {
           _handleLoginError("帳號或密碼錯誤");
         }
-      } 
-      else {
+      } else {
         _handleLoginError("帳號或密碼錯誤");
       }
     } catch (e) {
@@ -213,7 +221,15 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
     await _saveCredentials();
     await StorageService.instance.saveSession(cookieString); // 持久化 Session
     
-    String userAgent = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36";
+    // 記錄啟動（不等待，不影響登入流程）
+    Utils.recordLaunch();
+
+    getApplicationSupportDirectory().then((supportDir) {
+      debugPrint('我的設定檔就藏在: ${supportDir.path}');
+    });
+
+    String userAgent =
+        "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36";
 
     if (mounted) {
       setState(() {
@@ -221,11 +237,13 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
         _isLoading = false;
       });
 
-      ref.read(sessionProvider.notifier).updateSession(cookieString, userAgent: userAgent);
+      ref
+          .read(sessionProvider.notifier)
+          .updateSession(cookieString, userAgent: userAgent);
       context.go('/home');
     }
   }
-  
+
   void _handleLoginError(String message) {
     setState(() {
       _result = "❌ $message";
@@ -241,96 +259,133 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
       backgroundColor: colorScheme.pageBackground,
       body: Center(
         child: SingleChildScrollView(
-                padding: EdgeInsets.all(30),
-                child: Center(
-                  child: SizedBox(
-                    width: 380,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.account_balance, size: 80, color: colorScheme.accentBlue),
-                        const SizedBox(height: 20),
-                        Text(
-                          "NSYSU 校務系統",
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.primaryText),
+          padding: EdgeInsets.all(30),
+          child: Center(
+            child: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.account_balance,
+                    size: 80,
+                    color: colorScheme.accentBlue,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "NSYSU 校務系統",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.primaryText,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(_result, style: TextStyle(color: colorScheme.bodyText)),
+                  const SizedBox(height: 40),
+                  TextField(
+                    controller: _usernameController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: colorScheme.primaryText),
+                    decoration: InputDecoration(
+                      labelText: "學號",
+                      labelStyle: TextStyle(color: colorScheme.subtitleText),
+                      prefixIcon: Icon(
+                        Icons.person,
+                        color: colorScheme.accentBlue,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.isDark
+                              ? colorScheme.borderColor
+                              : Colors.grey.shade400,
+                          width: 1.5,
                         ),
-                        const SizedBox(height: 10),
-                        Text(_result, style: TextStyle(color: colorScheme.bodyText)),
-                        const SizedBox(height: 40),
-                        TextField(
-                          controller: _usernameController,
-                          keyboardType: TextInputType.emailAddress,
-                          style: TextStyle(color: colorScheme.primaryText),
-                          decoration: InputDecoration(
-                            labelText: "學號",
-                            labelStyle: TextStyle(color: colorScheme.subtitleText),
-                            prefixIcon: Icon(Icons.person, color: colorScheme.accentBlue),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: colorScheme.isDark ? colorScheme.borderColor : Colors.grey.shade400,
-                                width: 1.5,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.accentBlue,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    keyboardType: TextInputType.emailAddress,
+                    style: TextStyle(color: colorScheme.primaryText),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(
+                        RegExp(r'[\u4e00-\u9fa5]'),
+                      ),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: "密碼",
+                      labelStyle: TextStyle(color: colorScheme.subtitleText),
+                      prefixIcon: Icon(
+                        Icons.lock,
+                        color: colorScheme.accentBlue,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: colorScheme.subtitleText,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.isDark
+                              ? colorScheme.borderColor
+                              : Colors.grey.shade400,
+                          width: 1.5,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: colorScheme.accentBlue,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isAutoLoggingIn ? null : _startLoginProcess,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.accentBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isAutoLoggingIn
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "登入系統",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: colorScheme.accentBlue, width: 2.0),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          keyboardType: TextInputType.emailAddress,
-                          style: TextStyle(color: colorScheme.primaryText),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(RegExp(r'[\u4e00-\u9fa5]')),
-                          ],
-                          decoration: InputDecoration(
-                            labelText: "密碼",
-                            labelStyle: TextStyle(color: colorScheme.subtitleText),
-                            prefixIcon: Icon(Icons.lock, color: colorScheme.accentBlue),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                color: colorScheme.subtitleText,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: colorScheme.isDark ? colorScheme.borderColor : Colors.grey.shade400,
-                                width: 1.5,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: colorScheme.accentBlue, width: 2.0),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            onPressed: _isAutoLoggingIn ? null : _startLoginProcess,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.accentBlue,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 0,
-                            ),
-                            child: _isAutoLoggingIn 
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text("登入系統", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
+                    ),
+                  ),
                 ],
               ),
             ),

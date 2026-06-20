@@ -429,8 +429,9 @@ class _DatabaseSettingsSectionState extends State<DatabaseSettingsSection> {
     try {
       await DatabaseEmbeddingService.instance.downloadDatabase(
         filename,
+        model: db['model'] as String?,
         embeddingModel: db['embedding_model'] as String?,
-        chunkCount: db['chunk_count'] as int?,
+        chunkCount: db['record_count'] as int? ?? db['chunk_count'] as int?,
         createdDate: db['created_date'] as String?,
       );
       if (mounted) {
@@ -504,7 +505,7 @@ class _DatabaseSettingsSectionState extends State<DatabaseSettingsSection> {
       final client = http.Client();
       try {
         final res = await client.get(
-          Uri.parse('https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/version.json'),
+          Uri.parse('https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/db_index.json'),
         );
         if (res.statusCode == 200) {
           final List<dynamic> list = jsonDecode(res.body);

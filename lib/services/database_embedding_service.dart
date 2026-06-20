@@ -27,11 +27,6 @@ class DatabaseEmbeddingService {
   Future<void> init() async {
     if (_initialized) return;
 
-    if (Platform.isWindows || Platform.isLinux) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     final dbPath = await Utils.getAppDbDirectory();
     final path = join(dbPath, "database.db");
 
@@ -57,27 +52,7 @@ class DatabaseEmbeddingService {
       };
     }).toList();
 
-    // Cache the rules table (contains course selection rules for current semester)
-    try {
-      final rulesRows = await _db!.query('rules');
-      _rulesCache = rulesRows.map((r) {
-        return {
-          'id': r['id'],
-          'title': r['title'],
-          'content': r['content'],
-          'source': r['source'],
-          'chunk_index': r['chunk_index'],
-          'vector': r['vector'] != null
-              ? _blobToFloatList(r['vector'] as Uint8List)
-              : <double>[],
-        };
-      }).toList();
-      debugPrint('[DatabaseEmbeddingService] Loaded ${_rulesCache.length} rule chunks');
-    } catch (e) {
-      debugPrint('[DatabaseEmbeddingService] No rules table found or error: $e');
-      _rulesCache = [];
-    }
-
+    _rulesCache = [];
     _initialized = true;
   }
 
@@ -100,14 +75,18 @@ class DatabaseEmbeddingService {
   }
 
   /// Download a database file from the remote repository
-  Future<void> downloadDatabase(String filename, {
+  Future<void> downloadDatabase(
+    String filename, {
+    String? model,
     String? embeddingModel,
     int? chunkCount,
     String? createdDate,
   }) async {
     final client = http.Client();
     try {
-      final url = 'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/$filename';
+      final url = model != null && model.isNotEmpty
+          ? 'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/$model/$filename'
+          : 'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/$filename';
       final response = await client.get(Uri.parse(url));
       if (response.statusCode != 200) {
         throw Exception('下載失敗: HTTP ${response.statusCode}');
@@ -130,9 +109,15 @@ class DatabaseEmbeddingService {
       // Save metadata to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('database_db_filename', filename);
-      if (embeddingModel != null) await prefs.setString('database_db_embedding_model', _normalizeModelName(embeddingModel));
-      if (chunkCount != null) await prefs.setInt('database_db_chunk_count', chunkCount);
-      if (createdDate != null) await prefs.setString('database_db_created_date', createdDate);
+      if (embeddingModel != null)
+        await prefs.setString(
+          'database_db_embedding_model',
+          _normalizeModelName(embeddingModel),
+        );
+      if (chunkCount != null)
+        await prefs.setInt('database_db_chunk_count', chunkCount);
+      if (createdDate != null)
+        await prefs.setString('database_db_created_date', createdDate);
 
       // Auto-detect embedding model: update embedding_config if model is provided
       if (embeddingModel != null && embeddingModel.isNotEmpty) {
@@ -159,13 +144,17 @@ class DatabaseEmbeddingService {
           );
         }
         await prefs.setString('embedding_config', jsonEncode(config.toJson()));
-        debugPrint('[DatabaseEmbeddingService] Auto-configured embedding model: $normalizedModel');
+        debugPrint(
+          '[DatabaseEmbeddingService] Auto-configured embedding model: $normalizedModel',
+        );
       }
 
       // Re-initialize
       reset();
       await init();
-      debugPrint('[DatabaseEmbeddingService] Database downloaded and initialized: $filename');
+      debugPrint(
+        '[DatabaseEmbeddingService] Database downloaded and initialized: $filename',
+      );
     } finally {
       client.close();
     }
@@ -203,7 +192,9 @@ class DatabaseEmbeddingService {
       final client = http.Client();
       try {
         final res = await client.get(
-          Uri.parse('https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/version.json'),
+          Uri.parse(
+            'https://edwinchu0711.github.io/CourseSelectionDateUpdate/database/db_index.json',
+          ),
         );
         if (res.statusCode != 200) return;
 
@@ -217,7 +208,11 @@ class DatabaseEmbeddingService {
         List<Map<String, dynamic>> candidates;
         if (selectedModel != null && selectedModel.isNotEmpty) {
           candidates = versionList
-              .where((v) => (v as Map<String, dynamic>)['embedding_model'] == selectedModel)
+              .where(
+                (v) =>
+                    (v as Map<String, dynamic>)['embedding_model'] ==
+                    selectedModel,
+              )
               .cast<Map<String, dynamic>>()
               .toList();
         } else {
@@ -228,8 +223,14 @@ class DatabaseEmbeddingService {
 
         // Sort by last_updated descending (newest first)
         candidates.sort((a, b) {
-          final dateA = a['last_updated'] as String? ?? a['created_date'] as String? ?? '';
-          final dateB = b['last_updated'] as String? ?? b['created_date'] as String? ?? '';
+          final dateA =
+              a['last_updated'] as String? ??
+              a['created_date'] as String? ??
+              '';
+          final dateB =
+              b['last_updated'] as String? ??
+              b['created_date'] as String? ??
+              '';
           return dateB.compareTo(dateA);
         });
 
@@ -238,15 +239,21 @@ class DatabaseEmbeddingService {
         final currentFilename = prefs.getString('database_db_filename') ?? '';
 
         if (latestFilename.isNotEmpty && latestFilename != currentFilename) {
-          debugPrint('[DatabaseEmbeddingService] Auto-updating database: $currentFilename → $latestFilename');
+          debugPrint(
+            '[DatabaseEmbeddingService] Auto-updating database: $currentFilename → $latestFilename',
+          );
           await downloadDatabase(
             latestFilename,
+            model: latest['model'] as String?,
             embeddingModel: latest['embedding_model'] as String?,
-            chunkCount: latest['chunk_count'] as int?,
+            chunkCount:
+                latest['record_count'] as int? ?? latest['chunk_count'] as int?,
             createdDate: latest['created_date'] as String?,
           );
         } else {
-          debugPrint('[DatabaseEmbeddingService] Database is up to date: $currentFilename');
+          debugPrint(
+            '[DatabaseEmbeddingService] Database is up to date: $currentFilename',
+          );
         }
       } finally {
         client.close();
@@ -258,7 +265,9 @@ class DatabaseEmbeddingService {
 
   List<double> _blobToFloatList(Uint8List blob) {
     // Assuming Float32
-    return blob.buffer.asFloat32List(blob.offsetInBytes, blob.lengthInBytes ~/ 4).toList();
+    return blob.buffer
+        .asFloat32List(blob.offsetInBytes, blob.lengthInBytes ~/ 4)
+        .toList();
   }
 
   double _cosineSimilarity(List<double> a, List<double> b) {
@@ -267,9 +276,9 @@ class DatabaseEmbeddingService {
     double normA = 0.0;
     double normB = 0.0;
     for (int i = 0; i < a.length; i++) {
-        dotProduct += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
+      dotProduct += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
     }
     if (normA == 0 || normB == 0) return 0.0;
     return dotProduct / (sqrt(normA) * sqrt(normB));
@@ -286,7 +295,8 @@ class DatabaseEmbeddingService {
     for (final row in _cache) {
       final embName = row['course_name']?.toString() ?? '';
       final strippedEmbName = _stripBrackets(embName);
-      if (strippedEmbName.contains(strippedName) || strippedName.contains(strippedEmbName)) {
+      if (strippedEmbName.contains(strippedName) ||
+          strippedName.contains(strippedEmbName)) {
         return true;
       }
     }
@@ -304,7 +314,8 @@ class DatabaseEmbeddingService {
     for (final row in _cache) {
       final embName = row['course_name']?.toString() ?? '';
       final strippedEmbName = _stripBrackets(embName);
-      if (strippedEmbName.contains(strippedName) || strippedName.contains(strippedEmbName)) {
+      if (strippedEmbName.contains(strippedName) ||
+          strippedName.contains(strippedEmbName)) {
         results.add({
           'course_name': embName,
           'professor': row['professor']?.toString() ?? '',
@@ -325,7 +336,9 @@ class DatabaseEmbeddingService {
     var withoutEnglish = s.split('\n').first;
     // Strip "服務學習：" / "服務學習:" prefix (full-width and half-width colon)
     withoutEnglish = withoutEnglish.replaceAll(RegExp(r'服務學習[：:]\s*'), '');
-    return withoutEnglish.replaceAll(RegExp(r'（.*?）|\(.*?\)', unicode: true), '').trim();
+    return withoutEnglish
+        .replaceAll(RegExp(r'（.*?）|\(.*?\)', unicode: true), '')
+        .trim();
   }
 
   Future<List<Map<String, dynamic>>> searchTopK(
@@ -337,7 +350,10 @@ class DatabaseEmbeddingService {
     if (!_initialized) return [];
 
     final results = _cache.map((row) {
-      final similarity = _cosineSimilarity(queryEmbedding, row['vector'] as List<double>);
+      final similarity = _cosineSimilarity(
+        queryEmbedding,
+        row['vector'] as List<double>,
+      );
       return {
         'content': row['content'].toString(),
         'source': row['source']?.toString(),
@@ -348,9 +364,14 @@ class DatabaseEmbeddingService {
     }).toList();
 
     // 加上相似度門檻過濾不相干的結果
-    final filteredResults = results.where((r) => (r['similarity'] as double) >= threshold).toList();
+    final filteredResults = results
+        .where((r) => (r['similarity'] as double) >= threshold)
+        .toList();
 
-    filteredResults.sort((a, b) => (b['similarity'] as double).compareTo(a['similarity'] as double));
+    filteredResults.sort(
+      (a, b) =>
+          (b['similarity'] as double).compareTo(a['similarity'] as double),
+    );
 
     return filteredResults.take(k).toList();
   }
@@ -491,7 +512,9 @@ class DatabaseEmbeddingService {
           .where((r) => (r['similarity'] as double) >= threshold)
           .toList();
       filteredResults.sort(
-          (a, b) => (b['similarity'] as double).compareTo(a['similarity'] as double));
+        (a, b) =>
+            (b['similarity'] as double).compareTo(a['similarity'] as double),
+      );
 
       return filteredResults.take(k).toList();
     } catch (e) {

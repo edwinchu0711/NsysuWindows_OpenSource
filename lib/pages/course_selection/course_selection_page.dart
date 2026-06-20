@@ -111,13 +111,14 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                             child: widget.enableQuery
                                 ? TabBarView(
                                     controller: _tabController,
-                                    children: [
-                                      _buildStatusTab(),
-                                      CourseQueryTab(
-                                        currentCourses: _myCourses,
-                                        onRequestRefresh: _loadMyCourses,
-                                      ),
-                                    ],
+                                     children: [
+                                       _buildStatusTab(),
+                                       CourseQueryTab(
+                                         currentCourses: _myCourses,
+                                         onRequestRefresh: _loadMyCourses,
+                                         isLoading: _isLoading,
+                                       ),
+                                     ],
                                   )
                                 : _buildStatusTab(),
                           ),
@@ -221,6 +222,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             child: CourseQueryTab(
               currentCourses: _myCourses,
               onRequestRefresh: _loadMyCourses,
+              isLoading: _isLoading,
             ),
           ),
         ),
@@ -235,6 +237,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
     if (_hasCourseInDay(scheduleMap, 5)) visibleDays.add(5);
     if (_hasCourseInDay(scheduleMap, 6)) visibleDays.add(6);
     List<String> visiblePeriods = _calculateVisiblePeriods(scheduleMap);
+    int maxDay = visibleDays.length;
 
     return Column(
       children: [
@@ -269,110 +272,144 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10.5),
-                  child: Table(
-                    border: TableBorder(
-                      horizontalInside: BorderSide(
-                        color: colorScheme.borderColor,
-                        width: 0.8,
-                      ),
-                      verticalInside: BorderSide(
-                        color: colorScheme.borderColor,
-                        width: 0.8,
-                      ),
-                    ),
-                    columnWidths: const {0: FixedColumnWidth(50)},
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: colorScheme.timetableHeader,
-                        ),
-                        children: [
-                          SizedBox(
-                            height: 35,
-                            child: Center(
-                              child: Text(
-                                "時段",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: colorScheme.subtitleText,
-                                ),
-                              ),
-                            ),
-                          ),
-                          ...visibleDays.map(
-                            (dayIndex) => Container(
-                              height: 35,
-                              alignment: Alignment.center,
-                              child: Text(
-                                ['一', '二', '三', '四', '五', '六', '日'][dayIndex],
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: colorScheme.subtitleText,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      ...visiblePeriods.map((period) {
-                        String timeInfo = _timeMapping[period] ?? "";
-                        return TableRow(
-                          children: [
-                            TableCell(
-                              verticalAlignment:
-                                  TableCellVerticalAlignment.fill,
-                              child: Container(
-                                color: colorScheme.timetableSlot,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      period,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: colorScheme.subtitleText,
-                                      ),
-                                    ),
-                                    if (timeInfo.isNotEmpty)
-                                      Text(
-                                        timeInfo,
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: colorScheme.subtitleText,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            ...visibleDays.map((dayIndex) {
-                              final coursesInThisSlot =
-                                  scheduleMap[dayIndex]?[period] ?? [];
-                              if (coursesInThisSlot.isEmpty)
-                                return const SizedBox(height: 60);
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double width = constraints.maxWidth;
+                      double columnWidth = (width - 50) / maxDay;
+                      double titleFontSize = (10.0 + (columnWidth - 60.0) * 0.1).clamp(8.0, 14.0);
+                      double locationFontSize = (8.0 + (columnWidth - 60.0) * 0.08).clamp(7.0, 11.0);
 
-                              return Container(
-                                height: 60,
-                                padding: const EdgeInsets.all(2),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: coursesInThisSlot
-                                      .map((c) => _buildScheduleCell(c))
-                                      .toList(),
+                      return Table(
+                        border: TableBorder(
+                          horizontalInside: BorderSide(
+                            color: colorScheme.borderColor,
+                            width: 0.8,
+                          ),
+                          verticalInside: BorderSide(
+                            color: colorScheme.borderColor,
+                            width: 0.8,
+                          ),
+                        ),
+                        columnWidths: const {0: FixedColumnWidth(50)},
+                        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                        children: [
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: colorScheme.timetableHeader,
+                            ),
+                            children: [
+                              SizedBox(
+                                height: 35,
+                                child: Center(
+                                  child: Text(
+                                    "時段",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: colorScheme.subtitleText,
+                                    ),
+                                  ),
                                 ),
-                              );
-                            }),
-                          ],
-                        );
-                      }).toList(),
-                    ],
+                              ),
+                              ...visibleDays.map(
+                                (dayIndex) => Container(
+                                  height: 35,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    ['一', '二', '三', '四', '五', '六', '日'][dayIndex],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: colorScheme.subtitleText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          ...visiblePeriods.map((period) {
+                            String timeInfo = _timeMapping[period] ?? "";
+                            return TableRow(
+                              children: [
+                                TableCell(
+                                  verticalAlignment:
+                                      TableCellVerticalAlignment.fill,
+                                  child: Container(
+                                    color: colorScheme.timetableSlot,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          period,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: colorScheme.subtitleText,
+                                          ),
+                                        ),
+                                        if (timeInfo.isNotEmpty)
+                                          Text(
+                                            timeInfo,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: colorScheme.subtitleText,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                ...visibleDays.map((dayIndex) {
+                                  final coursesInThisSlot =
+                                      scheduleMap[dayIndex]?[period] ?? [];
+                                  if (coursesInThisSlot.isEmpty) {
+                                    return Container(height: 70);
+                                  }
+
+                                  if (coursesInThisSlot.length == 1) {
+                                    final c = coursesInThisSlot.first;
+                                    final displayName = keepUntilLastChinese(c.name);
+                                    double cellHeight = 70.0;
+                                    if (displayName.length > 20) {
+                                      cellHeight += 30.0;
+                                    } else if (displayName.length > 15) {
+                                      cellHeight += 20.0;
+                                    } else if (displayName.length > 10) {
+                                      cellHeight += 10.0;
+                                    }
+
+                                    return Container(
+                                      height: cellHeight,
+                                      padding: const EdgeInsets.all(1.0),
+                                      child: _buildScheduleCell(c, titleFontSize, locationFontSize),
+                                    );
+                                  }
+
+                                  return Container(
+                                    constraints: const BoxConstraints(minHeight: 70),
+                                    padding: const EdgeInsets.all(1.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: coursesInThisSlot.map((c) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(bottom: 2.0),
+                                          child: _buildScheduleCell(c, titleFontSize, locationFontSize),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -383,7 +420,11 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
     );
   }
 
-  Widget _buildScheduleCell(CourseSelectionData course) {
+  Widget _buildScheduleCell(
+    CourseSelectionData course,
+    double titleFontSize,
+    double locationFontSize,
+  ) {
     Color bgColor;
     if (course.status.contains("選上")) {
       bgColor = Colors.green[500]!;
@@ -394,41 +435,87 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
     }
 
     String room = _parseRoomName(course.timeRoom);
+    final displayName = keepUntilLastChinese(course.name);
 
-    return Expanded(
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            displayName,
+            style: TextStyle(
+              fontSize: titleFontSize,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 3,
+          ),
+          if (room.isNotEmpty) ...[
+            const SizedBox(height: 2),
             Text(
-              course.name,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+              room,
+              style: TextStyle(
+                fontSize: locationFontSize,
+                color: Colors.white70,
               ),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
-              maxLines: 2,
+              maxLines: 1,
             ),
-            if (room.isNotEmpty)
-              Text(
-                room,
-                style: const TextStyle(fontSize: 9, color: Colors.white70),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-              ),
           ],
-        ),
+        ],
       ),
     );
+  }
+
+  String keepUntilLastChinese(String input) {
+    final RegExp chineseRegex = RegExp(r'[\u4e00-\u9fa5]');
+    final Iterable<Match> matches = chineseRegex.allMatches(input);
+    if (matches.isEmpty) return input.split('\n')[0];
+    int lastIndex = matches.last.end;
+    String prefix = input.substring(0, lastIndex);
+
+    // Count unmatched open parentheses in prefix
+    int standardOpen = 0;
+    int fullwidthOpen = 0;
+    for (int i = 0; i < prefix.length; i++) {
+      String char = prefix[i];
+      if (char == '(') {
+        standardOpen++;
+      } else if (char == '（') {
+        fullwidthOpen++;
+      } else if (char == ')') {
+        if (standardOpen > 0) standardOpen--;
+      } else if (char == '）') {
+        if (fullwidthOpen > 0) fullwidthOpen--;
+      }
+    }
+
+    // Scan remaining string to find matching closing parentheses
+    String suffix = "";
+    for (int i = lastIndex; i < input.length; i++) {
+      if (standardOpen == 0 && fullwidthOpen == 0) {
+        break;
+      }
+      String char = input[i];
+      suffix += char;
+      if (char == ')') {
+        if (standardOpen > 0) standardOpen--;
+      } else if (char == '）') {
+        if (fullwidthOpen > 0) fullwidthOpen--;
+      }
+    }
+
+    return prefix + suffix;
   }
 
   // --- Helpers for middle pane ---

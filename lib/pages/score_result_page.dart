@@ -53,15 +53,106 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                               onPressed: () => context.go('/home'),
                               tooltip: "返回主選單",
                             ),
-                            Text(
-                              "歷年成績查詢",
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primaryText,
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "歷年成績查詢",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryText,
+                                  ),
+                                ),
+                                ValueListenableBuilder<String?>(
+                                  valueListenable: HistoricalScoreService
+                                      .instance
+                                      .syncErrorNotifier,
+                                  builder: (context, syncError, _) {
+                                    return ValueListenableBuilder<String?>(
+                                      valueListenable: HistoricalScoreService
+                                          .instance
+                                          .lastUpdatedNotifier,
+                                      builder: (context, lastUpdated, _) {
+                                        if (syncError != null) {
+                                          return GestureDetector(
+                                            onTap: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                      title: const Text(
+                                                        "同步失敗資訊",
+                                                      ),
+                                                      content: Text(syncError),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.pop(
+                                                                context,
+                                                              ),
+                                                          child: const Text(
+                                                            "確定",
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                              );
+                                            },
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  "同步失敗",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.isDark
+                                                        ? Colors.redAccent[100]
+                                                        : Colors.red[700],
+                                                    fontWeight: FontWeight.w500,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Icon(
+                                                  Icons.info_outline_rounded,
+                                                  size: 12,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.isDark
+                                                      ? Colors.redAccent[100]
+                                                      : Colors.red[700],
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        } else if (lastUpdated != null &&
+                                            lastUpdated.isNotEmpty) {
+                                          return Text(
+                                            "最近更新: $lastUpdated",
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.subtitleText,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -218,7 +309,9 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
     return InkWell(
       onTap: isLoading
           ? null
-          : () => HistoricalScoreService.instance.fetchAllData(),
+          : () => HistoricalScoreService.instance.fetchAllData(
+              forceFullRefresh: true,
+            ),
       mouseCursor: isLoading
           ? SystemMouseCursors.basic
           : SystemMouseCursors.click,
@@ -609,7 +702,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
           _selectedSem = targetSem;
           _hasInitializedSelection = true;
         });
-        debugPrint("DEBUG: 自動定位成功 -> $key");
+        // debugPrint("DEBUG: 自動定位成功 -> $key");
         return;
       }
     }
@@ -942,7 +1035,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
               _buildSummaryItem("實得學分", summary.creditsEarned, themeColor),
               _buildSummaryItem(
                 "平均分數",
-                summary.average,
+                _cleanAverage(summary.average),
                 themeColor,
                 isHighlight: true,
               ),
@@ -1004,6 +1097,14 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
         ],
       ),
     );
+  }
+
+  String _cleanAverage(String avgStr) {
+    if (avgStr.isEmpty || avgStr == "-") return avgStr;
+    if (RegExp(r'^\d+\.\d0$').hasMatch(avgStr)) {
+      return avgStr.substring(0, avgStr.length - 1);
+    }
+    return avgStr;
   }
 
   Widget _buildSummaryItem(

@@ -230,9 +230,27 @@ class _ExamDetailPageState extends State<ExamDetailPage> {
         : _buildContent();
 
     if (widget.isEmbedded) {
-      return Scaffold(
-        backgroundColor: colorScheme.cardBackground,
-        body: content,
+      return Container(
+        margin: const EdgeInsets.only(left: 16, top: 12, right: 12, bottom: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colorScheme.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: content,
+          ),
+        ),
       );
     }
 
@@ -586,9 +604,27 @@ class _HomeworkDetailPageState extends State<HomeworkDetailPage> {
         : _buildContent();
 
     if (widget.isEmbedded) {
-      return Scaffold(
-        backgroundColor: colorScheme.cardBackground,
-        body: content,
+      return Container(
+        margin: const EdgeInsets.only(left: 16, top: 12, right: 12, bottom: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colorScheme.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: content,
+          ),
+        ),
       );
     }
 

@@ -28,12 +28,12 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   // --- 篩選與設定變數 ---
   int _pageSize = 30; // 預設 30 筆
   final List<int> _pageSizeOptions = [30, 50, 100];
-  
+
   String? _selectedCourse;
   List<String> _courseOptions = [];
 
   final Color _themeColor = Colors.redAccent;
-  
+
   ElearnBulletin? _selectedBulletin;
 
   @override
@@ -46,7 +46,8 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   Future<void> _loadReadStatus() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _readBulletinIds = (prefs.getStringList('read_bulletin_ids') ?? []).toSet();
+      _readBulletinIds = (prefs.getStringList('read_bulletin_ids') ?? [])
+          .toSet();
     });
   }
 
@@ -65,7 +66,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
       // 根據 _pageSize 決定抓取數量
       var data = await ElearnBulletinService.instance.fetchBulletins(
         forceRefresh: forceRefresh,
-        pageSize: _pageSize, 
+        pageSize: _pageSize,
       );
 
       // 依照 effectiveTime 排序 (新的在上面)
@@ -76,17 +77,18 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
       for (var b in data) {
         if (b.courseName.isNotEmpty) courses.add(b.courseName);
       }
-      
+
       if (mounted) {
         setState(() {
           _allBulletins = data;
           _courseOptions = courses.toList()..sort();
-          
+
           // 如果切換筆數後，原本選的課程不在新名單中，重置選擇
-          if (_selectedCourse != null && !_courseOptions.contains(_selectedCourse)) {
+          if (_selectedCourse != null &&
+              !_courseOptions.contains(_selectedCourse)) {
             _selectedCourse = null;
           }
-          
+
           _applyFilter();
           _isLoading = false;
         });
@@ -110,9 +112,10 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
             .where((b) => b.courseName == _selectedCourse)
             .toList();
       }
-      
+
       // 如果選擇的公告被過濾掉了，就清空
-      if (_selectedBulletin != null && !_filteredBulletins.any((b) => b.id == _selectedBulletin!.id)) {
+      if (_selectedBulletin != null &&
+          !_filteredBulletins.any((b) => b.id == _selectedBulletin!.id)) {
         _selectedBulletin = null;
       }
     });
@@ -128,12 +131,15 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
             onPressed: () => context.go('/home'),
           ),
           const SizedBox(width: 10),
-          Text("網大公告", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(
+            "網大公告",
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
           const Spacer(),
           IconButton(
             icon: Icon(Icons.refresh, color: _themeColor),
             onPressed: () => _fetchData(forceRefresh: true),
-          )
+          ),
         ],
       ),
     );
@@ -144,7 +150,7 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
-    
+
     return Scaffold(
       backgroundColor: colorScheme.pageBackground,
       body: SafeArea(
@@ -156,104 +162,118 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                 _buildHeader(context),
                 // --- 頂部設定區 ---
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   child: Row(
-              children: [
-                // 左邊：顯示筆數
-                Expanded(
-                  flex: 2,
-                  child: GlassSingleSelectDropdown(
-                    label: "顯示筆數",
-                    items: _pageSizeOptions.map((e) => e.toString()).toList(),
-                    value: _pageSize.toString(),
-                    onChanged: _isLoading ? null : (val) {
-                      if (val != null) {
-                        int newSize = int.parse(val);
-                        if (newSize != _pageSize) {
-                          setState(() => _pageSize = newSize);
-                          _fetchData(forceRefresh: true);
-                        }
-                      }
-                    },
-                    displayMap: {
-                      for (var opt in _pageSizeOptions) opt.toString(): "$opt 筆"
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: GlassSingleSelectDropdown(
-                    label: "課程篩選",
-                    items: ["全部課程", ..._courseOptions],
-                    value: _selectedCourse ?? "全部課程",
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedCourse = (val == "全部課程") ? null : val;
-                        _applyFilter();
-                      });
-                    },
-                  ),
-                ),
-                
-              ],
-              
-            ),
-            
-          ),
-         
-
-          // --- 列表區 ---
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator(color: _themeColor))
-                : _filteredBulletins.isEmpty
-                    ? const Center(child: Text("沒有公告資料"))
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          bool isWide = constraints.maxWidth > 800;
-                          
-                          Widget listWidget = ListView.builder(
-                            itemCount: _filteredBulletins.length,
-                            padding: const EdgeInsets.all(12),
-                            itemBuilder: (context, index) {
-                              return _buildBulletinCard(_filteredBulletins[index], isWide);
-                            },
-                          );
-
-                          if (isWide) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  flex: 4, 
-                                  child: listWidget
-                                ),
-                                const VerticalDivider(width: 1, color: Colors.black12),
-                                Expanded(
-                                  flex: 6,
-                                  child: _selectedBulletin == null
-                                      ? Center(
-                                          child: Text(
-                                            "請從左側選擇公告以檢視詳細內容", 
-                                            style: TextStyle(color: colorScheme.subtitleText, fontSize: 16)
-                                          )
-                                        )
-                                      : AnnouncementDetailPage(
-                                          key: ValueKey(_selectedBulletin!.id),
-                                          bulletin: _selectedBulletin!, 
-                                          themeColor: _themeColor,
-                                          isEmbedded: true,
-                                        ),
-                                ),
-                              ],
-                            );
-                          } else {
-                            return listWidget;
-                          }
-                        }
+                    children: [
+                      // 左邊：顯示筆數
+                      Expanded(
+                        flex: 2,
+                        child: GlassSingleSelectDropdown(
+                          label: "顯示筆數",
+                          items: _pageSizeOptions
+                              .map((e) => e.toString())
+                              .toList(),
+                          value: _pageSize.toString(),
+                          onChanged: _isLoading
+                              ? null
+                              : (val) {
+                                  if (val != null) {
+                                    int newSize = int.parse(val);
+                                    if (newSize != _pageSize) {
+                                      setState(() => _pageSize = newSize);
+                                      _fetchData(forceRefresh: true);
+                                    }
+                                  }
+                                },
+                          displayMap: {
+                            for (var opt in _pageSizeOptions)
+                              opt.toString(): "$opt 筆",
+                          },
+                        ),
                       ),
-          ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 3,
+                        child: GlassSingleSelectDropdown(
+                          label: "課程篩選",
+                          items: ["全部課程", ..._courseOptions],
+                          value: _selectedCourse ?? "全部課程",
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCourse = (val == "全部課程") ? null : val;
+                              _applyFilter();
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // --- 列表區 ---
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(color: _themeColor),
+                        )
+                      : _filteredBulletins.isEmpty
+                      ? const Center(child: Text("沒有公告資料"))
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            bool isWide = constraints.maxWidth > 800;
+
+                            Widget listWidget = ListView.builder(
+                              itemCount: _filteredBulletins.length,
+                              padding: const EdgeInsets.all(12),
+                              itemBuilder: (context, index) {
+                                return _buildBulletinCard(
+                                  _filteredBulletins[index],
+                                  isWide,
+                                );
+                              },
+                            );
+
+                            if (isWide) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(flex: 4, child: listWidget),
+                                  const VerticalDivider(
+                                    width: 1,
+                                    color: Colors.black12,
+                                  ),
+                                  Expanded(
+                                    flex: 6,
+                                    child: _selectedBulletin == null
+                                        ? Center(
+                                            child: Text(
+                                              "請從左側選擇公告以檢視詳細內容",
+                                              style: TextStyle(
+                                                color: colorScheme.subtitleText,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          )
+                                        : AnnouncementDetailPage(
+                                            key: ValueKey(
+                                              _selectedBulletin!.id,
+                                            ),
+                                            bulletin: _selectedBulletin!,
+                                            themeColor: _themeColor,
+                                            isEmbedded: true,
+                                          ),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              return listWidget;
+                            }
+                          },
+                        ),
+                ),
               ],
             ),
           ),
@@ -267,27 +287,42 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
     DateTime showTime = item.effectiveTime;
     String timeStr = DateFormat('yyyy/MM/dd HH:mm').format(showTime);
     bool isUnread = !_readBulletinIds.contains(item.id.toString());
-    
+
     // Select state if it's the currently opened bulletin
-    bool isSelected = isWide && _selectedBulletin != null && _selectedBulletin!.id == item.id;
-    
-    Color accentColor = isSelected ? _themeColor : (isUnread ? Colors.redAccent.shade100 : Colors.transparent);
+    bool isSelected =
+        isWide && _selectedBulletin != null && _selectedBulletin!.id == item.id;
+
+    Color accentColor = isSelected
+        ? _themeColor
+        : (isUnread ? Colors.redAccent.shade100 : Colors.transparent);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? _themeColor.withOpacity(0.05) : colorScheme.cardBackground,
+        color: isSelected
+            ? _themeColor.withOpacity(0.05)
+            : colorScheme.cardBackground,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: isSelected ? _themeColor.withOpacity(0.5) : colorScheme.borderColor),
-        boxShadow: isSelected ? [] : [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
-        ]
+        border: Border.all(
+          color: isSelected
+              ? _themeColor.withOpacity(0.5)
+              : colorScheme.borderColor,
+        ),
+        boxShadow: isSelected
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Container(
           decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: accentColor, width: 4))
+            border: Border(left: BorderSide(color: accentColor, width: 4)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -303,7 +338,10 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AnnouncementDetailPage(bulletin: item, themeColor: _themeColor),
+                        builder: (context) => AnnouncementDetailPage(
+                          bulletin: item,
+                          themeColor: _themeColor,
+                        ),
                       ),
                     );
                   }
@@ -315,18 +353,38 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                       children: [
-                          Expanded(
-                            child: Text(item.courseName, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.courseName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.subtitleText,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 8),
-                          Text(timeStr, style: TextStyle(fontSize: 12, color: colorScheme.subtitleText)),
-                       ]
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.subtitleText,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      item.title, 
-                      style: TextStyle(fontSize: 15, fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500, color: colorScheme.primaryText),
+                      item.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: isUnread
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                        color: colorScheme.primaryText,
+                      ),
                     ),
                     if (item.uploads.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -334,15 +392,15 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
                         children: [
                           Icon(Icons.attach_file, size: 14, color: _themeColor),
                         ],
-                      )
-                    ]
-                  ]
-                )
-              )
-            )
-          )
-        )
-      )
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -374,7 +432,7 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 
   // 用來記錄已經解析的純文字內容，防止連續換行
   final StringBuffer _parsedTextBuffer = StringBuffer();
-  
+
   // 用來記錄所有出現過的內容指紋 (用來刪除重複)
   final Set<String> _seenContentSignature = {};
 
@@ -384,16 +442,29 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 
   Future<void> _downloadAndOpen(int refId, String fileName) async {
     if (_downloading) return;
-    setState(() { _downloading = true; });
+    setState(() {
+      _downloading = true;
+    });
     try {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("下載中: $fileName")));
-      File file = await ElearnBulletinService.instance.downloadFile(refId, fileName);
-      setState(() { _downloading = false; });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("下載中: $fileName")));
+      File file = await ElearnBulletinService.instance.downloadFile(
+        refId,
+        fileName,
+      );
+      setState(() {
+        _downloading = false;
+      });
       await OpenFilex.open(file.path);
     } catch (e) {
       if (mounted) {
-        setState(() { _downloading = false; });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("錯誤: $e"), backgroundColor: Colors.red));
+        setState(() {
+          _downloading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("錯誤: $e"), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -408,7 +479,10 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("無法開啟連結: $urlString"), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text("無法開啟連結: $urlString"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -422,48 +496,147 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
     _parsedTextBuffer.clear();
     _isPreviousContentSkipped = false;
 
+    DateTime showTime = widget.bulletin.effectiveTime;
+    String timeStr = DateFormat('yyyy/MM/dd HH:mm').format(showTime);
+
     Widget content = SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Course tag/badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: widget.themeColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: widget.themeColor.withOpacity(0.2)),
+            ),
+            child: Text(
+              widget.bulletin.courseName,
+              style: TextStyle(
+                color: widget.themeColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           SelectableText(
             widget.bulletin.title,
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.primaryText),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primaryText,
+              height: 1.3,
+            ),
           ),
-          const SizedBox(height: 10),
-          Text(widget.bulletin.courseName,
-              style: TextStyle(color: widget.themeColor, fontWeight: FontWeight.bold)),
-          const Divider(height: 30),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                Icons.access_time,
+                size: 14,
+                color: colorScheme.subtitleText,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                timeStr,
+                style: TextStyle(color: colorScheme.subtitleText, fontSize: 13),
+              ),
+            ],
+          ),
+          const Divider(height: 32),
 
           // 內容區
-          SelectableText.rich(
-            TextSpan(
-              style: TextStyle(fontSize: 16, height: 1.6, color: colorScheme.primaryText),
-              children: _parseNode(parser.parse(widget.bulletin.contentRaw).body),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colorScheme.pageBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.borderColor),
+            ),
+            child: SelectableText.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.6,
+                  color: colorScheme.primaryText,
+                ),
+                children: _parseNode(
+                  parser.parse(widget.bulletin.contentRaw).body,
+                ),
+              ),
             ),
           ),
 
           if (widget.bulletin.uploads.isNotEmpty) ...[
-            const Divider(height: 30),
-            Text("附件", style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText)),
-                        ...widget.bulletin.uploads.map((f) => ListTile(
-                  leading: Icon(Icons.file_present, color: colorScheme.subtitleText),
-                  title: Text(f.name, style: TextStyle(color: colorScheme.primaryText)),
-                  trailing: IconButton(
-                    icon: Icon(Icons.download, color: widget.themeColor),
-                    onPressed: _downloading ? null : () => _downloadAndOpen(f.referenceId, f.name),
+            const SizedBox(height: 24),
+            Text(
+              "附件",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: colorScheme.primaryText,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...widget.bulletin.uploads
+                .map(
+                  (f) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.pageBackground,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: colorScheme.borderColor),
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.file_present,
+                        color: colorScheme.subtitleText,
+                      ),
+                      title: Text(
+                        f.name,
+                        style: TextStyle(
+                          color: colorScheme.primaryText,
+                          fontSize: 14,
+                        ),
+                      ),
+                      trailing: IconButton(
+                        icon: Icon(Icons.download, color: widget.themeColor),
+                        onPressed: _downloading
+                            ? null
+                            : () => _downloadAndOpen(f.referenceId, f.name),
+                      ),
+                    ),
                   ),
-                )).toList(),
-          ]
+                )
+                .toList(),
+          ],
         ],
       ),
     );
 
     if (widget.isEmbedded) {
-      return Scaffold(
-        backgroundColor: colorScheme.cardBackground,
-        body: content,
+      return Container(
+        margin: const EdgeInsets.only(left: 16, top: 12, right: 12, bottom: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.cardBackground,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colorScheme.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Scaffold(backgroundColor: Colors.transparent, body: content),
+        ),
       );
     } else {
       return Scaffold(
@@ -485,8 +658,8 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
 
     if (node.nodeType == dom.Node.TEXT_NODE) {
       String text = node.text ?? "";
-      text = text.replaceAll('\u00A0', ' '); 
-      
+      text = text.replaceAll('\u00A0', ' ');
+
       String trimmedText = text.trim();
       if (trimmedText.isEmpty) return [];
 
@@ -524,91 +697,127 @@ class _AnnouncementDetailPageState extends State<AnnouncementDetailPage> {
       } else {
         // 標記：這段內容顯示了
         _isPreviousContentSkipped = false;
-        
+
         spans.add(TextSpan(text: text));
         _parsedTextBuffer.write(text);
       }
-
     } else if (node.nodeType == dom.Node.ELEMENT_NODE) {
       dom.Element element = node as dom.Element;
-      
+
       // 過濾垃圾標籤
-      if (['style', 'script', 'head', 'meta', 'link', 'title', 'xml', 'iframe'].contains(element.localName)) {
+      if ([
+        'style',
+        'script',
+        'head',
+        'meta',
+        'link',
+        'title',
+        'xml',
+        'iframe',
+      ].contains(element.localName)) {
         return [];
       }
       String style = element.attributes['style']?.toLowerCase() ?? "";
-      if (style.contains('display: none') || style.contains('visibility: hidden')) {
+      if (style.contains('display: none') ||
+          style.contains('visibility: hidden')) {
         return [];
       }
 
-      bool isBold = (element.localName == 'b' || element.localName == 'strong' || style.contains("font-weight: 700"));
+      bool isBold =
+          (element.localName == 'b' ||
+          element.localName == 'strong' ||
+          style.contains("font-weight: 700"));
       bool isLinkElement = (element.localName == 'a');
 
       List<InlineSpan> childrenSpans = [];
       for (var child in element.nodes) {
-        childrenSpans.addAll(_parseNode(child, insideLink: insideLink || isLinkElement));
+        childrenSpans.addAll(
+          _parseNode(child, insideLink: insideLink || isLinkElement),
+        );
       }
 
       // 處理換行
       if (element.localName == 'br') {
         if (!_parsedTextBuffer.toString().endsWith("\n")) {
-           spans.add(const TextSpan(text: "\n"));
-           _parsedTextBuffer.write("\n");
+          spans.add(const TextSpan(text: "\n"));
+          _parsedTextBuffer.write("\n");
         }
-      } 
+      }
       // 處理連結
       else if (isLinkElement) {
         String? href = element.attributes['href'];
         if (href != null && href.startsWith('/')) {
           href = "https://elearn.nsysu.edu.tw$href";
         }
-        
+
         final recognizer = TapGestureRecognizer()
-          ..onTap = () { if (href != null) _launchURL(href); };
+          ..onTap = () {
+            if (href != null) _launchURL(href);
+          };
 
         // 如果 childrenSpans 是空的 (代表裡面的文字被去重過濾掉了)，這個連結也會自然消失
         // 這正是我們想要的效果
-        if (childrenSpans.isNotEmpty || (href != null && childrenSpans.isEmpty)) {
-           // 只有當連結內有文字，或者我們想顯示裸連結時才加入
-           // 但根據上面的邏輯，如果文字被過濾，childrenSpans 會是空的
-           // 為了保險，如果 childrenSpans 有東西才顯示 span
-           if (childrenSpans.isNotEmpty) {
-             spans.add(TextSpan(
-               style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-               children: childrenSpans,
-               recognizer: recognizer,
-             ));
-           } else if (href != null && !_isPreviousContentSkipped) {
-             // 只有當「不是因為重複而被過濾」的情況下，才補上 href 本身當作文字
-             // (這處理 <a href="..."></a> 這種空標籤的情況)
-              spans.add(TextSpan(
-               text: href,
-               style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-               recognizer: recognizer,
-             ));
-           }
+        if (childrenSpans.isNotEmpty ||
+            (href != null && childrenSpans.isEmpty)) {
+          // 只有當連結內有文字，或者我們想顯示裸連結時才加入
+          // 但根據上面的邏輯，如果文字被過濾，childrenSpans 會是空的
+          // 為了保險，如果 childrenSpans 有東西才顯示 span
+          if (childrenSpans.isNotEmpty) {
+            spans.add(
+              TextSpan(
+                style: const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+                children: childrenSpans,
+                recognizer: recognizer,
+              ),
+            );
+          } else if (href != null && !_isPreviousContentSkipped) {
+            // 只有當「不是因為重複而被過濾」的情況下，才補上 href 本身當作文字
+            // (這處理 <a href="..."></a> 這種空標籤的情況)
+            spans.add(
+              TextSpan(
+                text: href,
+                style: const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: recognizer,
+              ),
+            );
+          }
         }
-      } 
-      else {
-        spans.add(TextSpan(
-          style: isBold ? const TextStyle(fontWeight: FontWeight.bold) : null,
-          children: childrenSpans
-        ));
+      } else {
+        spans.add(
+          TextSpan(
+            style: isBold ? const TextStyle(fontWeight: FontWeight.bold) : null,
+            children: childrenSpans,
+          ),
+        );
 
-        if (['div', 'p', 'li', 'ul', 'h1', 'h2', 'h3', 'tr'].contains(element.localName)) {
-           if (!_parsedTextBuffer.toString().endsWith("\n") && _parsedTextBuffer.isNotEmpty) {
-             spans.add(const TextSpan(text: "\n"));
-             _parsedTextBuffer.write("\n");
-           }
+        if ([
+          'div',
+          'p',
+          'li',
+          'ul',
+          'h1',
+          'h2',
+          'h3',
+          'tr',
+        ].contains(element.localName)) {
+          if (!_parsedTextBuffer.toString().endsWith("\n") &&
+              _parsedTextBuffer.isNotEmpty) {
+            spans.add(const TextSpan(text: "\n"));
+            _parsedTextBuffer.write("\n");
+          }
         }
       }
     }
     return spans;
   }
 }
+
 extension on dom.Element {
   List<String> get styles => attributes['style']?.split(';') ?? [];
 }
-
-
-

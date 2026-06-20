@@ -31,11 +31,6 @@ class ModelInfoDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ModelDescItem(
-            "Gemini 3.1 Flash-Lite",
-            "Google 的輕量旗艦，具備極佳的推理能力與超長上下文處理，特別適合處理複雜邏輯與大量文本摘要，\n使用額度高（預估每日200次），有時會遇到API 流量限制的問題，導致回復速度很慢。",
-          ),
-          SizedBox(height: 16),
-          ModelDescItem(
             "Flash-Lite-Latest",
             "目前穩定性最高且維護成本極簡的模型，不同期間會是不同的模型，因此使用額度不定（預估每日200次），有時會遇到API 流量限制的問題，導致回復速度很慢。",
           ),

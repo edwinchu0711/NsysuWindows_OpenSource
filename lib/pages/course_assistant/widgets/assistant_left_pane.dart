@@ -214,7 +214,13 @@ class AssistantLeftPane extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     _buildDetailInfoRow(Icons.tag, "課號", course.code),
-                    _buildDetailInfoRow(Icons.grade, "學分", "${course.credits} (${course.required})"),
+                    _buildDetailInfoRow(
+                      Icons.grade, 
+                      "學分", 
+                      course.required.trim().isNotEmpty
+                          ? "${course.credits} (${course.required})"
+                          : course.credits,
+                    ),
                     _buildDetailInfoRow(Icons.person, "教授", course.professor),
                     _buildDetailInfoRow(Icons.room, "地點", _extractRoomLocation(course.location)),
                     _buildDetailInfoRow(Icons.access_time, "時間", onFormatTime(course)),

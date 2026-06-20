@@ -26,6 +26,12 @@ class _ScoreTrackingDetailState extends State<ScoreTrackingDetail> {
   final Map<String, TextEditingController> _textControllers = {};
 
   @override
+  void initState() {
+    super.initState();
+    _initTargetGrade();
+  }
+
+  @override
   void dispose() {
     for (var controller in _textControllers.values) {
       controller.dispose();
@@ -41,6 +47,18 @@ class _ScoreTrackingDetailState extends State<ScoreTrackingDetail> {
       _clearControllers();
       setState(() {
         _isEditing = false;
+      });
+      _initTargetGrade();
+    }
+  }
+
+  void _initTargetGrade() {
+    if (widget.courseData.targetGrade == null) {
+      widget.courseData.targetGrade = 'A+';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.onSave();
+        }
       });
     }
   }
