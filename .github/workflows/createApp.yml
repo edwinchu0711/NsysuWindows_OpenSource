@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   build-macos:
-    name: Build & Release macOS
+    name: Build macOS
     runs-on: macos-latest
 
     steps:
@@ -50,26 +50,15 @@ jobs:
           mkdir -p dist
           hdiutil create -format UDZO -srcfolder "$APP_PATH" "dist/NSYSU-${VERSION}-macOS.dmg"
 
-      - name: Upload macOS DMG to Release
-        uses: svenstaro/upload-release-action@v2
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/NSYSU-*-macOS.dmg
-          file_glob: true
-          tag: ${{ steps.get_version.outputs.VERSION }}
-          overwrite: true
-          body: |
-            ## 📦 桌面版軟體下載 (Desktop Releases)
-
-            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg**: macOS 安裝檔 (DMG)
-            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe**: Windows 安裝包 (Inno Setup)
-
-            ---
-            *NSYSU Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
-            *Commit: ${{ github.sha }}*
+          name: macos-dmg
+          path: dist/NSYSU-*-macOS.dmg
+          if-no-files-found: error
 
   build-windows:
-    name: Build & Release Windows
+    name: Build Windows
     runs-on: windows-latest
 
     steps:
@@ -105,9 +94,9 @@ jobs:
           echo "VERSION=v$RAW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Compile Inno Setup Script
-        shell: bash
+        shell: powershell
         run: |
-          RAW_VERSION="${{ steps.get_version.outputs.RAW_VERSION }}"
+          $RAW_VERSION = "${{ steps.get_version.outputs.RAW_VERSION }}"
           iscc "/DMyAppVersion=$RAW_VERSION" installer_windows/NSYSU_installer.iss
 
       - name: Prepare Windows Installer File
@@ -117,11 +106,40 @@ jobs:
           mkdir -p dist
           cp build/windows/installer/NSYSU-Windows-Setup.exe "dist/NSYSU-${VERSION}-Windows-Setup.exe"
 
-      - name: Upload Windows EXE to Release
+      - name: Upload Windows EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/NSYSU-*-Windows-Setup.exe
+          if-no-files-found: error
+
+  publish-release:
+    name: Create GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Upload Binaries to Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/NSYSU-*-Windows-Setup.exe
+          file: dist/*
           file_glob: true
           tag: ${{ steps.get_version.outputs.VERSION }}
           overwrite: true
