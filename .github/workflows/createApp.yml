@@ -7,56 +7,6 @@ permissions:
   contents: write
 
 jobs:
-  build-macos:
-    name: Build macOS
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.6'
-          channel: 'stable'
-
-      - name: Enable macOS Desktop
-        run: flutter config --enable-macos-desktop
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build macOS App
-        run: flutter build macos --release
-
-      - name: Sign app with entitlements
-        run: |
-          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
-          echo "App path: $APP_PATH"
-          codesign --force --deep --sign - --entitlements macos/Runner/Release.entitlements "$APP_PATH"
-
-      - name: Get Version from pubspec.yaml
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
-          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create DMG
-        run: |
-          VERSION="${{ steps.get_version.outputs.VERSION }}"
-          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
-          mkdir -p dist
-          hdiutil create -format UDZO -srcfolder "$APP_PATH" "dist/NSYSU-${VERSION}-macOS.dmg"
-
-      - name: Upload macOS DMG Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg
-          path: dist/NSYSU-*-macOS.dmg
-          if-no-files-found: error
-
   build-windows:
     name: Build Windows
     runs-on: windows-latest
@@ -113,9 +63,67 @@ jobs:
           path: dist/NSYSU-*-Windows-Setup.exe
           if-no-files-found: error
 
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
+      - name: Sign app with entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "App path: $APP_PATH"
+          codesign --force --deep --sign - --entitlements macos/Runner/Release.entitlements "$APP_PATH"
+
+      - name: Verify entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "=== Entitlements ==="
+          codesign -d --entitlements :- "$APP_PATH"
+          echo "=== Signature info ==="
+          codesign -dv "$APP_PATH"
+
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          mkdir -p dist
+          hdiutil create -format UDZO -srcfolder "$APP_PATH" "dist/NSYSU-${VERSION}-macOS.dmg"
+
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/NSYSU-*-macOS.dmg
+          if-no-files-found: error
+
   publish-release:
     name: Create GitHub Release
-    needs: [build-macos, build-windows]
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -146,8 +154,8 @@ jobs:
           body: |
             ## 📦 桌面版軟體下載 (Desktop Releases)
 
-            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg**: macOS 安裝檔 (DMG)
-            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe**: Windows 安裝包 (Inno Setup)
+            * **Windows 安裝包**: `NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe`
+            * **macOS 安裝檔**: `NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg`
 
             ---
             *NSYSU Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
