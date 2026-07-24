@@ -1,0 +1,134 @@
+name: NSYSU-Desktop-Build-and-Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build & Release macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
+      - name: Sign app with entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "App path: $APP_PATH"
+          codesign --force --deep --sign - --entitlements macos/Runner/Release.entitlements "$APP_PATH"
+
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          mkdir -p dist
+          hdiutil create -format UDZO -srcfolder "$APP_PATH" "dist/NSYSU-${VERSION}-macOS.dmg"
+
+      - name: Upload macOS DMG to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/NSYSU-*-macOS.dmg
+          file_glob: true
+          tag: ${{ steps.get_version.outputs.VERSION }}
+          overwrite: true
+          body: |
+            ## 📦 桌面版軟體下載 (Desktop Releases)
+
+            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg**: macOS 安裝檔 (DMG)
+            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe**: Windows 安裝包 (Inno Setup)
+
+            ---
+            *NSYSU Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
+            *Commit: ${{ github.sha }}*
+
+  build-windows:
+    name: Build & Release Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - name: Enable Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Setup Inno Setup
+        uses: MinDesk/setup-innosetup@v1
+
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        shell: bash
+        run: |
+          RAW_VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "RAW_VERSION=$RAW_VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=v$RAW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Compile Inno Setup Script
+        shell: bash
+        run: |
+          RAW_VERSION="${{ steps.get_version.outputs.RAW_VERSION }}"
+          iscc "/DMyAppVersion=$RAW_VERSION" installer_windows/NSYSU_installer.iss
+
+      - name: Prepare Windows Installer File
+        shell: bash
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          mkdir -p dist
+          cp build/windows/installer/NSYSU-Windows-Setup.exe "dist/NSYSU-${VERSION}-Windows-Setup.exe"
+
+      - name: Upload Windows EXE to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/NSYSU-*-Windows-Setup.exe
+          file_glob: true
+          tag: ${{ steps.get_version.outputs.VERSION }}
+          overwrite: true
+          body: |
+            ## 📦 桌面版軟體下載 (Desktop Releases)
+
+            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg**: macOS 安裝檔 (DMG)
+            * **NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe**: Windows 安裝包 (Inno Setup)
+
+            ---
+            *NSYSU Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
+            *Commit: ${{ github.sha }}*
