@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../widgets/hover_icon_button.dart';
 import '../../models/course_model.dart';
 import '../../models/custom_event_model.dart';
 import 'assistant_import_page.dart';
@@ -10,12 +11,9 @@ import 'assistant_add_course_page.dart';
 import 'assistant_export_page.dart';
 import 'widgets/assistant_left_pane.dart';
 import 'widgets/assistant_add_event_pane.dart';
-import 'widgets/assistant_ai_pane.dart';
-import '../../services/ai/ai_service.dart';
-import '../../models/ai_config_model.dart';
 import '../../theme/app_theme.dart';
 
-enum AssistantAction { none, addCourse, addEvent, import, export, aiAssistant }
+enum AssistantAction { none, addCourse, addEvent, import, export }
 
 class CourseAssistantPage extends StatefulWidget {
   const CourseAssistantPage({Key? key}) : super(key: key);
@@ -32,9 +30,16 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   AssistantAction _currentAction =
       AssistantAction.addCourse; // ★★★ 預設改為加課模式 ★★★
 
+  /// 空白格篩選通知器，讓課表格子點擊可直接驅動右側加選面板篩選
+  final CourseSlotFilterNotifier _slotFilterNotifier = CourseSlotFilterNotifier();
+
   // ✅ 新增：用於左側顯示詳細資訊的狀態
   Course? _selectedCourseForDetail;
   CustomEvent? _selectedEventForDetail;
+
+  // ✅ 新增：用於記錄目前被 hover 的課程或自訂行程識別碼，以實現同課程多節次同步發光
+  String? _hoveredCourseId;
+  String? _hoveredEventId;
 
   final List<String> _periods = [
     'A',
@@ -90,11 +95,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
     'F': ['21:05', '21:55'],
   };
 
-  AiService? _aiService;
-  List<AiConfig> _aiConfigs = [];
-  String? _selectedAiConfigId;
-  bool _hasEmbeddingApiKey = false;
-
   late final AnimationController _navAnimController;
   late final Animation<double> _navCurve;
   int _prevActionIndex = 0;
@@ -121,37 +121,11 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   @override
   void dispose() {
     _navAnimController.dispose();
-    _aiService?.clearHistory();
+    _slotFilterNotifier.dispose();
     super.dispose();
   }
 
-  void _onAiConfigChanged(AiConfig config) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selected_ai_config_id', config.id);
 
-    // 更新 aiConfigs 清單中的內容 (針對預設模型切換)
-    List<AiConfig> updatedConfigs = List.from(_aiConfigs);
-    int idx = updatedConfigs.indexWhere((c) => c.id == config.id);
-    if (idx != -1) {
-      updatedConfigs[idx] = config;
-    } else {
-      updatedConfigs.add(config);
-    }
-    await prefs.setString('ai_configs', AiConfig.encode(updatedConfigs));
-
-    setState(() {
-      _selectedAiConfigId = config.id;
-      _aiConfigs = updatedConfigs; // 同步更新本地狀態
-
-      if (_aiService != null) {
-        final oldHistory = _aiService!.history;
-        _aiService = AiService(config: config);
-        _aiService!.history.addAll(oldHistory);
-      } else {
-        _aiService = AiService(config: config);
-      }
-    });
-  }
 
   // ✅ 統一載入課程與自訂行程
   Future<void> _loadAllData({bool silent = false}) async {
@@ -181,49 +155,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         _customEvents = [];
       }
 
-      // 讀取 AI 設定
-      final configJson = prefs.getString('ai_configs') ?? '[]';
-      _aiConfigs = AiConfig.decode(configJson);
-      _selectedAiConfigId = prefs.getString('selected_ai_config_id');
 
-      // 檢查 Embedding API Key 是否已設定
-      final embeddingJson = prefs.getString('embedding_config');
-      if (embeddingJson != null && embeddingJson.isNotEmpty) {
-        try {
-          final embeddingConfig = AiConfig.fromJson(jsonDecode(embeddingJson));
-          _hasEmbeddingApiKey = embeddingConfig.apiKey.isNotEmpty;
-        } catch (_) {
-          _hasEmbeddingApiKey = false;
-        }
-      } else {
-        // 若無獨立 embedding 設定，嘗試使用主 AI 設定的 API Key
-        _hasEmbeddingApiKey =
-            _aiConfigs.isNotEmpty && _aiConfigs.first.apiKey.isNotEmpty;
-      }
-
-      if (_aiConfigs.isNotEmpty) {
-        AiConfig? target;
-        if (_selectedAiConfigId != null) {
-          target = _aiConfigs.firstWhere(
-            (c) => c.id == _selectedAiConfigId,
-            orElse: () => _aiConfigs.first,
-          );
-        } else {
-          target = _aiConfigs.first;
-        }
-
-        if (_aiService == null || _aiService!.config.id != target.id) {
-          if (_aiService != null) {
-            final oldHistory = _aiService!.history;
-            _aiService = AiService(config: target);
-            _aiService!.history.addAll(oldHistory);
-          } else {
-            _aiService = AiService(config: target);
-          }
-        }
-
-        _selectedAiConfigId = target.id;
-      }
     } catch (e) {
       debugPrint("讀取資料失敗: $e");
     } finally {
@@ -585,6 +517,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
   }
 
   Widget _buildDesktopHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(left: 10, right: 20, top: 10, bottom: 5),
       child: Row(
@@ -592,10 +525,13 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         children: [
           Row(
             children: [
-              IconButton(
+              HoverIconButton(
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                 onPressed: () => context.go('/home'),
                 tooltip: "返回主選單",
+                color: colorScheme.primaryText,
+                iconSize: 18,
+                padding: 12,
               ),
               const SizedBox(width: 4),
               Text(
@@ -627,7 +563,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
     (AssistantAction.addEvent, Icons.event_note_rounded, "其他行程"),
     (AssistantAction.import, Icons.download_rounded, "匯入課表"),
     (AssistantAction.export, Icons.upload_rounded, "匯出選課"),
-    (AssistantAction.aiAssistant, Icons.smart_toy_rounded, "AI 助手"),
   ];
 
   Widget _buildLiquidGlassNav() {
@@ -807,8 +742,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
         return 2;
       case AssistantAction.export:
         return 3;
-      case AssistantAction.aiAssistant:
-        return 4;
       case AssistantAction.none:
         return 0;
     }
@@ -827,6 +760,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
             onCourseAdded: _loadAllData,
             initialCourses: _assistantCourses.map((c) => c.toJson()).toList(),
             initialEvents: _customEvents.map((e) => e.toJson()).toList(),
+            slotFilterNotifier: _slotFilterNotifier,
           ),
         ),
         _buildIfVisited(
@@ -881,18 +815,6 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
             key: const ValueKey('export_pane'),
             isSubPane: true,
             courses: _assistantCourses,
-          ),
-        ),
-        _buildIfVisited(
-          AssistantAction.aiAssistant,
-          AssistantAiPane(
-            key: const ValueKey('ai_assistant_pane'),
-            aiService: _aiService,
-            aiConfigs: _aiConfigs,
-            selectedConfigId: _selectedAiConfigId,
-            onConfigChanged: _onAiConfigChanged,
-            onRefreshRequested: () => _loadAllData(silent: true),
-            hasEmbeddingApiKey: _hasEmbeddingApiKey,
           ),
         ),
       ],
@@ -1064,19 +986,168 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
 
                     // 情況一：完全空堂
                     if (cellCourses.isEmpty && cellEvents.isEmpty) {
-                      return Container(height: 70);
+                      return _buildSlotCell(
+                        dayKey: currentDay.toString(),
+                        periodKey: period,
+                      );
                     }
 
                     // 情況二：這個時段「只有一堂正規課程」
                     if (cellCourses.length == 1 && cellEvents.isEmpty) {
                       final cellCourse = cellCourses.first;
-                      return Container(
+                      return _buildSlotCell(
+                        dayKey: currentDay.toString(),
+                        periodKey: period,
+                        child: Container(
                         constraints: const BoxConstraints(minHeight: 70),
                         padding: const EdgeInsets.all(1.0),
-                        child: Material(
-                          color: _getCourseColor(cellCourse.name),
-                          borderRadius: BorderRadius.circular(4),
-                          child: InkWell(
+                        child: _HoverableCourseBlock(
+                          key: ValueKey(
+                            "course-${cellCourse.code}-$currentDay-$period",
+                          ),
+                          baseColor: _getCourseColor(cellCourse.name),
+                          isHovered: _hoveredCourseId == cellCourse.code,
+                          onHoverChanged: (hovered) {
+                            setState(() {
+                              _hoveredCourseId = hovered
+                                  ? cellCourse.code
+                                  : null;
+                            });
+                          },
+                          onTap: () {
+                            final isWide =
+                                MediaQuery.of(context).size.width > 900;
+                            if (isWide) {
+                              setState(() {
+                                _selectedCourseForDetail = cellCourse;
+                                _selectedEventForDetail = null;
+                              });
+                            } else {
+                              _showCourseDetail(cellCourse);
+                            }
+                          },
+                          child: Center(
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    keepUntilLastChinese(cellCourse.name),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _extractLocation(cellCourse.location),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ));
+                    }
+
+                    // 情況三：這個時段「只有一個自訂行程」
+                    if (cellEvents.length == 1 && cellCourses.isEmpty) {
+                      final cellEvent = cellEvents.first;
+                      return _buildSlotCell(
+                        dayKey: currentDay.toString(),
+                        periodKey: period,
+                        child: Container(
+                        constraints: const BoxConstraints(minHeight: 70),
+                        padding: const EdgeInsets.all(1.0),
+                        child: _HoverableCourseBlock(
+                          key: ValueKey(
+                            "event-${cellEvent.id}-$currentDay-$period",
+                          ),
+                          baseColor: _getCourseColor(cellEvent.title),
+                          isHovered: _hoveredEventId == cellEvent.id,
+                          onHoverChanged: (hovered) {
+                            setState(() {
+                              _hoveredEventId = hovered ? cellEvent.id : null;
+                            });
+                          },
+                          onTap: () {
+                            final isWide =
+                                MediaQuery.of(context).size.width > 900;
+                            if (isWide) {
+                              setState(() {
+                                _selectedEventForDetail = cellEvent;
+                                _selectedCourseForDetail = null;
+                              });
+                            } else {
+                              _showCustomEventDetail(cellEvent);
+                            }
+                          },
+                          child: Center(
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    cellEvent.title,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  if (cellEvent.location.isNotEmpty)
+                                    Text(
+                                      cellEvent.location,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ));
+                    }
+
+                    // 情況四：同一個時段有多個項目 (衝堂：包含多堂課、多個行程、或課跟行程重疊)
+                    List<Widget> cellWidgets = [];
+
+                    // 渲染多堂正規課程
+                    for (var cellCourse in cellCourses) {
+                      cellWidgets.add(
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.0),
+                          child: _HoverableCourseBlock(
+                            key: ValueKey(
+                              "course-conflict-${cellCourse.code}-$currentDay-$period-${cellCourse.name}",
+                            ),
+                            baseColor: _getCourseColor(cellCourse.name),
+                            isHovered: _hoveredCourseId == cellCourse.code,
+                            onHoverChanged: (hovered) {
+                              setState(() {
+                                _hoveredCourseId = hovered
+                                    ? cellCourse.code
+                                    : null;
+                              });
+                            },
                             onTap: () {
                               final isWide =
                                   MediaQuery.of(context).size.width > 900;
@@ -1089,149 +1160,31 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                                 _showCourseDetail(cellCourse);
                               }
                             },
-                            child: Center(
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(6.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      keepUntilLastChinese(cellCourse.name),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                      textAlign: TextAlign.center,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    keepUntilLastChinese(cellCourse.name),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _extractLocation(cellCourse.location),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white70,
-                                      ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _extractLocation(cellCourse.location),
+                                    style: const TextStyle(
+                                      fontSize: 9.5,
+                                      color: Colors.white70,
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // 情況三：這個時段「只有一個自訂行程」
-                    if (cellEvents.length == 1 && cellCourses.isEmpty) {
-                      final cellEvent = cellEvents.first;
-                      return Container(
-                        constraints: const BoxConstraints(minHeight: 70),
-                        padding: const EdgeInsets.all(1.0),
-                        child: Material(
-                          color: _getCourseColor(cellEvent.title), // 套用彩色
-                          borderRadius: BorderRadius.circular(4),
-                          child: InkWell(
-                            onTap: () {
-                              final isWide =
-                                  MediaQuery.of(context).size.width > 900;
-                              if (isWide) {
-                                setState(() {
-                                  _selectedEventForDetail = cellEvent;
-                                  _selectedCourseForDetail = null;
-                                });
-                              } else {
-                                _showCustomEventDetail(cellEvent);
-                              }
-                            },
-                            child: Center(
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(6.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      cellEvent.title,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    if (cellEvent.location.isNotEmpty)
-                                      Text(
-                                        cellEvent.location,
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // 情況四：同一個時段有多個項目 (衝堂：包含多堂課、多個行程、或課跟行程重疊)
-                    List<Widget> cellWidgets = [];
-
-                    // 渲染多堂正規課程
-                    for (var cellCourse in cellCourses) {
-                      cellWidgets.add(
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 2.0),
-                          child: Material(
-                            color: _getCourseColor(cellCourse.name),
-                            borderRadius: BorderRadius.circular(4),
-                            child: InkWell(
-                              onTap: () {
-                                final isWide =
-                                    MediaQuery.of(context).size.width > 900;
-                                if (isWide) {
-                                  setState(() {
-                                    _selectedCourseForDetail = cellCourse;
-                                    _selectedEventForDetail = null;
-                                  });
-                                } else {
-                                  _showCourseDetail(cellCourse);
-                                }
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(6.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      keepUntilLastChinese(cellCourse.name),
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _extractLocation(cellCourse.location),
-                                      style: const TextStyle(
-                                        fontSize: 9.5,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -1244,49 +1197,55 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                       cellWidgets.add(
                         Padding(
                           padding: const EdgeInsets.only(bottom: 2.0),
-                          child: Material(
-                            color: _getCourseColor(cellEvent.title),
-                            borderRadius: BorderRadius.circular(4),
-                            child: InkWell(
-                              onTap: () {
-                                final isWide =
-                                    MediaQuery.of(context).size.width > 900;
-                                if (isWide) {
-                                  setState(() {
-                                    _selectedEventForDetail = cellEvent;
-                                    _selectedCourseForDetail = null;
-                                  });
-                                } else {
-                                  _showCustomEventDetail(cellEvent);
-                                }
-                              },
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(6.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      cellEvent.title,
-                                      style: const TextStyle(
-                                        fontSize: 12.5,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        height: 1.1,
-                                      ),
-                                      textAlign: TextAlign.center,
+                          child: _HoverableCourseBlock(
+                            key: ValueKey(
+                              "event-conflict-${cellEvent.id}-$currentDay-$period-${cellEvent.title}",
+                            ),
+                            baseColor: _getCourseColor(cellEvent.title),
+                            isHovered: _hoveredEventId == cellEvent.id,
+                            onHoverChanged: (hovered) {
+                              setState(() {
+                                _hoveredEventId = hovered ? cellEvent.id : null;
+                              });
+                            },
+                            onTap: () {
+                              final isWide =
+                                  MediaQuery.of(context).size.width > 900;
+                              if (isWide) {
+                                setState(() {
+                                  _selectedEventForDetail = cellEvent;
+                                  _selectedCourseForDetail = null;
+                                });
+                              } else {
+                                _showCustomEventDetail(cellEvent);
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    cellEvent.title,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1,
                                     ),
-                                    const SizedBox(height: 2),
-                                    if (cellEvent.location.isNotEmpty)
-                                      Text(
-                                        cellEvent.location,
-                                        style: const TextStyle(
-                                          fontSize: 9.5,
-                                          color: Colors.white70,
-                                        ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  if (cellEvent.location.isNotEmpty)
+                                    Text(
+                                      cellEvent.location,
+                                      style: const TextStyle(
+                                        fontSize: 9.5,
+                                        color: Colors.white70,
                                       ),
-                                  ],
-                                ),
+                                    ),
+                                ],
                               ),
                             ),
                           ),
@@ -1294,7 +1253,10 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                       );
                     }
 
-                    return Container(
+                    return _buildSlotCell(
+                      dayKey: currentDay.toString(),
+                      periodKey: period,
+                      child: Container(
                       constraints: const BoxConstraints(
                         minHeight: 70,
                       ), // 多堂課時讓他自適應長高
@@ -1304,6 +1266,7 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: cellWidgets,
+                      ),
                       ),
                     );
                   }),
@@ -1639,7 +1602,12 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
     final String key = id != null ? name + id : name;
     final int hash = key.hashCode.abs();
 
-    return colors[hash % colors.length];
+    final baseColor = colors[hash % colors.length];
+    // 降低飽和度，稍微調亮，讓顏色更柔和(粉彩感)
+    final hsl = HSLColor.fromColor(baseColor);
+    return hsl
+        .withSaturation((hsl.saturation * 0.92).clamp(0.0, 1.0))
+        .toColor();
   }
 
   void _showInfoDialog() {
@@ -1658,7 +1626,10 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
           "2. 方便在加簽時快速查看教室與上課時間等資訊。\n\n"
           "3. 支援新增「其他行程」(如工讀、社團)，協助管理個人時間。\n\n"
           "4. 支援從「選課小幫手」網站匯入課表。\n\n"
-          "5. 排好的正規課程可直接匯出至「選課系統」進行快速選課。",
+          "5. 排好的正規課程可直接匯出至「選課系統」進行快速選課。\n\n"
+          "6. 提供兩種評價查詢方式：\n"
+          "   - 「教授評價」：快速查詢該課程教授的歷史評價。\n"
+          "   - 「課程評價」：一鍵跳轉搜尋該課程名稱的評價心得。",
           style: TextStyle(height: 1.5, fontSize: 15),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -1671,6 +1642,315 @@ class _CourseAssistantPageState extends State<CourseAssistantPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 切換某個 (星期, 節次) 配對的篩選狀態，並確保右側加課面板已開啟。
+  void _toggleSlotFilter(String dayKey, String periodKey) {
+    if (_currentAction != AssistantAction.addCourse) {
+      setState(() {
+        _prevActionIndex = _currentActionIndex;
+        _currentAction = AssistantAction.addCourse;
+      });
+      _navAnimController.forward(from: 0);
+    }
+    _slotFilterNotifier.toggle(dayKey, periodKey);
+  }
+
+  /// 為課表任一格（空堂或有課）包上一層可作為篩選配對的裝飾：
+  /// 右上角小按鈕切換篩選、已選取時繪製邊框 + 勾選角標。
+  ///
+  /// [child] 為 null 代表空堂（整格點擊即切換篩選）；非 null 則為有課格，
+  /// 格子本體點擊維持原行為（打開詳情），僅右上角按鈕用來切換篩選。
+  Widget _buildSlotCell({
+    required String dayKey,
+    required String periodKey,
+    Widget? child,
+  }) {
+    // TableCell.intrinsicHeight：量測時貢獻本格自然高度（讓列高 = 最高那格，
+    // 不會塌成 0、也不會裁切較高的多課格）；佈局時再被拉伸到整列高度，
+    // 這樣已選取的邊框會涵蓋整個時段格，而不是只包到課程區塊的高度。
+    // 注意：不能用 fill —— fill 格在 RenderTable 量測列高時會 break 不貢獻高度，
+    // 若整列每格都是 fill（本頁時間欄也是 fill），rowHeight 會變 0、整列消失。
+    return TableCell(
+      verticalAlignment: TableCellVerticalAlignment.intrinsicHeight,
+      child: _SlotFilterableCell(
+        dayKey: dayKey,
+        periodKey: periodKey,
+        notifier: _slotFilterNotifier,
+        colorScheme: Theme.of(context).colorScheme,
+        onToggle: () => _toggleSlotFilter(dayKey, periodKey),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _HoverableCourseBlock extends StatelessWidget {
+  final Widget child;
+  final Color baseColor;
+  final VoidCallback onTap;
+  final bool isHovered;
+  final ValueChanged<bool> onHoverChanged;
+
+  const _HoverableCourseBlock({
+    Key? key,
+    required this.child,
+    required this.baseColor,
+    required this.onTap,
+    required this.isHovered,
+    required this.onHoverChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => onHoverChanged(true),
+      onExit: (_) => onHoverChanged(false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: baseColor.withOpacity(0.6),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : [],
+        ),
+        child: Material(
+          color: baseColor,
+          borderRadius: BorderRadius.circular(4),
+          child: InkWell(
+            onTap: onTap,
+            mouseCursor: SystemMouseCursors.click,
+            borderRadius: BorderRadius.circular(4),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 外部（課表空白格）用來通知 AssistantAddCoursePage 切換星期+節次篩選的 ChangeNotifier
+///
+/// 以 (星期, 節次) **配對**為單位保存，而非把星期與節次拆成兩個獨立集合。
+/// 否則點擊「星期四第2節」與「星期五第1節」會變成 days={4,5} × periods={1,2}
+/// 的笛卡兒積，錯誤地命中 (四,1)(五,2) 等沒被點的格子。
+class CourseSlotFilterNotifier extends ChangeNotifier {
+  /// 已選的 "day-period" 配對，例如 {"4-2", "5-1"}。
+  Set<String> _slots = {};
+
+  Set<String> get slots => _slots;
+
+  /// 為了顯示方便提供的 union 視圖（僅供 UI 提示，搜尋比對請用 [slots]）。
+  Set<String> get days =>
+      _slots.map((s) => s.split('-').first).toSet();
+  Set<String> get periods =>
+      _slots.map((s) => s.split('-').last).toSet();
+
+  /// 某個 (day, period) 配對目前是否被選中。
+  bool isSelected(String dayKey, String periodKey) =>
+      _slots.contains("$dayKey-$periodKey");
+
+  /// 切換一個 (day, period) 配對；已選則取消，未選則加入。
+  void toggle(String dayKey, String periodKey) {
+    final key = "$dayKey-$periodKey";
+    _slots = Set.from(_slots);
+    if (_slots.contains(key)) {
+      _slots.remove(key);
+    } else {
+      _slots.add(key);
+    }
+    notifyListeners();
+  }
+
+  /// 清除所有篩選
+  void clear() {
+    _slots = {};
+    notifyListeners();
+  }
+}
+
+/// 課表格的「可篩選」裝飾 Widget。
+///
+/// 在任意課表格（空堂或有課）上疊加：
+/// - 右上角小按鈕：點擊切換該 (星期, 節次) 配對為篩選條件。
+/// - 已選取時：2px 外框 + 勾選角標，疊在彩色課格上也清楚可見。
+///
+/// [child] 為 null 代表空堂，整格點擊即切換篩選；非 null 則為有課格，
+/// 格子本體點擊維持原行為（打開詳情），僅右上角按鈕用來切換篩選。
+class _SlotFilterableCell extends StatefulWidget {
+  final String dayKey;
+  final String periodKey;
+  final CourseSlotFilterNotifier notifier;
+  final ColorScheme colorScheme;
+  final VoidCallback onToggle;
+  final Widget? child;
+
+  const _SlotFilterableCell({
+    required this.dayKey,
+    required this.periodKey,
+    required this.notifier,
+    required this.colorScheme,
+    required this.onToggle,
+    this.child,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<_SlotFilterableCell> createState() => _SlotFilterableCellState();
+}
+
+class _SlotFilterableCellState extends State<_SlotFilterableCell> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final accent = cs.accentBlue;
+    final isEmpty = widget.child == null;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedBuilder(
+        animation: widget.notifier,
+        builder: (context, _) {
+          final selected =
+              widget.notifier.isSelected(widget.dayKey, widget.periodKey);
+          return Stack(
+            children: [
+              // 非 positioned 子節點：決定 Stack 自然高度（供 Table 量測列高）。
+              // 空堂用透明 SizedBox(70)（不強制寬度，寬度由 Positioned.fill 填滿）；
+              // 有課格用課程區塊本身（真實高度）。
+              // 在 TableCell.fill 下，Stack 會被填滿到整列高度，此子節點只量測、不影響顯示位置。
+              isEmpty ? const SizedBox(height: 70) : widget.child!,
+              // 空堂：整格底色 + 整格點擊切換（填滿整格，邊框涵蓋整個時段）。
+              if (isEmpty)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: widget.onToggle,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? accent.withValues(
+                                alpha: cs.isDark ? 0.18 : 0.10,
+                              )
+                            : _isHovered
+                                ? accent.withValues(
+                                    alpha: cs.isDark ? 0.08 : 0.05,
+                                  )
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              // 已選取：邊框涵蓋整格（不攔截點擊）
+              if (selected)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: accent, width: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              // 右上角小按鈕 / 勾選角標
+              // 已選取：顯示勾選角標（任何格）。
+              // 未選取：唯有「有課格 + hover」才顯示 + 號（空堂整格即可點擊，不需按鈕）。
+              if (selected || (!isEmpty && _isHovered))
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: _CornerFilterButton(
+                    selected: selected,
+                    hovered: _isHovered,
+                    accent: accent,
+                    isDark: cs.isDark,
+                    onTap: widget.onToggle,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// 右上角的篩選切換鈕。未選時為淡色圓框 + 號（hover 變深）；已選時為外框圓圈 + 半透明底 + accent 勾選。
+class _CornerFilterButton extends StatelessWidget {
+  final bool selected;
+  final bool hovered;
+  final Color accent;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _CornerFilterButton({
+    required this.selected,
+    required this.hovered,
+    required this.accent,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 18.0;
+    if (selected) {
+      // 已選取：外框圓圈 + 半透明底 + accent 色勾選（不要太滿、不搶眼）。
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: isDark ? 0.18 : 0.12),
+            shape: BoxShape.circle,
+            border: Border.all(color: accent, width: 1.5),
+          ),
+          child: Icon(
+            Icons.check,
+            size: 11,
+            color: accent,
+          ),
+        ),
+      );
+    }
+    final alpha = hovered ? (isDark ? 0.85 : 0.7) : (isDark ? 0.45 : 0.35);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: hovered
+              ? accent.withValues(alpha: isDark ? 0.15 : 0.10)
+              : Colors.transparent,
+          border: Border.all(
+            color: accent.withValues(alpha: hovered ? 0.6 : alpha),
+            width: 1.5,
+          ),
+        ),
+        child: Icon(
+          Icons.add,
+          size: 11,
+          color: accent.withValues(alpha: alpha),
+        ),
       ),
     );
   }

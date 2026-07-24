@@ -5,7 +5,4 @@ export 'course_query_provider.dart';
 export 'score_provider.dart';
 export 'graduation_provider.dart';
 export 'elearn_provider.dart';
-export 'ai_provider.dart';
 export 'local_course_provider.dart';
-export 'database_embedding_provider.dart';
-export 'notification_provider.dart';

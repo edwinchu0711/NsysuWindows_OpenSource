@@ -6,7 +6,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class Utils {
-  static const bool dev = false; // 若為 true 則不執行記錄
+  /// 判斷是否為開發者帳號
+  static bool isDev(String username) {
+    // 帳號轉為大寫並去掉空白
+    final cleaned = username.toUpperCase().replaceAll(RegExp(r'\s+'), '');
+    final input = '!!$cleaned??';
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString() ==
+        'ce1a97227b7b50bb80d2bfcfa192d2285fd3c2ff63501076ba20f30077745fea';
+  }
 
   /// 中山大學校務系統專用的密碼加密方式：MD5 後轉為 Base64
   static String base64md5(String text) {
@@ -28,9 +37,9 @@ class Utils {
   }
 
   /// 記錄應用程式啟動（登入成功時呼叫）
-  static Future<void> recordLaunch() async {
-    if (dev) {
-      debugPrint('ℹ️ recordLaunch: 開發模式已啟動，略過記錄。');
+  static Future<void> recordLaunch(String username) async {
+    if (isDev(username)) {
+      // debugPrint('ℹ️ recordLaunch: 開發模式已啟動，略過記錄。');
       return;
     }
     try {

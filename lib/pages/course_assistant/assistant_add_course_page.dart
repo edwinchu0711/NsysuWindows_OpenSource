@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../services/course_query_service.dart'; // 請確認路徑是否正確
+import '../../../services/course_query_service.dart';
 import '../../../services/course_evaluation_service.dart';
-import 'package:http/http.dart' as http; // ✅ 新增這行：用來發送網路請求
-import 'package:url_launcher/url_launcher.dart'; // ✅ 新增：用於開啟外部連結
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/app_theme.dart';
+import 'widgets/glass_multi_select_dropdown.dart';
+import 'widgets/course_search_result_card.dart';
+import 'course_assistant_page.dart';
 
 class AssistantAddCoursePage extends StatefulWidget {
   final VoidCallback? onCourseAdded; // 新增回呼，通知父層
@@ -15,15 +18,17 @@ class AssistantAddCoursePage extends StatefulWidget {
 
   final List<dynamic>? initialCourses; // 既有課程 (來自父層)
   final List<dynamic>? initialEvents; // 既有行程 (來自父層)
+  final CourseSlotFilterNotifier? slotFilterNotifier; // 槽位篩選器
 
   const AssistantAddCoursePage({
-    Key? key,
+    super.key,
     this.onCourseAdded,
     this.onClose,
     this.isSubPane = false,
     this.initialCourses,
     this.initialEvents,
-  }) : super(key: key);
+    this.slotFilterNotifier,
+  });
 
   @override
   State<AssistantAddCoursePage> createState() => _AssistantAddCoursePageState();
@@ -33,7 +38,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   bool _isQueryLoading = false;
   List<CourseJsonData> _searchResults = [];
   bool _hasSearched = false;
-  final Map<String, List<String>> _evaluationCache = {};
+  final Map<String, Future<List<String>>> _evaluationFutureCache = {};
+
   // 已存在助手課表中的課程 ID 集合 (用來防呆顯示已加入)
   Set<String> _existingAssistantCourseIds = {};
 
@@ -41,6 +47,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   Set<String> _selectedGrades = {};
   Set<String> _selectedDays = {};
   Set<String> _selectedPeriods = {};
+  /// 來自課表格子點擊的 (day-period) 配對篩選，與下拉的星期/節次互相獨立。
+  Set<String> _selectedSlots = {};
   String? _selectedClass;
   bool _filterConflict = false; // 是否過濾衝堂
   List<dynamic>? _localAddedCourses; // 新增：用於即時追蹤本地已加入課程，解決刷新延遲問題
@@ -84,6 +92,16 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
 
   Timer? _debounce;
 
+  void _onSlotFilterChanged() {
+    final notifier = widget.slotFilterNotifier;
+    if (notifier == null) return;
+    setState(() {
+      // 格子點擊以配對為單位，獨立於下拉的星期/節次篩選，不混入 _selectedDays/_selectedPeriods
+      _selectedSlots = Set.from(notifier.slots);
+    });
+    _performSearch();
+  }
+
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
@@ -103,8 +121,17 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           .toSet();
     }
     _mergedQueryCtrl.addListener(_onSearchChanged);
+    widget.slotFilterNotifier?.addListener(_onSlotFilterChanged);
+    if (widget.slotFilterNotifier != null) {
+      _selectedSlots = Set.from(widget.slotFilterNotifier!.slots);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadExistingAssistantCourses().then((_) => _performSearch());
+      _loadExistingAssistantCourses();
+      if (_selectedSlots.isNotEmpty ||
+          _selectedDays.isNotEmpty ||
+          _selectedPeriods.isNotEmpty) {
+        _performSearch();
+      }
     });
   }
 
@@ -114,10 +141,21 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     if (widget.initialCourses != oldWidget.initialCourses) {
       _loadExistingAssistantCourses();
     }
+    if (widget.slotFilterNotifier != oldWidget.slotFilterNotifier) {
+      oldWidget.slotFilterNotifier?.removeListener(_onSlotFilterChanged);
+      widget.slotFilterNotifier?.addListener(_onSlotFilterChanged);
+      if (widget.slotFilterNotifier != null) {
+        setState(() {
+          _selectedSlots = Set.from(widget.slotFilterNotifier!.slots);
+        });
+        _performSearch();
+      }
+    }
   }
 
   @override
   void dispose() {
+    widget.slotFilterNotifier?.removeListener(_onSlotFilterChanged);
     _mergedQueryCtrl.removeListener(_onSearchChanged);
     _debounce?.cancel();
     _mergedQueryCtrl.dispose();
@@ -143,7 +181,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   }
 
   // 將 CourseJsonData 轉換為 Course 模型並存入快取
-  // 將 CourseJsonData 轉換為 Course 模型並存入快取
   Future<void> _addCourseToAssistant(CourseJsonData courseData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -157,7 +194,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         return;
       }
 
-      // ✅ 修改這裡：將時間字串精準拆分 (支援 "234" 或 "2,3,4" 等格式)
+      // 將時間字串精準拆分 (支援 "234" 或 "2,3,4" 等格式)
       List<Map<String, dynamic>> parsedTimes = [];
       for (int i = 0; i < courseData.classTime.length; i++) {
         String dayPeriods = courseData.classTime[i];
@@ -180,7 +217,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         'location': courseData.room,
         'timeString': "",
         'credits': courseData.credit,
-        'required': "",
+        'required': courseData.compulsory ? "必修" : "選修",
         'detailUrl': "",
         'parsedTimes': parsedTimes,
         'english': courseData.english,
@@ -201,10 +238,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         _localAddedCourses = currentList; // 更新本地緩存資料，讓下次搜尋即時生效
       });
 
-      // ★★★ 新增：呼叫回呼，讓旁邊的課表自動更新 ★★★
+      // 呼叫回呼，讓旁邊的課表自動更新
       widget.onCourseAdded?.call();
 
-      // ★★★ 新增：如果開啟了過濾衝堂，加入課程後自動重新搜尋以隱藏新衝突課程 ★★★
+      // 如果開啟了過濾衝堂，加入課程後自動重新搜尋以隱藏新衝突課程
       if (_filterConflict) {
         _performSearch();
       }
@@ -220,7 +257,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     if (semStr.length == 4) {
       final syear = semStr.substring(0, 3); // 前三碼 (114)
       final sem = semStr.substring(3, 4); // 最後一碼 (2)
-      semDisplay = "$syear-${sem}";
+      semDisplay = "$syear-$sem";
     }
     final content = Column(
       children: [
@@ -271,7 +308,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         backgroundColor: Theme.of(context).colorScheme.headerBackground,
         foregroundColor: Theme.of(context).colorScheme.primaryText,
         elevation: 0.5,
-        // ★★★ 新增：如果由分割畫面呼叫，顯示關閉按鈕 ★★★
         leading: widget.onClose != null
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -284,6 +320,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   }
 
   Widget _buildSearchResults() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (_isQueryLoading) {
       return Center(
         child: Column(
@@ -293,9 +331,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             const SizedBox(height: 16),
             Text(
               "搜尋中 (可能需要下載課程資料)...",
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.subtitleText,
-              ),
+              style: TextStyle(color: colorScheme.subtitleText),
             ),
           ],
         ),
@@ -305,8 +341,8 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     if (!_hasSearched) {
       return Center(
         child: Text(
-          "點擊上方按鈕搜尋想加入的課程",
-          style: TextStyle(color: Theme.of(context).colorScheme.subtitleText),
+          widget.isSubPane ? "輸入關鍵字或選擇條件後，點擊搜尋按鈕" : "點擊上方按鈕搜尋想加入的課程",
+          style: TextStyle(color: colorScheme.subtitleText),
         ),
       );
     }
@@ -315,373 +351,27 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
       return const Center(child: Text("找不到符合條件的課程"));
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final course = _searchResults[index];
-        bool isAdded = _existingAssistantCourseIds.contains(course.id);
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: _searchResults.length,
+            itemBuilder: (context, index) {
+              final course = _searchResults[index];
+              bool isAdded = _existingAssistantCourseIds.contains(course.id);
 
-        return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.borderColor,
-              width: 0.8,
-            ),
+              return CourseSearchResultCard(
+                course: course,
+                isAdded: isAdded,
+                onAddPressed: () => _addCourseToAssistant(course),
+                getCourseEvaluation: _getCourseEvaluation,
+                launchEvaluationSearch: _launchEvaluationSearch,
+              );
+            },
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              dividerColor: Colors.transparent,
-              colorScheme: Theme.of(context).colorScheme,
-            ),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              title: Row(
-                children: [
-                  Expanded(child: _HoverableCourseName(course: course)),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 減少間距
-                  const SizedBox(height: 2),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      _buildMiniInfoChip(Icons.person_outline, course.teacher),
-                      _buildMiniInfoChip(
-                        Icons.grade_outlined,
-                        "${course.credit} 學分",
-                      ),
-                      _buildMiniInfoChip(
-                        Icons.class_outlined,
-                        "${course.grade}年${course.className}",
-                      ),
-                      _buildMiniInfoChip(
-                        Icons.category_outlined,
-                        course.department,
-                      ),
-                      _buildMiniInfoChip(
-                        Icons.access_time,
-                        _formatClassTime(course.classTime),
-                      ),
-                      if (course.english)
-                        _buildMiniInfoChip(Icons.language, "英語授課"),
-                    ],
-                  ),
-                ],
-              ),
-              trailing: isAdded
-                  ? Icon(
-                      Icons.check_circle,
-                      color: Theme.of(context).colorScheme.isDark
-                          ? Colors.greenAccent[400]
-                          : Colors.green[600],
-                      size: 32,
-                    )
-                  : MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: ElevatedButton(
-                        onPressed: () => _addCourseToAssistant(course),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.isDark
-                              ? Colors.green[800]
-                              : Colors.green[600],
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          minimumSize: const Size(60, 32),
-                        ),
-                        child: const Text("加入排課"),
-                      ),
-                    ),
-              children: [
-                const Divider(height: 1, thickness: 1),
-                Container(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.secondaryCardBackground.withOpacity(0.5),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "評分方式",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.subtitleText,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // 使用 FutureBuilder 動態載入
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FutureBuilder<List<String>>(
-                          future: _getCourseEvaluation(course.id),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              );
-                            }
-                            if (snapshot.hasError ||
-                                !snapshot.hasData ||
-                                snapshot.data!.isEmpty) {
-                              return Text(
-                                "尚無詳細評分資料",
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.subtitleText,
-                                  fontSize: 13,
-                                ),
-                              );
-                            }
-                            // 渲染抓取到的評分清單
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: snapshot.data!
-                                  .map(
-                                    (e) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 6.0,
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle_outline,
-                                            size: 16,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.accentBlue,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: Text(
-                                              e,
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primaryText,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(height: 1, thickness: 1),
-                      const SizedBox(height: 12),
-
-                      // 課程狀態與標籤
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "課程資訊",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.subtitleText,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                _buildInfoRow("名額", "${course.restrict}"),
-                                _buildInfoRow(
-                                  "餘額",
-                                  "${course.remaining}",
-                                  valueColor: course.remaining > 0
-                                      ? (Theme.of(context).colorScheme.isDark
-                                            ? Colors.green[200]
-                                            : Colors.green[700])
-                                      : Colors.redAccent,
-                                ),
-                                _buildInfoRow(
-                                  "選上機率",
-                                  _calculateProbability(course),
-                                  isBold: true,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 7,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "對應學程",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.subtitleText,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                if (course.tags.isEmpty)
-                                  Text(
-                                    "無相關學程",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.subtitleText,
-                                    ),
-                                  )
-                                else
-                                  Wrap(
-                                    spacing: 4,
-                                    runSpacing: 4,
-                                    children: course.tags
-                                        .map(
-                                          (t) => Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .secondaryCardBackground,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                              border: Border.all(
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.borderColor,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              t,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.accentBlue,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      if (course.description.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            "備註",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.subtitleText,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            course.description,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.primaryText,
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 16),
-                      const Divider(height: 1, thickness: 1),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "外部連結與評價",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.subtitleText,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _buildActionButton(
-                            icon: Icons.person_search,
-                            label: "教授評價",
-                            color: Colors.orangeAccent,
-                            onTap: () =>
-                                _launchEvaluationSearch(course.teacher),
-                          ),
-                          _buildActionButton(
-                            icon: Icons.forum_outlined,
-                            label: "課程評價",
-                            color: Colors.purpleAccent,
-                            onTap: () => _launchEvaluationSearch(
-                              course.name.split('\n')[0],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -751,7 +441,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                                   setSheetState(() {});
                                   _performSearch();
                                 },
-                                activeColor: Theme.of(
+                                activeThumbColor: Theme.of(
                                   context,
                                 ).colorScheme.accentBlue,
                               ),
@@ -887,7 +577,6 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
   }
 
-  // ✅ 核心變更：加入了 await CourseQueryService.instance.getCourses()
   Future<void> _performSearch() async {
     setState(() {
       _isQueryLoading = true;
@@ -912,6 +601,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         classType: classText,
         days: _selectedDays.toList(),
         periods: _selectedPeriods.toList(),
+        slots: _selectedSlots.toList(),
         filterConflict: _filterConflict,
         existingCourses: _localAddedCourses ?? widget.initialCourses,
         existingEvents: widget.initialEvents,
@@ -932,6 +622,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
   }
 
   Widget _buildDesktopSearchForm() {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -939,9 +630,9 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
           children: [
             Expanded(
               child: _buildTextField(
-                "合併關鍵字搜尋 (名稱、教師、系所、學程)",
+                "合併關鍵字搜尋 (名稱、教師、系所、學程、必修/選修)",
                 _mergedQueryCtrl,
-                hint: "可用空白區隔多個關鍵字，如：資工 物件",
+                hint: "可用空白區隔多個關鍵字，如：資工 必修 物件",
               ),
             ),
             const SizedBox(width: 12),
@@ -956,7 +647,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
                   height: 32,
                   child: Switch(
                     value: _filterConflict,
-                    activeColor: Theme.of(context).colorScheme.accentBlue,
+                    activeThumbColor: Theme.of(context).colorScheme.accentBlue,
                     onChanged: (v) {
                       setState(() => _filterConflict = v);
                       _performSearch();
@@ -1030,8 +721,66 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             ),
           ],
         ),
+        // 顯示目前從課表點選的時段配對篩選（與下拉的星期/節次獨立）。
+        if (_selectedSlots.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.filter_alt_outlined,
+                  size: 14,
+                  color: cs.accentBlue,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  "已點選時段：",
+                  style: TextStyle(fontSize: 12, color: cs.subtitleText),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    _selectedSlots.map(_slotDescription).join("、"),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.accentBlue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () => widget.slotFilterNotifier?.clear(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: cs.subtitleText,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  /// 把 "day-period" 配對（例如 "4-2"）轉成可讀文字，例如 "週四第2節"。
+  String _slotDescription(String slot) {
+    final dash = slot.indexOf('-');
+    if (dash <= 0 || dash == slot.length - 1) return slot;
+    final dayKey = slot.substring(0, dash);
+    final periodKey = slot.substring(dash + 1);
+    final dayLabel = _dayOptions[dayKey] ?? dayKey;
+    return "$dayLabel第$periodKey節";
   }
 
   void _clearSearchFields() {
@@ -1041,7 +790,10 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
       _selectedClass = null;
       _selectedDays = {};
       _selectedPeriods = {};
+      _selectedSlots = {};
     });
+    // 同步清掉課表格子的配對選取狀態
+    widget.slotFilterNotifier?.clear();
     Navigator.pop(context);
   }
 
@@ -1060,7 +812,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
         ),
         const SizedBox(height: 2),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           items: items,
           onChanged: onChanged,
           decoration: InputDecoration(
@@ -1099,51 +851,12 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     required Map<String, String> options,
     required Function(Set<String>) onChanged,
   }) {
-    return _GlassMultiSelectDropdown(
+    return GlassMultiSelectDropdown(
       label: label,
       values: values,
       options: options,
       onChanged: onChanged,
     );
-  }
-
-  // ✅ 新增：輔助元件顯示詳細資訊列
-  Widget _buildInfoRow(
-    String label,
-    String value, {
-    Color? valueColor,
-    bool isBold = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.subtitleText,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: valueColor ?? Theme.of(context).colorScheme.primaryText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _calculateProbability(CourseJsonData course) {
-    if (course.remaining <= 0) return "0% (已滿)";
-    double prob = course.remaining / course.select;
-    if (course.select <= 0 || prob > 1) return "100%"; // 無人選
-    return "${(prob * 100).toStringAsFixed(1)}%";
   }
 
   Widget _buildTextField(
@@ -1166,7 +879,7 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
             hintStyle: TextStyle(
               color: Theme.of(
                 context,
-              ).colorScheme.subtitleText.withOpacity(0.5),
+              ).colorScheme.subtitleText.withValues(alpha: 0.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 10,
@@ -1194,485 +907,64 @@ class _AssistantAddCoursePageState extends State<AssistantAddCoursePage> {
     );
   }
 
-  // ✅ 核心方法：抓取評分方式
-  Future<List<String>> _getCourseEvaluation(String courseId) async {
-    if (_evaluationCache.containsKey(courseId)) {
-      return _evaluationCache[courseId]!;
+  Future<List<String>> _getCourseEvaluation(String courseId) {
+    if (_evaluationFutureCache.containsKey(courseId)) {
+      return _evaluationFutureCache[courseId]!;
     }
     final semStr = CourseQueryService.instance.currentSemester;
-    if (semStr.length != 4) return ["無法取得學期資訊"];
+    if (semStr.length != 4) return Future.value(["無法取得學期資訊"]);
     final syear = semStr.substring(0, 3);
     final sem = semStr.substring(3, 4);
 
-    final evals = await CourseEvaluationService.instance.fetchEvaluation(
+    final future = CourseEvaluationService.instance.fetchEvaluation(
       year: syear,
       semester: sem,
       courseId: courseId,
     );
-    _evaluationCache[courseId] = evals;
-    return evals;
+    _evaluationFutureCache[courseId] = future;
+    return future;
   }
 
-  String _formatClassTime(List<String> times) {
-    if (times.length < 7) return times.join(', ');
-    final dayNames = ["一", "二", "三", "四", "五", "六", "日"];
-    List<String> formattedParts = [];
-    for (int i = 0; i < 7; i++) {
-      String p = times[i].trim();
-      if (p.isNotEmpty) {
-        // 如果節數包含多位，如 456 -> 4,5,6
-        String periods = p.split('').join(',');
-        formattedParts.add("${dayNames[i]}$periods");
+  bool _compareCourseNames(String dbName, String jsonName) {
+    String clean(String name) {
+      String cleaned = name
+          .replaceAll(RegExp(r'\([^)]*\)'), '')
+          .replaceAll(RegExp(r'（[^）]*）'), '');
+      return cleaned.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+    }
+
+    return clean(dbName) == clean(jsonName);
+  }
+
+  bool _compareTeacherNames(String dbTeacher, String jsonProfessor) {
+    if (dbTeacher.isEmpty || jsonProfessor.isEmpty) return false;
+    final t = dbTeacher.replaceAll(RegExp(r'\s+'), '');
+    final p = jsonProfessor.replaceAll(RegExp(r'\s+'), '');
+
+    if (t.length < 2 || p.length < 2) {
+      return t.contains(p) || p.contains(t);
+    }
+
+    for (int i = 0; i <= t.length - 2; i++) {
+      final sub = t.substring(i, i + 2);
+      if (p.contains(sub)) {
+        return true;
       }
     }
-    return formattedParts.isEmpty ? "未排課" : formattedParts.join(' ');
+    return false;
   }
 
   void _launchEvaluationSearch(String keyword) async {
     if (keyword.isEmpty) return;
-    final query = '中山大學 "$keyword" 評價';
+    final cleanKeyword = keyword
+        .replaceAll(RegExp(r'\s*[\(（].*?[\)）]\s*$'), '')
+        .trim();
+    final query = '中山大學 $cleanKeyword 評價';
     final url = Uri.parse(
       'https://www.google.com/search?q=${Uri.encodeComponent(query)}',
     );
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          border: Border.all(color: color.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniInfoChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryCardBackground,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 12,
-            color: Theme.of(context).colorScheme.subtitleText,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Theme.of(context).colorScheme.primaryText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ✅ 新增：支援 Hover 效果與點擊開網址的課程名稱組件
-class _HoverableCourseName extends StatefulWidget {
-  final CourseJsonData course;
-  const _HoverableCourseName({Key? key, required this.course})
-    : super(key: key);
-
-  @override
-  State<_HoverableCourseName> createState() => _HoverableCourseNameState();
-}
-
-class _HoverableCourseNameState extends State<_HoverableCourseName> {
-  bool _isHovering = false;
-
-  Future<void> _launchCourseOutline() async {
-    final semStr = CourseQueryService.instance.currentSemester;
-    if (semStr.length != 4) return;
-
-    final syear = semStr.substring(0, 3);
-    final sem = semStr.substring(3, 4);
-    final courseId = widget.course.id;
-    final url = Uri.parse(
-      'https://selcrs.nsysu.edu.tw/menu5/showoutline.asp?SYEAR=$syear&SEM=$sem&CrsDat=$courseId',
-    );
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _isHovering = true),
-          onExit: (_) => setState(() => _isHovering = false),
-          child: GestureDetector(
-            onTap: _launchCourseOutline,
-            child: Text(
-              widget.course.name.split('\n')[0],
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: _isHovering
-                    ? Theme.of(context).colorScheme.accentBlue
-                    : Theme.of(context).colorScheme.primaryText,
-                decoration: _isHovering
-                    ? TextDecoration.underline
-                    : TextDecoration.none,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GlassMultiSelectDropdown extends StatefulWidget {
-  final String label;
-  final Set<String> values;
-  final Map<String, String> options;
-  final Function(Set<String>) onChanged;
-
-  const _GlassMultiSelectDropdown({
-    Key? key,
-    required this.label,
-    required this.values,
-    required this.options,
-    required this.onChanged,
-  }) : super(key: key);
-
-  @override
-  State<_GlassMultiSelectDropdown> createState() =>
-      _GlassMultiSelectDropdownState();
-}
-
-class _GlassMultiSelectDropdownState extends State<_GlassMultiSelectDropdown> {
-  final LayerLink _layerLink = LayerLink();
-  OverlayEntry? _overlayEntry;
-  bool _isOpen = false;
-  late Set<String> _tempSet;
-
-  void _toggleDropdown() {
-    if (_isOpen) {
-      _closeDropdown(true);
-    } else {
-      _tempSet = Set.from(widget.values);
-      _overlayEntry = _createOverlayEntry();
-      Overlay.of(context).insert(_overlayEntry!);
-      setState(() => _isOpen = true);
-    }
-  }
-
-  void _closeDropdown([bool save = false]) {
-    if (save) {
-      widget.onChanged(Set.from(_tempSet));
-    }
-    // 解決 Windows 平台在移除 Overlay 時可能發生的焦點/鍵盤狀態斷言錯誤
-    FocusManager.instance.primaryFocus?.unfocus();
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    if (mounted) setState(() => _isOpen = false);
-  }
-
-  OverlayEntry _createOverlayEntry() {
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return OverlayEntry(
-      builder: (context) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _closeDropdown(true),
-              ),
-            ),
-            CompositedTransformFollower(
-              link: _layerLink,
-              showWhenUnlinked: false,
-              offset: Offset(0, size.height + 8),
-              child: Material(
-                color: Colors.transparent,
-                child: StatefulBuilder(
-                  builder: (context, setInnerState) {
-                    return TweenAnimationBuilder<double>(
-                      duration: const Duration(milliseconds: 200),
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      curve: Curves.easeOutBack,
-                      builder: (context, val, child) {
-                        return Transform.scale(
-                          scale: 0.95 + 0.05 * val,
-                          alignment: Alignment.topCenter,
-                          child: Opacity(
-                            opacity: val.clamp(0.0, 1.0),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: size.width < 180 ? 180 : size.width,
-                        constraints: const BoxConstraints(maxHeight: 300),
-                        decoration: BoxDecoration(
-                          color: colorScheme.headerBackground,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: colorScheme.borderColor.withValues(
-                              alpha: 0.5,
-                            ),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Flexible(
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: widget.options.entries.map((e) {
-                                    final isSelected = _tempSet.contains(e.key);
-                                    return _HoverableMultiSelectOption(
-                                      label: e.value,
-                                      isSelected: isSelected,
-                                      colorScheme: colorScheme,
-                                      onTap: () {
-                                        setInnerState(() {
-                                          if (isSelected) {
-                                            _tempSet.remove(e.key);
-                                          } else {
-                                            _tempSet.add(e.key);
-                                          }
-                                          // Save immediately upon ticking for real-time feel
-                                          widget.onChanged(Set.from(_tempSet));
-                                        });
-                                      },
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-          ),
-          const SizedBox(height: 2),
-          InkWell(
-            onTap: _toggleDropdown,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              height: 38,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: colorScheme.borderColor, width: 0.5),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.values.isEmpty
-                          ? "全部"
-                          : widget.values
-                                .map((e) {
-                                  final label = widget.options[e] ?? e;
-                                  // 如果標籤包含括號時間，在欄位顯示時僅保留前半部 (例如 "A (07:00)" -> "A")
-                                  return label.contains(' (')
-                                      ? label.split(' (')[0]
-                                      : label;
-                                })
-                                .join(', '),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colorScheme.primaryText,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(
-                    _isOpen
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: colorScheme.accentBlue,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HoverableMultiSelectOption extends StatefulWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final ColorScheme colorScheme;
-
-  const _HoverableMultiSelectOption({
-    Key? key,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    required this.colorScheme,
-  }) : super(key: key);
-
-  @override
-  State<_HoverableMultiSelectOption> createState() =>
-      _HoverableMultiSelectOptionState();
-}
-
-class _HoverableMultiSelectOptionState
-    extends State<_HoverableMultiSelectOption> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = widget.colorScheme;
-    final isSelected = widget.isSelected;
-
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? cs.accentBlue.withValues(alpha: 0.1)
-                : (_isHovering
-                      ? cs.accentBlue.withValues(alpha: 0.05)
-                      : Colors.transparent),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? cs.accentBlue.withValues(alpha: 0.3)
-                  : (_isHovering
-                        ? cs.accentBlue.withValues(alpha: 0.2)
-                        : Colors.transparent),
-            ),
-            boxShadow: _isHovering && !isSelected
-                ? [
-                    BoxShadow(
-                      color: cs.accentBlue.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                isSelected
-                    ? Icons.check_box_rounded
-                    : Icons.check_box_outline_blank_rounded,
-                size: 18,
-                color: isSelected
-                    ? cs.accentBlue
-                    : (_isHovering
-                          ? cs.accentBlue.withValues(alpha: 0.6)
-                          : cs.subtitleText),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  style: TextStyle(
-                    color: isSelected || _isHovering
-                        ? cs.primaryText
-                        : cs.subtitleText,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

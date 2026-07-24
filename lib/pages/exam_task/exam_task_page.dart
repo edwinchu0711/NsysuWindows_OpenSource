@@ -6,6 +6,7 @@ import '../../services/exam_task/elearn_task_HW_service.dart';
 import 'task_detail_pages.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/glass_dropdown.dart';
+import '../../widgets/hover_icon_button.dart';
 
 class ExamTaskPage extends StatefulWidget {
   const ExamTaskPage({Key? key}) : super(key: key);
@@ -118,7 +119,7 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
   }
 
   Future<void> _fetchFromNetwork() async {
-    debugPrint("🚀 開始重新加載(全部list)...");
+    // debugPrint("🚀 開始重新加載(全部list)...");
     setState(() {
       _isLoading = true;
       _statusMessage = "讀取中...";
@@ -264,13 +265,18 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
+          HoverIconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
             onPressed: () => context.go('/home'),
+            tooltip: "返回主選單",
+            color: colorScheme.primaryText,
+            iconSize: 18,
+            padding: 12,
           ),
           const SizedBox(width: 10),
           Text(
@@ -712,4 +718,3 @@ class _ExamTaskPageState extends State<ExamTaskPage> {
     );
   }
 }
-

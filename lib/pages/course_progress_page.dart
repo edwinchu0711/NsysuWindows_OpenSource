@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:NSYSU/pages/compulsory_simulation_page.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/program_model.dart';
-import '../services/ai_personalization_service.dart';
+import '../services/course_history_sync_service.dart';
 import '../services/department_service.dart';
 import '../services/eligibility_checker.dart';
 import '../services/program_application_service.dart';
@@ -28,7 +29,7 @@ class CourseProgressPage extends StatefulWidget {
 class _CourseProgressPageState extends State<CourseProgressPage> {
   final _programService = ProgramService.instance;
   final _deptService = DepartmentService.instance;
-  final _courseService = AiPersonalizationService.instance;
+  final _courseService = CourseHistorySyncService.instance;
 
   // Profile fields (committed values -- only updated on save)
   String _selectedDept = '';
@@ -127,8 +128,9 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
       ProgramApplicationService.instance.loadFromCache(),
     ]);
 
-    // 如果修課資料快取為空，嘗試從歷年成績抓取
-    if (_courseService.resultsNotifier.value.isEmpty) {
+    // 如果修課資料快取為空，或者與歷年成績快取有落差，則自動執行同步
+    final bool needsSync = await _courseService.checkIfSyncNeeded();
+    if (_courseService.resultsNotifier.value.isEmpty || needsSync) {
       _courseService.fetchCourseHistory();
     }
 
@@ -163,9 +165,18 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
       if (mounted) setState(() => _isLoading = false);
     }
 
-    // 從網路取得最新資料（如果快取是空的）
+    // 從網路取得最新資料（如果快取是空的，或者距離上次更新已超過 30 天）
     try {
-      if (!hasCachedPrograms) {
+      bool needFetchPrograms = !hasCachedPrograms;
+      if (!needFetchPrograms) {
+        final lastUpdate = await _programService.getLastUpdateTime();
+        if (lastUpdate == null ||
+            DateTime.now().difference(lastUpdate).inDays >= 30) {
+          needFetchPrograms = true;
+        }
+      }
+
+      if (needFetchPrograms) {
         await _programService.fetchPrograms();
       }
       if (!hasCachedDepts) {
@@ -495,7 +506,10 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
 
     try {
       final programs = _programService.programsNotifier.value;
-      final results = <String, EligibilityResult>{};
+      final Map<String, Map<String, VerificationStatus>> allProgramVerifications = {};
+
+      // Batch load all verification statuses in parallel on the main thread
+      final List<Future<void>> fetchTasks = [];
 
       for (final program in programs) {
         if (program.isDiscontinued) continue;
@@ -505,42 +519,48 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
           (a, b) => b.academicYear > a.academicYear ? b : a,
         );
 
-        Map<String, VerificationStatus> programVerifications = {};
-        try {
-          final vKey =
-              'progress_verifications_${program.programId}_${latestVersion.academicYear}';
-          final jsonStr = await StorageService.instance.read(vKey);
-          if (jsonStr != null && jsonStr.isNotEmpty) {
-            final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
-            programVerifications = decoded.map(
-              (k, v) => MapEntry(
-                k,
-                VerificationStatus.values.firstWhere(
-                  (e) => e.name == v,
-                  orElse: () => VerificationStatus.unfilled,
-                ),
-              ),
-            );
-          }
-        } catch (_) {}
-
-        final result = EligibilityChecker.checkEligibility(
-          program,
-          latestVersion.academicYear,
-          null,
-          _selectedDept,
-          _coursesTaken,
-          _waivers,
-          _doubleMajorDepts,
-          _minorDepts,
-          programVerifications,
-        );
-        results[program.programId] = result;
-
-        // Cache the verification statuses in memory for instant access in _checkProgram
+        final vKey = 'progress_verifications_${program.programId}_${latestVersion.academicYear}';
         final cacheKey = '${program.programId}_${latestVersion.academicYear}';
-        _verificationCache[cacheKey] = programVerifications;
+
+        fetchTasks.add(StorageService.instance.read(vKey).then((jsonStr) {
+          Map<String, VerificationStatus> programVerifications = {};
+          if (jsonStr != null && jsonStr.isNotEmpty) {
+            try {
+              final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+              programVerifications = decoded.map(
+                (k, v) => MapEntry(
+                  k,
+                  VerificationStatus.values.firstWhere(
+                    (e) => e.name == v,
+                    orElse: () => VerificationStatus.unfilled,
+                  ),
+                ),
+              );
+            } catch (_) {}
+          }
+          allProgramVerifications[program.programId] = programVerifications;
+          _verificationCache[cacheKey] = programVerifications;
+        }));
       }
+
+      await Future.wait(fetchTasks);
+
+      // Offload the heavy eligibility checks of all programs to a background isolate
+      final localSelectedDept = _selectedDept;
+      final localCoursesTaken = _coursesTaken;
+      final localWaivers = _waivers;
+      final localDoubleMajorDepts = _doubleMajorDepts;
+      final localMinorDepts = _minorDepts;
+
+      final results = await _runComputeAllPrograms(
+        programs,
+        localSelectedDept,
+        localCoursesTaken,
+        localWaivers,
+        localDoubleMajorDepts,
+        localMinorDepts,
+        allProgramVerifications,
+      );
 
       if (mounted) {
         setState(() {
@@ -551,6 +571,26 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
     } finally {
       if (mounted) setState(() => _isComputingAll = false);
     }
+  }
+
+  static Future<Map<String, EligibilityResult>> _runComputeAllPrograms(
+    List<ProgramRule> programs,
+    String selectedDept,
+    List<CourseTakenInput> coursesTaken,
+    Map<String, List<String>> waivers,
+    List<String> doubleMajorDepts,
+    List<String> minorDepts,
+    Map<String, Map<String, VerificationStatus>> allProgramVerifications,
+  ) {
+    return Isolate.run(() => _computeAllProgramsInIsolate(
+          programs,
+          selectedDept,
+          coursesTaken,
+          waivers,
+          doubleMajorDepts,
+          minorDepts,
+          allProgramVerifications,
+        ));
   }
 
   Future<void> _checkProgram(ProgramRule program, int year) async {
@@ -667,7 +707,7 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
                 tooltip: "返回主選單",
                 color: colorScheme.primaryText,
                 iconSize: 18,
-                padding: 8,
+                padding: 12,
               ),
               const SizedBox(width: 4),
               Text(
@@ -682,6 +722,15 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
           ),
           Row(
             children: [
+              HoverIconButton(
+                icon: const Icon(Icons.refresh_rounded, size: 20),
+                tooltip: "重新整理學程規則",
+                onPressed: () => _showRefreshConfirmationDialog(colorScheme),
+                color: colorScheme.primaryText,
+                iconSize: 20,
+                padding: 8,
+              ),
+              const SizedBox(width: 8),
               HoverIconButton(
                 icon: const Icon(Icons.info_outline_rounded, size: 20),
                 tooltip: "功能說明",
@@ -1452,6 +1501,135 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
     );
   }
 
+  Future<void> _showRefreshConfirmationDialog(ColorScheme colorScheme) async {
+    final lastUpdate = await _programService.getLastUpdateTime();
+    String lastUpdateStr = '從未更新過';
+    if (lastUpdate != null) {
+      final month = lastUpdate.month.toString().padLeft(2, '0');
+      final day = lastUpdate.day.toString().padLeft(2, '0');
+      final hour = lastUpdate.hour.toString().padLeft(2, '0');
+      final minute = lastUpdate.minute.toString().padLeft(2, '0');
+      lastUpdateStr = '${lastUpdate.year}-$month-$day $hour:$minute';
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            '重新抓取學程規則',
+            style: TextStyle(color: colorScheme.primaryText),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '上次更新時間：$lastUpdateStr',
+                style: TextStyle(color: colorScheme.subtitleText),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '重新抓取最新學程規則可能需要一些時間，是否確認重新抓取？',
+                style: TextStyle(color: colorScheme.primaryText),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                '取消',
+                style: TextStyle(color: colorScheme.primaryText),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _forceUpdatePrograms();
+              },
+              child: const Text('確認更新'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _forceUpdatePrograms() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      await _programService.fetchPrograms();
+      
+      // 重新計算學程進度
+      _hasComputedAll = false;
+      if (_selectedDept.isNotEmpty && _coursesTaken.isNotEmpty) {
+        await _computeAllPrograms();
+      }
+      
+      // 如果當前有選中的學程，重新計算它
+      if (_selectedProgram != null && _selectedYear != null && mounted) {
+        final programs = _programService.programsNotifier.value;
+        final updatedProg = programs.firstWhere(
+          (p) => p.programId == _selectedProgram!.programId,
+          orElse: () => _selectedProgram!,
+        );
+        final result = EligibilityChecker.checkEligibility(
+          updatedProg,
+          _selectedYear!,
+          null,
+          _selectedDept,
+          _coursesTaken,
+          _waivers,
+          _doubleMajorDepts,
+          _minorDepts,
+          _verificationStatuses,
+        );
+        if (mounted) {
+          setState(() {
+            _selectedProgram = updatedProg;
+            _selectedResult = result;
+          });
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('學程規則更新成功！')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Force update error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('更新失敗：$e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _showInfoDialog(ColorScheme colorScheme) {
     showDialog(
       context: context,
@@ -1688,4 +1866,43 @@ class _CourseProgressPageState extends State<CourseProgressPage> {
       ),
     );
   }
+}
+
+/// Private top-level helper function for Isolate-based Program Eligibility Checks
+Map<String, EligibilityResult> _computeAllProgramsInIsolate(
+  List<ProgramRule> programs,
+  String selectedDept,
+  List<CourseTakenInput> coursesTaken,
+  Map<String, List<String>> waivers,
+  List<String> doubleMajorDepts,
+  List<String> minorDepts,
+  Map<String, Map<String, VerificationStatus>> allProgramVerifications,
+) {
+  final results = <String, EligibilityResult>{};
+
+  for (final program in programs) {
+    if (program.isDiscontinued) continue;
+    if (program.versions.isEmpty) continue;
+
+    final latestVersion = program.versions.reduce(
+      (a, b) => b.academicYear > a.academicYear ? b : a,
+    );
+
+    final programVerifications = allProgramVerifications[program.programId] ?? {};
+
+    final result = EligibilityChecker.checkEligibility(
+      program,
+      latestVersion.academicYear,
+      null,
+      selectedDept,
+      coursesTaken,
+      waivers,
+      doubleMajorDepts,
+      minorDepts,
+      programVerifications,
+    );
+    results[program.programId] = result;
+  }
+
+  return results;
 }

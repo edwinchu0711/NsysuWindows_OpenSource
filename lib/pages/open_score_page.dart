@@ -3,62 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../services/open_score_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 class OpenScorePage extends StatelessWidget {
   const OpenScorePage({Key? key}) : super(key: key);
-
-  void _showRawHtmlDialog(BuildContext context, String? html) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("原始伺服器回應 (HTML/偵錯資訊)"),
-              IconButton(
-                icon: const Icon(Icons.copy_rounded),
-                tooltip: "複製內容",
-                onPressed: () {
-                  if (html != null) {
-                    Clipboard.setData(ClipboardData(text: html));
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text("已複製到剪貼簿")));
-                  }
-                },
-              ),
-            ],
-          ),
-          content: Container(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.6,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SingleChildScrollView(
-              child: SelectableText(
-                html ?? "無偵錯資訊 (尚未進行抓取或無紀錄)",
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                  color: Colors.greenAccent,
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("關閉"),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   /// 建立右側狀態顯示區塊 (總分或查無資料)
   Widget _buildTrailingWidget(
@@ -155,12 +103,16 @@ class OpenScorePage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        IconButton(
+                        HoverIconButton(
                           icon: const Icon(
                             Icons.arrow_back_ios_new_rounded,
                             size: 18,
                           ),
                           onPressed: () => context.go('/home'),
+                          tooltip: "返回主選單",
+                          color: colorScheme.primaryText,
+                          iconSize: 18,
+                          padding: 12,
                         ),
                         const SizedBox(width: 4),
                         Column(
@@ -266,38 +218,6 @@ class OpenScorePage extends StatelessWidget {
                                     fontWeight: FontWeight.w400,
                                     height: 1.5,
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(
-                                      color: Colors.red,
-                                      width: 0.8,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.bug_report_rounded,
-                                    size: 14,
-                                  ),
-                                  label: const Text(
-                                    "查看伺服器回應 (HTML)",
-                                    style: TextStyle(fontSize: 11),
-                                  ),
-                                  onPressed: () {
-                                    final html = OpenScoreService
-                                        .instance
-                                        .lastRawHtmlNotifier
-                                        .value;
-                                    _showRawHtmlDialog(context, html);
-                                  },
                                 ),
                               ],
                             ),
@@ -431,21 +351,6 @@ class OpenScorePage extends StatelessWidget {
                                       ).colorScheme.subtitleText,
                                       fontSize: 14,
                                     ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  OutlinedButton.icon(
-                                    icon: const Icon(
-                                      Icons.bug_report_rounded,
-                                      size: 16,
-                                    ),
-                                    label: const Text("查看伺服器回應 (HTML)"),
-                                    onPressed: () {
-                                      final html = OpenScoreService
-                                          .instance
-                                          .lastRawHtmlNotifier
-                                          .value;
-                                      _showRawHtmlDialog(context, html);
-                                    },
                                   ),
                                 ],
                               ),

@@ -18,15 +18,13 @@ import 'package:path/path.dart' as p;
 import '../utils/utils.dart';
 import '../theme/theme_notifier.dart';
 import '../theme/app_theme.dart';
-import '../models/ai_config_model.dart';
 import '../services/local_course_service.dart';
-import '../services/database_embedding_service.dart';
 import 'settings/interface_settings_section.dart';
 import 'settings/feature_settings_section.dart';
-import 'settings/model_settings_section.dart';
 import 'settings/database_settings_section.dart';
+import '../widgets/hover_icon_button.dart';
 
-enum SettingsCategory { interface, feature, model, database }
+enum SettingsCategory { interface, feature, database }
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -38,11 +36,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _isPreviewRankEnabled = false;
   ThemeMode _themeMode = ThemeMode.system;
-  List<AiConfig> _aiConfigs = [];
   SettingsCategory _selectedCategory = SettingsCategory.interface;
-  late AiConfig _embeddingConfig;
-  bool _isEmbeddingInitialized = false;
-  bool _isEmbeddingEditing = false;
 
   // Database settings state
   bool _isCoursesDbExists = false;
@@ -58,7 +52,6 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _downloadingFilename;
   String? _selectedEmbeddingModel;
   List<String> _availableEmbeddingModels = [];
-  bool _isAdvancedModelMode = false;
 
   @override
   void initState() {
@@ -72,23 +65,6 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _isPreviewRankEnabled = prefs.getBool('is_preview_rank_enabled') ?? false;
       _themeMode = ThemeNotifier.instance.value;
-      final configJson = prefs.getString('ai_configs') ?? '[]';
-      _aiConfigs = AiConfig.decode(configJson);
-
-      final embeddingJson = prefs.getString('embedding_config');
-      if (embeddingJson != null) {
-        _embeddingConfig = AiConfig.fromJson(jsonDecode(embeddingJson));
-      } else {
-        _embeddingConfig = AiConfig(
-          id: 'embedding_default',
-          name: 'Embedding 模型',
-          type: 'google',
-          model: 'gemini-embedding-2-preview',
-          apiKey: '',
-        );
-      }
-      _isEmbeddingInitialized = true;
-      _isAdvancedModelMode = prefs.getBool('is_advanced_model_mode') ?? false;
     });
 
     // Load database metadata
@@ -109,7 +85,7 @@ class _SettingsPageState extends State<SettingsPage> {
       databaseDbExists = await File(p.join(dbPath, "database.db")).exists();
     } catch (_) {
       coursesDbExists = LocalCourseService.instance.isInitialized;
-      databaseDbExists = DatabaseEmbeddingService.instance.isInitialized;
+      databaseDbExists = false;
     }
 
     int realCourseCount = courseDbCount;
@@ -211,47 +187,11 @@ class _SettingsPageState extends State<SettingsPage> {
     if (value) _showSnackBar("已開啟預覽名次功能，下次查詢成績時生效");
   }
 
-  Future<void> _setAdvancedModelMode(bool value) async {
-    setState(() => _isAdvancedModelMode = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_advanced_model_mode', value);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     double screenWidth = MediaQuery.of(context).size.width;
     bool isWide = screenWidth > 900;
-
-    // Compute simple config status for ModelSettingsSection
-    SimpleConfigStatus simpleConfigStatus = SimpleConfigStatus.disabled;
-    final primaryGoogle = _aiConfigs
-        .where((c) => c.id == 'primary_google')
-        .firstOrNull;
-    if (primaryGoogle != null && primaryGoogle.apiKey.isNotEmpty) {
-      simpleConfigStatus = SimpleConfigStatus.enabled;
-    }
-
-    // Compute selectedSimpleModel
-    String? selectedSimpleModel;
-    if (_aiConfigs.isNotEmpty) {
-      final firstGoogle = _aiConfigs.firstWhere(
-        (c) => c.type == 'google',
-        orElse: () =>
-            AiConfig(id: '', name: '', type: '', model: '', apiKey: ''),
-      );
-      if (firstGoogle.id.isNotEmpty) {
-        if ([
-          'gemini-flash-lite-latest',
-          'gemini-flash-latest',
-          'gemma-4-31b-it',
-        ].contains(firstGoogle.model)) {
-          selectedSimpleModel = firstGoogle.model;
-        } else {
-          selectedSimpleModel = 'other';
-        }
-      }
-    }
 
     return Scaffold(
       backgroundColor: colorScheme.pageBackground,
@@ -270,10 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       Expanded(
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
-                          child: _buildSelectedContent(
-                            simpleConfigStatus,
-                            selectedSimpleModel,
-                          ),
+                          child: _buildSelectedContent(),
                         ),
                       ),
                     ],
@@ -287,10 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSelectedContent(
-    SimpleConfigStatus simpleConfigStatus,
-    String? selectedSimpleModel,
-  ) {
+  Widget _buildSelectedContent() {
     switch (_selectedCategory) {
       case SettingsCategory.interface:
         return InterfaceSettingsSection(
@@ -302,18 +236,7 @@ class _SettingsPageState extends State<SettingsPage> {
           isPreviewRankEnabled: _isPreviewRankEnabled,
           onPreviewRankChanged: _togglePreviewRank,
         );
-      case SettingsCategory.model:
-        return ModelSettingsSection(
-          isAdvancedModelMode: _isAdvancedModelMode,
-          aiConfigs: _aiConfigs,
-          embeddingConfig: _embeddingConfig,
-          isEmbeddingInitialized: _isEmbeddingInitialized,
-          isEmbeddingEditing: _isEmbeddingEditing,
-          selectedSimpleModel: selectedSimpleModel,
-          simpleConfigStatus: simpleConfigStatus,
-          onAdvancedModeChanged: _setAdvancedModelMode,
-          onReload: _loadSettings,
-        );
+
       case SettingsCategory.database:
         return DatabaseSettingsSection(
           isCoursesDbExists: _isCoursesDbExists,
@@ -343,16 +266,13 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Row(
         children: [
           const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: colorScheme.primaryText,
-              size: 20,
-            ),
+          HoverIconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
             onPressed: () => context.go('/home'),
-            hoverColor: Colors.transparent,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
+            tooltip: "返回主選單",
+            color: colorScheme.primaryText,
+            iconSize: 18,
+            padding: 12,
           ),
           Text(
             "設定",
@@ -379,10 +299,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final icons = <IconData>[
       Icons.palette_rounded,
       Icons.settings_suggest_rounded,
-      Icons.psychology_rounded,
       Icons.storage_rounded,
     ];
-    final labels = <String>["介面設定", "功能設定", "模型設定", "資料庫"];
+    final labels = <String>["介面設定", "功能設定", "資料庫"];
 
     final selectedIndex = categories.indexOf(_selectedCategory);
 

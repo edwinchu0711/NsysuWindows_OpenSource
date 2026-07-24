@@ -234,24 +234,27 @@ class _AssistantExportPageState extends State<AssistantExportPage> {
                   itemBuilder: (context, index) {
                     final course = _assistantCourses[index];
                     final isSelected = _selectedCourseIds.contains(course.code);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(
-                        course.name.split('\n')[0],
-                        style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText),
+                    return Material(
+                      color: Colors.transparent,
+                      child: CheckboxListTile(
+                        value: isSelected,
+                        title: Text(
+                          course.name.split('\n')[0],
+                          style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primaryText),
+                        ),
+                        subtitle: Text("${course.code} · ${course.professor}", style: TextStyle(color: colorScheme.subtitleText)),
+                        activeColor: colorScheme.accentBlue,
+                        checkColor: Colors.white,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value == true) {
+                              _selectedCourseIds.add(course.code);
+                            } else {
+                              _selectedCourseIds.remove(course.code);
+                            }
+                          });
+                        },
                       ),
-                      subtitle: Text("${course.code} · ${course.professor}", style: TextStyle(color: colorScheme.subtitleText)),
-                      activeColor: colorScheme.accentBlue,
-                      checkColor: Colors.white,
-                      onChanged: (bool? value) {
-                        setState(() {
-                          if (value == true) {
-                            _selectedCourseIds.add(course.code);
-                          } else {
-                            _selectedCourseIds.remove(course.code);
-                          }
-                        });
-                      },
                     );
                   },
                 ),

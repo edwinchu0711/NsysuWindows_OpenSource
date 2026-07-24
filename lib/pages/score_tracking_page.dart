@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_dropdown.dart';
 import 'score_tracking_detail.dart';
 import 'score_tracking_migration_dialog.dart';
+import '../widgets/hover_icon_button.dart';
 
 class ScoreTrackingPage extends StatefulWidget {
   const ScoreTrackingPage({Key? key}) : super(key: key);
@@ -233,13 +234,16 @@ class _ScoreTrackingPageState extends State<ScoreTrackingPage> {
                       children: [
                         Row(
                           children: [
-                            IconButton(
+                            HoverIconButton(
                               icon: const Icon(
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 18,
                               ),
                               onPressed: () => context.go('/home'),
                               tooltip: "返回主選單",
+                              color: colorScheme.primaryText,
+                              iconSize: 18,
+                              padding: 12,
                             ),
                             Text(
                               "分數試算",

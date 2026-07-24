@@ -160,7 +160,7 @@ class _AssistantImportPageState extends State<AssistantImportPage> {
     }
 
     return Course(
-      name: data.name,
+      name: data.name.split('\n')[0],
       code: data.id,
       professor: data.teacher,
       location: data.room,

@@ -206,11 +206,18 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_rounded, size: 64, color: colorScheme.subtitleText.withOpacity(0.3)),
+            Icon(
+              Icons.search_rounded,
+              size: 64,
+              color: colorScheme.subtitleText.withOpacity(0.3),
+            ),
             const SizedBox(height: 16),
             Text(
               "輸入關鍵字並點擊搜尋按鈕",
-              style: TextStyle(color: colorScheme.subtitleText.withOpacity(0.5), fontSize: 16),
+              style: TextStyle(
+                color: colorScheme.subtitleText.withOpacity(0.5),
+                fontSize: 16,
+              ),
             ),
           ],
         ),
@@ -218,7 +225,12 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
     }
 
     if (_searchResults.isEmpty) {
-      return Center(child: Text("找不到符合條件的課程", style: TextStyle(color: colorScheme.primaryText)));
+      return Center(
+        child: Text(
+          "找不到符合條件的課程",
+          style: TextStyle(color: colorScheme.primaryText),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -265,6 +277,10 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                   children: [
                     _buildMiniInfoChip(Icons.person_outline, course.teacher),
                     _buildMiniInfoChip(Icons.tag, course.id),
+                    _buildMiniInfoChip(
+                      Icons.assignment_outlined,
+                      course.compulsory ? "必修" : "選修",
+                    ),
                     _buildMiniInfoChip(
                       Icons.account_balance_outlined,
                       course.department,
@@ -316,7 +332,12 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                 child: const Text("選取", style: TextStyle(fontSize: 13)),
               ),
               children: [
-                Divider(height: 1, indent: 16, endIndent: 16, color: colorScheme.borderColor),
+                Divider(
+                  height: 1,
+                  indent: 16,
+                  endIndent: 16,
+                  color: colorScheme.borderColor,
+                ),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -379,10 +400,14 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: colorScheme.accentBlue.withOpacity(0.1),
+                                    color: colorScheme.accentBlue.withOpacity(
+                                      0.1,
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                     border: Border.all(
-                                      color: colorScheme.accentBlue.withOpacity(0.2),
+                                      color: colorScheme.accentBlue.withOpacity(
+                                        0.2,
+                                      ),
                                     ),
                                   ),
                                   child: Text(
@@ -462,7 +487,8 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                                         Icon(
                                           Icons.circle,
                                           size: 6,
-                                          color: colorScheme.accentBlue.withOpacity(0.5),
+                                          color: colorScheme.accentBlue
+                                              .withOpacity(0.5),
                                         ),
                                         const SizedBox(width: 8),
                                         Expanded(
@@ -558,7 +584,10 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                 const SizedBox(width: 12),
                 Text(
                   "第 ${times[i]} 節",
-                  style: TextStyle(fontSize: 14, color: colorScheme.primaryText),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.primaryText,
+                  ),
                 ),
               ],
             ),
@@ -609,7 +638,11 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
       children: [
         Text(
           label,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: colorScheme.subtitleText),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: colorScheme.subtitleText,
+          ),
         ),
         const SizedBox(height: 2),
         InkWell(
@@ -627,18 +660,26 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: options.entries.map((e) {
-                            return CheckboxListTile(
-                              title: Text(e.value, style: TextStyle(color: colorScheme.primaryText)),
-                              value: tempSet.contains(e.key),
-                              activeColor: colorScheme.accentBlue,
-                              onChanged: (val) {
-                                setInnerState(() {
-                                  if (val == true)
-                                    tempSet.add(e.key);
-                                  else
-                                    tempSet.remove(e.key);
-                                });
-                              },
+                            return Material(
+                              color: Colors.transparent,
+                              child: CheckboxListTile(
+                                title: Text(
+                                  e.value,
+                                  style: TextStyle(
+                                    color: colorScheme.primaryText,
+                                  ),
+                                ),
+                                value: tempSet.contains(e.key),
+                                activeColor: colorScheme.accentBlue,
+                                onChanged: (val) {
+                                  setInnerState(() {
+                                    if (val == true)
+                                      tempSet.add(e.key);
+                                    else
+                                      tempSet.remove(e.key);
+                                  });
+                                },
+                              ),
                             );
                           }).toList(),
                         ),
@@ -675,11 +716,18 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
                     values.isEmpty
                         ? "全部"
                         : values.map((e) => options[e]).join(', '),
-                    style: TextStyle(fontSize: 13, color: colorScheme.primaryText),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colorScheme.primaryText,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(Icons.arrow_drop_down, color: colorScheme.subtitleText, size: 18),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: colorScheme.subtitleText,
+                  size: 18,
+                ),
               ],
             ),
           ),
@@ -699,14 +747,21 @@ class _CourseSearchPickerPageState extends State<CourseSearchPickerPage> {
       children: [
         Text(
           label,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: colorScheme.subtitleText),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: colorScheme.subtitleText,
+          ),
         ),
         const SizedBox(height: 2),
         TextField(
           controller: controller,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(fontSize: 12, color: colorScheme.subtitleText.withOpacity(0.5)),
+            hintStyle: TextStyle(
+              fontSize: 12,
+              color: colorScheme.subtitleText.withOpacity(0.5),
+            ),
             fillColor: colorScheme.secondaryCardBackground,
             filled: true,
             contentPadding: const EdgeInsets.symmetric(

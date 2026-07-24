@@ -4,6 +4,7 @@ import '../models/graduation_model.dart';
 import '../services/graduation_service.dart';
 import '../services/historical_score_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 class GraduationPage extends StatefulWidget {
   const GraduationPage({Key? key}) : super(key: key);
@@ -530,12 +531,16 @@ class _GraduationPageState extends State<GraduationPage> {
             children: [
               Row(
                 children: [
-                  IconButton(
+                  HoverIconButton(
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      size: 20,
+                      size: 18,
                     ),
                     onPressed: () => context.go('/home'),
+                    tooltip: "返回主選單",
+                    color: colorScheme.primaryText,
+                    iconSize: 18,
+                    padding: 12,
                   ),
                   const SizedBox(width: 8),
                   Text(

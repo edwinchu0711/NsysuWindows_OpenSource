@@ -7,6 +7,7 @@ import '../models/course_model.dart';
 import '../services/course_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 class CourseSchedulePage extends StatefulWidget {
   const CourseSchedulePage({Key? key}) : super(key: key);
@@ -243,12 +244,16 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
             children: [
               Row(
                 children: [
-                  IconButton(
+                  HoverIconButton(
                     icon: const Icon(
                       Icons.arrow_back_ios_new_rounded,
-                      size: 20,
+                      size: 18,
                     ),
                     onPressed: () => context.go('/home'),
+                    tooltip: "返回主選單",
+                    color: colorScheme.primaryText,
+                    iconSize: 18,
+                    padding: 12,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -926,7 +931,12 @@ class _CourseSchedulePageState extends State<CourseSchedulePage> {
     ];
     final String key = id != null ? name + id : name;
     final int hash = key.hashCode.abs();
-    return Color(colors[hash % colors.length]);
+    final baseColor = Color(colors[hash % colors.length]);
+    // 降低飽和度，稍微調亮，讓顏色更柔和(粉彩感)
+    final hsl = HSLColor.fromColor(baseColor);
+    return hsl
+        .withSaturation((hsl.saturation * 0.92).clamp(0.0, 1.0))
+        .toColor();
   }
 }
 

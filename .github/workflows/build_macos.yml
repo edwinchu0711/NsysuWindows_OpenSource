@@ -1,7 +1,7 @@
 name: Build macOS App
 
 on:
-  workflow_dispatch: # 僅允許手動觸發
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,13 +25,28 @@ jobs:
       - name: Build macOS App
         run: flutter build macos --release
 
+      # 新增：強制 ad-hoc 簽章並套用 entitlements
+      - name: Sign app with entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "App path: $APP_PATH"
+          codesign --force --deep --sign - --entitlements macos/Runner/Release.entitlements "$APP_PATH"
+
+      # 新增：驗證 entitlements 是否真的簽進去了，方便你直接在 log 裡檢查
+      - name: Verify entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "=== Entitlements ==="
+          codesign -d --entitlements :- "$APP_PATH"
+          echo "=== Signature info ==="
+          codesign -dv "$APP_PATH"
+
       # 轉換為 DMG 安裝包
       - name: Create DMG
         run: |
           APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
           hdiutil create -format UDZO -srcfolder "$APP_PATH" build/macos/Build/Products/Release/macOS-App.dmg
 
-      # 上傳為 GitHub Actions 產物 (Artifact)，方便您直接下載
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
         with:

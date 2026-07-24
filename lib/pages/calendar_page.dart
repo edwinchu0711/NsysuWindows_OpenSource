@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 // ---------------------------------------------------------------------------
 // 1. Data Models (資料模型)
@@ -173,8 +174,7 @@ class _CalendarPageState extends State<CalendarPage> {
   List<CalendarEvent> _allEvents = [];
   Map<DateTime, List<CalendarEvent>> _groupedEvents = {};
   
-  DateTime? _semesterStartDate;
-  int? _semesterStartWeekNumber;
+  List<DateTime> _semesterStartDates = [];
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -217,11 +217,13 @@ class _CalendarPageState extends State<CalendarPage> {
     
     List<CalendarEvent> school = data['schoolEvents'];
     List<CalendarEvent> user = data['userEvents'];
-    _semesterStartDate = data['semesterStartDate'];
 
-    if (_semesterStartDate != null) {
-      _semesterStartWeekNumber = _getWeekOfYear(_semesterStartDate!);
-    }
+    _semesterStartDates = school
+        .where((e) => e.title.contains("學生開始上課"))
+        .map((e) => DateTime(e.date.year, e.date.month, e.date.day))
+        .toSet()
+        .toList();
+    _semesterStartDates.sort();
 
     _allEvents = [...school, ...user];
     
@@ -244,7 +246,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   // ★ 檢查該月份是否有任何一週在學期週次範圍內
   void _checkIfMonthHasSemesterWeeks(DateTime focusedDay) {
-    if (_semesterStartWeekNumber == null) {
+    if (_semesterStartDates.isEmpty) {
       if (_shouldShowWeekNumber) setState(() => _shouldShowWeekNumber = false);
       return;
     }
@@ -315,13 +317,42 @@ class _CalendarPageState extends State<CalendarPage> {
     return false;
   }
 
-  String _convertWeekNumberToSemesterWeek(int weekNumber) {
-    if (_semesterStartWeekNumber == null) return "";
-    
-    int diff = weekNumber - _semesterStartWeekNumber!;
-    if (diff < -20) diff += 52; 
+  int? _getSemesterWeekForDate(DateTime date) {
+    if (_semesterStartDates.isEmpty) return null;
 
-    int semesterWeek = diff + 1;
+    final targetOfWeek = DateTime(date.year, date.month, date.day).subtract(Duration(days: date.weekday - 1));
+
+    for (var start in _semesterStartDates) {
+      final startOfWeekStart = DateTime(start.year, start.month, start.day).subtract(Duration(days: start.weekday - 1));
+      final diffDays = targetOfWeek.difference(startOfWeekStart).inDays;
+      final weekIndex = (diffDays / 7).floor() + 1;
+
+      if (weekIndex >= -1 && weekIndex <= 18) {
+        return weekIndex;
+      }
+    }
+    return null;
+  }
+
+  String _convertWeekNumberToSemesterWeek(int weekNumber) {
+    if (_semesterStartDates.isEmpty) return "";
+
+    DateTime firstDay = DateTime(_focusedDay.year, _focusedDay.month, 1);
+    DateTime startSearch = firstDay.subtract(const Duration(days: 7));
+    DateTime endSearch = DateTime(_focusedDay.year, _focusedDay.month + 1, 0).add(const Duration(days: 7));
+
+    DateTime? targetDate;
+    for (DateTime date = startSearch; date.isBefore(endSearch); date = date.add(const Duration(days: 1))) {
+      if (_getWeekOfYear(date) == weekNumber) {
+        targetDate = date;
+        break;
+      }
+    }
+
+    if (targetDate == null) return "";
+
+    int? semesterWeek = _getSemesterWeekForDate(targetDate);
+    if (semesterWeek == null) return "";
 
     if (semesterWeek >= 1 && semesterWeek <= 18) {
       return "$semesterWeek";
@@ -334,14 +365,8 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   String? _getWeekLabelFull(DateTime day) {
-    if (_semesterStartDate == null) return null;
-    
-    final start = DateTime(_semesterStartDate!.year, _semesterStartDate!.month, _semesterStartDate!.day);
-    final startOfWeekStart = start.subtract(Duration(days: start.weekday - 1));
-    final targetOfWeek = day.subtract(Duration(days: day.weekday - 1));
-
-    final diffDays = targetOfWeek.difference(startOfWeekStart).inDays;
-    final weekIndex = (diffDays / 7).floor() + 1;
+    int? weekIndex = _getSemesterWeekForDate(day);
+    if (weekIndex == null) return null;
 
     if (weekIndex >= 1 && weekIndex <= 18) {
       return "第$weekIndex週";
@@ -491,10 +516,13 @@ class _CalendarPageState extends State<CalendarPage> {
                 Row(
                   children: [
                     if (!_isSearching)
-                      IconButton(
+                      HoverIconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                         onPressed: () => context.go('/home'),
-                        tooltip: "返回",
+                        tooltip: "返回主選單",
+                        color: colorScheme.primaryText,
+                        iconSize: 18,
+                        padding: 12,
                       ),
                     const SizedBox(width: 4),
                     if (_isSearching)

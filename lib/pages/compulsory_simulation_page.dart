@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/program_model.dart';
-import '../services/ai_personalization_service.dart';
+import '../services/course_history_sync_service.dart';
 import '../services/department_service.dart';
 import '../services/eligibility_checker.dart';
 import '../services/program_service.dart';
@@ -28,7 +28,7 @@ class CompulsorySimulationPage extends StatefulWidget {
 class _CompulsorySimulationPageState extends State<CompulsorySimulationPage> {
   final _programService = ProgramService.instance;
   final _deptService = DepartmentService.instance;
-  final _personalizationService = AiPersonalizationService.instance;
+  final _personalizationService = CourseHistorySyncService.instance;
 
   // Crawl options state
   List<SimDeptOption> _depts = [];
@@ -95,7 +95,16 @@ class _CompulsorySimulationPageState extends State<CompulsorySimulationPage> {
         _personalizationService.loadFromCache(),
       ]);
 
-      if (_programService.programsNotifier.value.isEmpty) {
+      bool needFetchPrograms = _programService.programsNotifier.value.isEmpty;
+      if (!needFetchPrograms) {
+        final lastUpdate = await _programService.getLastUpdateTime();
+        if (lastUpdate == null ||
+            DateTime.now().difference(lastUpdate).inDays >= 30) {
+          needFetchPrograms = true;
+        }
+      }
+
+      if (needFetchPrograms) {
         await _programService.fetchPrograms();
       }
       if (_deptService.departmentsNotifier.value.isEmpty) {
@@ -512,7 +521,7 @@ class _CompulsorySimulationPageState extends State<CompulsorySimulationPage> {
                 tooltip: "返回學程進度",
                 color: colorScheme.primaryText,
                 iconSize: 18,
-                padding: 8,
+                padding: 12,
               ),
               const SizedBox(width: 4),
               Text(

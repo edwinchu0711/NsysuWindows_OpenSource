@@ -11,8 +11,31 @@ import 'course_exception/course_exception_handling_page.dart'; // 引入異常�
 import '../services/storage_service.dart';
 import '../../services/course_query_service.dart'; // 請確認路徑是否正確
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 bool test = false;
+
+final RegExp _yearReg = RegExp(r'\d+年');
+
+class ScheduleItem {
+  final String title;
+  final String startDisplay;
+  final String endDisplay;
+  final bool hasEnd;
+  final bool isActive;
+  final DateTime? startDateTime;
+  final DateTime? endDateTime;
+
+  const ScheduleItem({
+    required this.title,
+    required this.startDisplay,
+    required this.endDisplay,
+    required this.hasEnd,
+    required this.isActive,
+    this.startDateTime,
+    this.endDateTime,
+  });
+}
 
 enum SelectionState {
   open, // 正常開放選課
@@ -34,8 +57,8 @@ class _CourseSelectionSchedulePageState
   // --- 原有的時程表資料變數 ---
   bool _isLoading = true; // 頁面開啟時先顯示載入中，等轉場動畫完成後再讀資料
   String _dataUpdateTime = "";
-  List<MapEntry<String, dynamic>> _mainList = [];
-  List<MapEntry<String, dynamic>> _bottomList = [];
+  List<ScheduleItem> _mainList = [];
+  List<ScheduleItem> _bottomList = [];
   List<String> _activeItemKeys = [];
 
   final Set<String> _bottomItems = {'必修課程確認', '系所輔導學生選課', '超修學分申請'};
@@ -49,25 +72,50 @@ class _CourseSelectionSchedulePageState
   final http.Client _client = http.Client();
   final String _baseUrl = "https://selcrs.nsysu.edu.tw"; // 學校系統基底網址
 
+  Animation<double>? _routeAnimation;
+
   @override
   void initState() {
     super.initState();
-    // 等轉場動畫結束 (~350ms) 後才開始讀資料，避免動畫期間的 UI thread 競爭造成卡頓
-    Future.delayed(const Duration(milliseconds: 350), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // 1. 載入 JSON 時程表 (顯示列表用)
-      _checkAndLoadData();
-      // 2. 先讀取快取的系統狀態 (即時顯示，避免白畫面)
-      _loadCachedSystemStatus();
-      // 3. 再延遲 300ms 後連線檢查系統狀態
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) _checkRealTimeSystemStatus();
-      });
+      final route = ModalRoute.of(context);
+      if (route != null && route.animation != null) {
+        _routeAnimation = route.animation;
+        if (_routeAnimation!.isCompleted) {
+          _loadDataAfterTransition();
+        } else {
+          _routeAnimation!.addStatusListener(_handleTransitionStatus);
+        }
+      } else {
+        _loadDataAfterTransition();
+      }
+    });
+  }
+
+  void _handleTransitionStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      if (mounted) {
+        _loadDataAfterTransition();
+      }
+      _routeAnimation?.removeStatusListener(_handleTransitionStatus);
+      _routeAnimation = null;
+    }
+  }
+
+  void _loadDataAfterTransition() {
+    _loadCachedDataAndStatus();
+    // 稍做延遲，讓列表渲染的訊框與系統檢查分開，確保不會 contention
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _checkRealTimeSystemStatus();
+      }
     });
   }
 
   @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_handleTransitionStatus);
     _client.close(); // 關閉連線
     super.dispose();
   }
@@ -80,51 +128,149 @@ class _CourseSelectionSchedulePageState
     // 根據你的需求，如果 JSON Key 明確叫做 "選課確認"，可以精確比對
     // 這裡使用模糊比對 "確認" 且包含 "選課" 或 "課程" 來涵蓋 "必修課程確認"
     try {
-      final entry = allItems.firstWhere(
+      final item = allItems.firstWhere(
         (e) =>
-            e.key.contains("選課確認") ||
-            (e.key.contains("課程") && e.key.contains("確認")),
-        orElse: () => const MapEntry("", {}),
+            e.title.contains("選課確認") ||
+            (e.title.contains("課程") && e.title.contains("確認")),
+        orElse: () => const ScheduleItem(
+          title: "",
+          startDisplay: "",
+          endDisplay: "",
+          hasEnd: false,
+          isActive: false,
+        ),
       );
 
-      if (entry.key.isEmpty) return null; // 找不到
+      if (item.title.isEmpty) return null; // 找不到
 
-      final content = entry.value as Map<String, dynamic>;
-      final String endTimeStr = content['結束時間'] ?? "";
-
-      return _parseTwDate(endTimeStr);
+      return item.endDateTime;
     } catch (e) {
       return null;
     }
   }
 
   // ==========================================================
-  // 讀取快取的系統狀態 (5 分鐘 TTL)
+  // 檢查快取是否仍然有效 (沒有跨越 00 分或 30 分的整點/半點邊界)
   // ==========================================================
-  Future<void> _loadCachedSystemStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final int? cacheTime = prefs.getInt('course_system_status_time');
-    if (cacheTime == null) return;
+  bool _isCacheValid(int cacheTimeMillis) {
+    final cacheDateTime = DateTime.fromMillisecondsSinceEpoch(cacheTimeMillis);
+    final now = DateTime.now();
 
-    final age = DateTime.now().millisecondsSinceEpoch - cacheTime;
-    if (age < const Duration(minutes: 5).inMilliseconds) {
-      final bool? cachedOpen = prefs.getBool('course_system_status_open');
-      final String? cachedMsg = prefs.getString('course_system_status_msg');
-      if (cachedOpen != null && cachedMsg != null && mounted) {
+    // 如果快取時間在未來 (可能系統時間調整)，視為無效
+    if (now.isBefore(cacheDateTime)) return false;
+
+    // 如果時間差大於等於 30 分鐘，一定跨越了邊界，視為無效
+    if (now.difference(cacheDateTime) >= const Duration(minutes: 30)) {
+      return false;
+    }
+
+    // 如果跨越了小時/日期，代表跨越了 00 分的整點邊界，視為無效
+    if (cacheDateTime.hour != now.hour ||
+        cacheDateTime.day != now.day ||
+        cacheDateTime.month != now.month ||
+        cacheDateTime.year != now.year) {
+      return false;
+    }
+
+    // 如果在同一個小時內，但快取在 30 分前，現在在 30 分(含)後，代表跨越了 30 分的半點邊界，視為無效
+    if (cacheDateTime.minute < 30 && now.minute >= 30) {
+      return false;
+    }
+
+    // 其餘狀況，代表在同一個半小時區間內，快取有效
+    return true;
+  }
+
+  // ==========================================================
+  // 讀取快取的系統狀態 (邊界檢查)
+  // ==========================================================
+  Future<void> _loadCachedDataAndStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+
+      // 1. 載入系統狀態快取
+      final int? statusCacheTime = prefs.getInt('course_system_status_time');
+      bool hasStatusCache = false;
+      if (statusCacheTime != null && _isCacheValid(statusCacheTime)) {
+        final bool? cachedOpen = prefs.getBool('course_system_status_open');
+        final String? cachedMsg = prefs.getString('course_system_status_msg');
+        if (cachedOpen != null && cachedMsg != null) {
+          setState(() {
+            _isSystemOpen = cachedOpen;
+            _systemStatusMessage = cachedMsg;
+            _isCheckingSystem = false;
+          });
+          hasStatusCache = true;
+        }
+      }
+
+      // 2. 載入時程表快取
+      final String? cachedJson = prefs.getString('course_schedule_cache');
+      final int? lastFetchMillis = prefs.getInt('course_schedule_last_fetch');
+      bool hasScheduleCache = false;
+
+      if (cachedJson != null && lastFetchMillis != null) {
+        final DateTime lastFetchTime = DateTime.fromMillisecondsSinceEpoch(
+          lastFetchMillis,
+        );
+        final Duration diff = DateTime.now().difference(lastFetchTime);
+        if (diff.inDays < 1) {
+          final decoded = jsonDecode(cachedJson);
+          if (decoded is Map) {
+            _processData(Map<String, dynamic>.from(decoded));
+            setState(() {
+              _isLoading = false;
+            });
+            hasScheduleCache = true;
+          }
+        }
+      }
+
+      // 3. 更新完快取後，如果缺少系統狀態快取，維持「檢查中」文字
+      if (!hasStatusCache && mounted) {
         setState(() {
-          _isSystemOpen = cachedOpen;
-          _systemStatusMessage = cachedMsg;
-          _isCheckingSystem = false;
+          _isCheckingSystem = true;
+          _systemStatusMessage = "檢查系統狀態中...";
         });
       }
+
+      // 4. 如果沒有快取或是快取過期，則背景非同步向網路更新時程表
+      if (!hasScheduleCache) {
+        // 因為此處已過 550ms 動畫已結束，可以直接在 100ms 後載入網路時程表
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _checkAndLoadData(forceRefresh: true);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("載入快取與狀態失敗: $e");
     }
   }
 
   // ==========================================================
   // 【核心修改】實作你要求的伺服器檢查邏輯
   // ==========================================================
-  Future<void> _checkRealTimeSystemStatus() async {
+  Future<void> _checkRealTimeSystemStatus({bool force = false}) async {
     if (!mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final int? cacheTime = prefs.getInt('course_system_status_time');
+    if (!force && cacheTime != null) {
+      if (_isCacheValid(cacheTime)) {
+        final bool? cachedOpen = prefs.getBool('course_system_status_open');
+        final String? cachedMsg = prefs.getString('course_system_status_msg');
+        if (cachedOpen != null && cachedMsg != null) {
+          setState(() {
+            _isSystemOpen = cachedOpen;
+            _systemStatusMessage = cachedMsg;
+            _isCheckingSystem = false;
+          });
+          return;
+        }
+      }
+    }
 
     // 初始化狀態
     setState(() {
@@ -259,7 +405,7 @@ class _CourseSelectionSchedulePageState
     }
   }
 
-  // --- 檢查快取與載入 (保持原樣) ---
+  // --- 檢查快取與載入 ---
   Future<void> _checkAndLoadData({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
     try {
@@ -284,18 +430,28 @@ class _CourseSelectionSchedulePageState
       }
 
       setState(() => _isLoading = true);
-      // await _fetchFromGithub(prefs);
-      final fetchedData = await fetchScheduleFromNsysu();
 
-      // 將爬取到的新資料存入本機一般快取 (依用戶要求選課紀錄不加密)
-      await prefs.setString('course_schedule_cache', jsonEncode(fetchedData));
+      // 同時向學校網站與 GitHub 請求資料
+      final fetchedData = await fetchScheduleFromNsysu();
+      Map<String, dynamic> githubData = {};
+      try {
+        githubData = await fetchScheduleFromGithub();
+      } catch (e) {
+        debugPrint("無法取得 GitHub 選課時程: $e");
+      }
+
+      // 合併資料
+      final mergedData = _mergeSchedules(fetchedData, githubData);
+
+      // 將合併後的新資料存入本機一般快取 (依用戶要求選課紀錄不加密)
+      await prefs.setString('course_schedule_cache', jsonEncode(mergedData));
       await prefs.setInt(
         'course_schedule_last_fetch',
         DateTime.now().millisecondsSinceEpoch,
       );
 
       // 呼叫資料處理，更新畫面
-      _processData(fetchedData);
+      _processData(mergedData);
     } catch (e) {
       debugPrint("載入錯誤: $e");
       if (mounted) {
@@ -319,35 +475,102 @@ class _CourseSelectionSchedulePageState
     }
   }
 
-  // --- 解析台灣格式日期字串 (保持原樣) ---
+  // --- 解析台灣格式日期字串 (通用化解析) ---
   DateTime? _parseTwDate(String? dateStr) {
     if (dateStr == null || dateStr.trim().isEmpty) return null;
     try {
-      final RegExp regex = RegExp(
-        r'(?:(\d+)年)?\s*(\d+)\s*/\s*(\d+)(?:.*?)\s+(\d+):(\d+)',
-      );
+      final matches = RegExp(
+        r'\d+',
+      ).allMatches(dateStr).map((m) => int.parse(m.group(0)!)).toList();
 
-      final match = regex.firstMatch(dateStr);
-      if (match != null) {
-        int year;
-        if (match.group(1) != null) {
-          int rocYear = int.parse(match.group(1)!);
-          year = rocYear + 1911;
-        } else {
-          year = DateTime.now().year;
+      if (matches.length == 5) {
+        int year = matches[0];
+        if (year < 1000) {
+          year += 1911; // 民國年轉西元年
         }
-
-        int month = int.parse(match.group(2)!);
-        int day = int.parse(match.group(3)!);
-        int hour = int.parse(match.group(4)!);
-        int minute = int.parse(match.group(5)!);
-
+        int month = matches[1];
+        int day = matches[2];
+        int hour = matches[3];
+        int minute = matches[4];
+        return DateTime(year, month, day, hour, minute);
+      } else if (matches.length == 4) {
+        int year = DateTime.now().year;
+        int month = matches[0];
+        int day = matches[1];
+        int hour = matches[2];
+        int minute = matches[3];
         return DateTime(year, month, day, hour, minute);
       }
     } catch (e) {
       debugPrint("日期解析失敗: $dateStr, error: $e");
     }
     return null;
+  }
+
+  // --- 判斷名稱字元是否有兩個字以上相同 ---
+  bool _hasTwoOrMoreCommonChars(String name1, String name2) {
+    final set1 = name1.split('').toSet();
+    final set2 = name2.split('').toSet();
+    // 移除空白等無意義字元
+    set1.removeWhere((c) => c.trim().isEmpty);
+    set2.removeWhere((c) => c.trim().isEmpty);
+    final intersection = set1.intersection(set2);
+    return intersection.length >= 2;
+  }
+
+  // --- 合併原有的選課時程與 GitHub 的選課時程 ---
+  Map<String, dynamic> _mergeSchedules(
+    Map<String, dynamic> original,
+    Map<String, dynamic> github,
+  ) {
+    final Map<String, dynamic> originalData = original['data'] != null
+        ? Map<String, dynamic>.from(original['data'])
+        : {};
+
+    github.forEach((gitKey, gitVal) {
+      if (gitVal is Map<String, dynamic> || gitVal is Map) {
+        final Map<String, dynamic> gitItem = Map<String, dynamic>.from(gitVal);
+        final String? gitStartStr = gitItem['開始時間'];
+        final String? gitEndStr = gitItem['結束時間'];
+
+        final DateTime? gitStart = _parseTwDate(gitStartStr);
+        final DateTime? gitEnd = _parseTwDate(gitEndStr);
+
+        bool isDuplicate = false;
+
+        originalData.forEach((origKey, origVal) {
+          if (origVal is Map<String, dynamic> || origVal is Map) {
+            final Map<String, dynamic> origItem = Map<String, dynamic>.from(
+              origVal,
+            );
+            final String? origStartStr = origItem['開始時間'];
+            final String? origEndStr = origItem['結束時間'];
+
+            final DateTime? origStart = _parseTwDate(origStartStr);
+            final DateTime? origEnd = _parseTwDate(origEndStr);
+
+            // 開始時間和結束時間都一樣
+            if (origStart == gitStart && origEnd == gitEnd) {
+              // 並且名稱裡面有兩個字以上一樣
+              if (_hasTwoOrMoreCommonChars(origKey, gitKey)) {
+                isDuplicate = true;
+              }
+            }
+          }
+        });
+
+        if (!isDuplicate) {
+          originalData[gitKey] = gitItem;
+        }
+      }
+    });
+
+    return {
+      'data': originalData,
+      'metadata':
+          original['metadata'] ??
+          {'update_time': DateTime.now().toIso8601String()},
+    };
   }
 
   // --- 資料處理核心邏輯 (保持原樣，僅移除 isSelectionPeriod 的判斷) ---
@@ -374,22 +597,22 @@ class _CourseSelectionSchedulePageState
       timeStr = DateFormat('yyyy/MM/dd HH:mm').format(DateTime.now());
     }
 
-    List<MapEntry<String, dynamic>> main = [];
-    List<MapEntry<String, dynamic>> bottom = [];
+    List<MapEntry<String, dynamic>> rawMain = [];
+    List<MapEntry<String, dynamic>> rawBottom = [];
 
     rawData.forEach((key, value) {
       if (key == '更新時間') return;
       if (_bottomItems.contains(key)) {
-        bottom.add(MapEntry(key, value));
+        rawBottom.add(MapEntry(key, value));
       } else {
-        main.add(MapEntry(key, value));
+        rawMain.add(MapEntry(key, value));
       }
     });
 
     MapEntry<String, dynamic>? dropEntry;
     List<MapEntry<String, dynamic>> sortedMain = [];
 
-    for (var entry in main) {
+    for (var entry in rawMain) {
       if (entry.key == '棄選時間') {
         dropEntry = entry;
       } else {
@@ -397,20 +620,63 @@ class _CourseSelectionSchedulePageState
       }
     }
 
-    sortedMain.sort((a, b) => a.key.compareTo(b.key));
+    sortedMain.sort((a, b) {
+      final Map<String, dynamic> contentA = a.value as Map<String, dynamic>;
+      final Map<String, dynamic> contentB = b.value as Map<String, dynamic>;
+
+      final DateTime? startA = _parseTwDate(contentA['開始時間']);
+      final DateTime? startB = _parseTwDate(contentB['開始時間']);
+
+      if (startA == null && startB == null) return 0;
+      if (startA == null) return 1;
+      if (startB == null) return -1;
+
+      int timeComp = startA.compareTo(startB);
+      if (timeComp != 0) return timeComp;
+
+      // 當開始時間相同時：只有「開始時間」而沒有「結束時間」的排在前面
+      final DateTime? endA = _parseTwDate(contentA['結束時間']);
+      final DateTime? endB = _parseTwDate(contentB['結束時間']);
+      if (endA == null && endB != null) return -1;
+      if (endA != null && endB == null) return 1;
+
+      return a.key.compareTo(b.key);
+    });
 
     if (dropEntry != null) {
       sortedMain.add(dropEntry);
     }
 
-    main = sortedMain;
-    bottom.sort((a, b) => a.key.compareTo(b.key));
+    rawMain = sortedMain;
 
-    List<String> activeKeys = []; // ← 改這裡
+    rawBottom.sort((a, b) {
+      final Map<String, dynamic> contentA = a.value as Map<String, dynamic>;
+      final Map<String, dynamic> contentB = b.value as Map<String, dynamic>;
+
+      final DateTime? startA = _parseTwDate(contentA['開始時間']);
+      final DateTime? startB = _parseTwDate(contentB['開始時間']);
+
+      if (startA == null && startB == null) return 0;
+      if (startA == null) return 1;
+      if (startB == null) return -1;
+
+      int timeComp = startA.compareTo(startB);
+      if (timeComp != 0) return timeComp;
+
+      // 當開始時間相同時：只有「開始時間」而沒有「結束時間」的排在前面
+      final DateTime? endA = _parseTwDate(contentA['結束時間']);
+      final DateTime? endB = _parseTwDate(contentB['結束時間']);
+      if (endA == null && endB != null) return -1;
+      if (endA != null && endB == null) return 1;
+
+      return a.key.compareTo(b.key);
+    });
+
+    List<String> activeKeys = [];
     DateTime now = DateTime.now();
 
-    for (int i = 0; i < main.length; i++) {
-      final entry = main[i];
+    for (int i = 0; i < rawMain.length; i++) {
+      final entry = rawMain[i];
       final content = entry.value as Map<String, dynamic>;
 
       DateTime? start = _parseTwDate(content['開始時間']);
@@ -426,8 +692,8 @@ class _CourseSelectionSchedulePageState
         }
       } else {
         DateTime? nextStart;
-        if (i + 1 < main.length) {
-          nextStart = _parseTwDate((main[i + 1].value as Map)['開始時間']);
+        if (i + 1 < rawMain.length) {
+          nextStart = _parseTwDate((rawMain[i + 1].value as Map)['開始時間']);
         }
 
         if (nextStart != null) {
@@ -442,22 +708,87 @@ class _CourseSelectionSchedulePageState
       }
 
       if (isActive) {
-        activeKeys.add(entry.key); // ← 改這裡
+        activeKeys.add(entry.key);
       }
+    }
+
+    List<ScheduleItem> mainItems = [];
+    for (int i = 0; i < rawMain.length; i++) {
+      final entry = rawMain[i];
+      final content = entry.value as Map<String, dynamic>;
+      final String rawStart = content['開始時間'] ?? "";
+      final String rawEnd = content['結束時間'] ?? "";
+      final String startDisp = _formatDisplayDate(
+        rawStart,
+        _parseTwDate(rawStart),
+      );
+      final String endDisp = _formatDisplayDate(rawEnd, _parseTwDate(rawEnd));
+
+      mainItems.add(
+        ScheduleItem(
+          title: entry.key,
+          startDisplay: startDisp,
+          endDisplay: endDisp,
+          hasEnd: endDisp.trim().isNotEmpty,
+          isActive: activeKeys.contains(entry.key),
+          startDateTime: _parseTwDate(rawStart),
+          endDateTime: _parseTwDate(rawEnd),
+        ),
+      );
+    }
+
+    List<ScheduleItem> bottomItems = [];
+    for (var entry in rawBottom) {
+      final content = entry.value as Map<String, dynamic>;
+      final String rawStart = content['開始時間'] ?? "";
+      final String rawEnd = content['結束時間'] ?? "";
+      final String startDisp = _formatDisplayDate(
+        rawStart,
+        _parseTwDate(rawStart),
+      );
+      final String endDisp = _formatDisplayDate(rawEnd, _parseTwDate(rawEnd));
+
+      bottomItems.add(
+        ScheduleItem(
+          title: entry.key,
+          startDisplay: startDisp,
+          endDisplay: endDisp,
+          hasEnd: endDisp.trim().isNotEmpty,
+          isActive: false,
+          startDateTime: _parseTwDate(rawStart),
+          endDateTime: _parseTwDate(rawEnd),
+        ),
+      );
     }
 
     setState(() {
       _dataUpdateTime = timeStr;
-      _mainList = main;
-      _bottomList = bottom;
-      _activeItemKeys = activeKeys; // ← 改這裡
+      _mainList = mainItems;
+      _bottomList = bottomItems;
+      _activeItemKeys = activeKeys;
       _isLoading = false;
     });
   }
 
+  String _formatDisplayDate(String rawText, DateTime? dateTime) {
+    if (rawText.isEmpty) return "";
+    if (dateTime == null) {
+      return _removeYear(rawText);
+    }
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return "$month/$day $hour:$minute";
+  }
+
   String _removeYear(String text) {
     if (text.isEmpty) return "";
-    return text.replaceAll(RegExp(r'\d+年'), '').trim();
+    String clean = text.replaceAll(_yearReg, '').trim();
+    // 去除類似 115/ 或 115. 開頭的年份前綴
+    final prefixReg = RegExp(r'^\d+\s*[\./]\s*');
+    clean = clean.replaceAll(prefixReg, '').trim();
+    return clean;
   }
 
   // 跳轉函式
@@ -519,6 +850,21 @@ class _CourseSelectionSchedulePageState
     }
   }
 
+  // --- 從 GitHub 獲取選課時程 ---
+  Future<Map<String, dynamic>> fetchScheduleFromGithub() async {
+    final url = Uri.parse(
+      'https://edwinchu0711.github.io/CourseSelectionDateUpdate/course-selection/selection_schedule.json',
+    );
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    }
+    throw Exception("GitHub 回應狀態碼為 ${response.statusCode}");
+  }
+
   /// 將學校的「115.01.30(09:00)」轉成舊 JSON 格式「115年 01/30 09:00」
   /// 以相容原有的 _parseTwDate 與 _removeYear 邏輯
   String _formatNsysuTimeToOldStyle(String rawTime) {
@@ -556,133 +902,146 @@ class _CourseSelectionSchedulePageState
             child: Column(
               children: [
                 _buildDesktopHeader(semDisplay),
-                if (_isLoading)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            "載入資料中...",
-                            style: TextStyle(color: colorScheme.subtitleText),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              bool isWideLayout =
-                                  isWide && constraints.maxWidth > 800;
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isLoading
+                        ? Center(
+                            key: const ValueKey('loading'),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "載入資料中...",
+                                  style: TextStyle(
+                                    color: colorScheme.subtitleText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            key: const ValueKey('content'),
+                            children: [
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    bool isWideLayout =
+                                        isWide && constraints.maxWidth > 800;
 
-                              if (isWideLayout) {
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      flex: 5,
-                                      child: ListView(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 8,
-                                        ),
-                                        children: _mainList
-                                            .map(
-                                              (entry) => _buildCleanRow(entry),
-                                            )
-                                            .toList(),
-                                      ),
-                                    ),
-                                    VerticalDivider(
-                                      width: 1,
-                                      color: colorScheme.borderColor,
-                                    ),
-                                    Expanded(
-                                      flex: 5,
-                                      child: LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          return ConstrainedBox(
-                                            constraints: BoxConstraints(
-                                              minHeight: constraints.maxHeight,
+                                    if (isWideLayout) {
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            flex: 5,
+                                            child: ListView(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 8,
+                                              ),
+                                              children: _mainList
+                                                  .map(
+                                                    (entry) =>
+                                                        _buildCleanRow(entry),
+                                                  )
+                                                  .toList(),
                                             ),
-                                            child: Center(
-                                              child: SingleChildScrollView(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 16,
-                                                    ),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment
-                                                          .stretch,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      "功能選項",
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: TextStyle(
-                                                        fontSize: 18,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: colorScheme
-                                                            .primaryText,
+                                          ),
+                                          VerticalDivider(
+                                            width: 1,
+                                            color: colorScheme.borderColor,
+                                          ),
+                                          Expanded(
+                                            flex: 5,
+                                            child: LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                return ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                    minHeight:
+                                                        constraints.maxHeight,
+                                                  ),
+                                                  child: Center(
+                                                    child: SingleChildScrollView(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                            horizontal: 16,
+                                                          ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .stretch,
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                            "功能選項",
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            style: TextStyle(
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: colorScheme
+                                                                  .primaryText,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 20,
+                                                          ),
+                                                          _buildActiveStatusRow(
+                                                            isWide: true,
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
-                                                    const SizedBox(height: 20),
-                                                    _buildActiveStatusRow(
-                                                      isWide: true,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
+                                                  ),
+                                                );
+                                              },
                                             ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              } else {
-                                return ListView(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
+                                          ),
+                                        ],
+                                      );
+                                    } else {
+                                      return ListView(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 8,
+                                        ),
+                                        children: [
+                                          _buildActiveStatusRow(isWide: false),
+                                          ..._mainList.map(
+                                            (entry) => _buildCleanRow(entry),
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
+                                color: Colors.transparent,
+                                child: Text(
+                                  "資料更新時間：$_dataUpdateTime",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: colorScheme.subtitleText,
+                                    fontSize: 12,
                                   ),
-                                  children: [
-                                    _buildActiveStatusRow(isWide: false),
-                                    ..._mainList.map(
-                                      (entry) => _buildCleanRow(entry),
-                                    ),
-                                  ],
-                                );
-                              }
-                            },
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          color: Colors.transparent,
-                          child: Text(
-                            "資料更新時間：$_dataUpdateTime",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: colorScheme.subtitleText,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
+                ),
               ],
             ),
           ),
@@ -710,17 +1069,20 @@ class _CourseSelectionSchedulePageState
               children: [
                 Row(
                   children: [
-                    IconButton(
+                    HoverIconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new_rounded,
                         size: 18,
                       ),
                       onPressed: () => context.go('/home'),
                       tooltip: "返回主選單",
+                      color: colorScheme.primaryText,
+                      iconSize: 18,
+                      padding: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      "$semDisplay 選課時程",
+                      "選課時程",
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -741,7 +1103,7 @@ class _CourseSelectionSchedulePageState
                     : InkWell(
                         onTap: () {
                           _checkAndLoadData(forceRefresh: true);
-                          _checkRealTimeSystemStatus();
+                          _checkRealTimeSystemStatus(force: true);
                         },
                         mouseCursor: _isLoading
                             ? SystemMouseCursors.basic
@@ -791,7 +1153,6 @@ class _CourseSelectionSchedulePageState
     // 1. 基礎狀態判斷 (藍/橘/灰)
     Color? primaryBgColor;
     Color primaryTextColor = colorScheme.bodyText;
-    bool showOpenButton = false;
     bool showStatusButton = false;
 
     if (_isCheckingSystem) {
@@ -800,12 +1161,11 @@ class _CourseSelectionSchedulePageState
     }
     if (_isSystemOpen) {
       primaryBgColor = colorScheme.isDark
-          ? Colors.blue.withOpacity(0.15)
+          ? Colors.blue.withValues(alpha: 0.15)
           : Colors.blue[50];
       primaryTextColor = colorScheme.isDark
           ? Colors.blue[200]!
           : Colors.blue[800]!;
-      showOpenButton = true;
     } else {
       DateTime? confirmEndTime = _getConfirmationEndTime();
       DateTime now = DateTime.now();
@@ -873,12 +1233,21 @@ class _CourseSelectionSchedulePageState
                     if (!_isCheckingSystem)
                       Padding(
                         padding: const EdgeInsets.only(left: 16.0),
-                        child: _buildActionButton(
-                          isWide ? "前往選課系統" : "前往選課",
-                          Icons.login_rounded,
-                          Colors.blue,
-                          () => _navigateToCourseSelection(enableQuery: true),
-                        ),
+                        child: showStatusButton
+                            ? _buildQueryOnlyButton(
+                                isWide ? "前往選課系統" : "前往選課",
+                                () => _navigateToCourseSelection(
+                                  enableQuery: true,
+                                ),
+                              )
+                            : _buildActionButton(
+                                isWide ? "前往選課系統" : "前往選課",
+                                Icons.login_rounded,
+                                Colors.blue,
+                                () => _navigateToCourseSelection(
+                                  enableQuery: true,
+                                ),
+                              ),
                       ),
                   ],
                 ),
@@ -979,25 +1348,35 @@ class _CourseSelectionSchedulePageState
     );
   }
 
-  Widget _buildCleanRow(
-    MapEntry<String, dynamic> entry, {
-    bool forceInactive = false,
-  }) {
-    final String title = entry.key;
-    final Map<String, dynamic> content = entry.value is Map
-        ? Map<String, dynamic>.from(entry.value)
-        : {};
+  /// 非選課時段的「前往選課系統」按鈕 — 橘色 Outlined 風格
+  Widget _buildQueryOnlyButton(String text, VoidCallback onPressed) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final orangeColor = colorScheme.isDark
+        ? Colors.orange[300]!
+        : Colors.orange[700]!;
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(Icons.open_in_new_rounded, size: 16, color: orangeColor),
+      label: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+          color: orangeColor,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: orangeColor,
+        side: BorderSide(color: orangeColor.withValues(alpha: 0.7), width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        backgroundColor: orangeColor.withValues(alpha: 0.06),
+      ),
+    );
+  }
 
-    String rawStart = content['開始時間'] ?? "";
-    String rawEnd = content['結束時間'] ?? "";
-
-    String start = _removeYear(rawStart);
-    String end = _removeYear(rawEnd);
-
-    bool hasEnd = end.trim().isNotEmpty;
-
-    bool isActive = _activeItemKeys.contains(entry.key); // ← 只改這行
-
+  Widget _buildCleanRow(ScheduleItem item) {
     final curColorScheme = Theme.of(context).colorScheme;
     bool isHovered = false;
 
@@ -1040,13 +1419,13 @@ class _CourseSelectionSchedulePageState
                   Expanded(
                     flex: 5,
                     child: Text(
-                      title,
+                      item.title,
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: isActive
+                        fontWeight: item.isActive
                             ? FontWeight.bold
                             : FontWeight.w600,
-                        color: isActive
+                        color: item.isActive
                             ? curColorScheme.accentBlue
                             : curColorScheme.primaryText,
                         letterSpacing: 0.5,
@@ -1062,10 +1441,10 @@ class _CourseSelectionSchedulePageState
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildTimeText(start, isActive),
-                        if (hasEnd) ...[
+                        _buildTimeText(item.startDisplay, item.isActive),
+                        if (item.hasEnd) ...[
                           const SizedBox(height: 6),
-                          _buildTimeText("~ $end", isActive),
+                          _buildTimeText("~ ${item.endDisplay}", item.isActive),
                         ],
                       ],
                     ),

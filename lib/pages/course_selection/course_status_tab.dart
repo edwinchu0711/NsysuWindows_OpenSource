@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/course_selection_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/hover_icon_button.dart';
 
 class CourseStatusTab extends StatelessWidget {
   final bool isLoading;
@@ -639,9 +640,13 @@ class CoursePreviewPage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              HoverIconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                 onPressed: () => Navigator.pop(context),
+                tooltip: "返回",
+                color: Theme.of(context).colorScheme.primaryText,
+                iconSize: 18,
+                padding: 12,
               ),
               const SizedBox(width: 8),
               Text(
@@ -764,8 +769,11 @@ class CoursePreviewPage extends StatelessWidget {
   Map<int, Map<String, List<CourseSelectionData>>> _parseCoursesToSchedule() {
     Map<int, Map<String, List<CourseSelectionData>>> map = {};
     for (var course in courses) {
-      if (course.status.contains("退選") || course.status.contains("未選上"))
+      if (course.status.contains("退選") ||
+          course.status.contains("未選上") ||
+          course.status.contains("失敗")) {
         continue;
+      }
       if (course.timeRoom.isEmpty) continue;
       String rawTimeOnly = course.timeRoom.replaceAll(
         RegExp(r'[(\uff08].*?[)\uff09]'),

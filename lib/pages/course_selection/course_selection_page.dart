@@ -5,6 +5,7 @@ import 'course_status_tab.dart';
 import 'course_query_tab.dart';
 import '../../models/course_selection_models.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/hover_icon_button.dart';
 
 class CourseSelectionPage extends StatefulWidget {
   final bool enableQuery;
@@ -25,6 +26,9 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   List<CourseSelectionData> _myCourses = [];
   bool _isSystemClosed = false;
   bool _isNeedConfirmation = false;
+
+  /// 空白格篩選通知器，讓課表格子點擊可直接驅動右側查詢面板篩選
+  final CourseSlotFilterNotifier _slotFilterNotifier = CourseSlotFilterNotifier();
 
   @override
   void initState() {
@@ -83,6 +87,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   @override
   void dispose() {
     _tabController.dispose();
+    _slotFilterNotifier.dispose();
     super.dispose();
   }
 
@@ -117,6 +122,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                                          currentCourses: _myCourses,
                                          onRequestRefresh: _loadMyCourses,
                                          isLoading: _isLoading,
+                                         slotFilterNotifier: _slotFilterNotifier,
                                        ),
                                      ],
                                   )
@@ -223,6 +229,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
               currentCourses: _myCourses,
               onRequestRefresh: _loadMyCourses,
               isLoading: _isLoading,
+              slotFilterNotifier: _slotFilterNotifier,
             ),
           ),
         ),
@@ -366,7 +373,10 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                                   final coursesInThisSlot =
                                       scheduleMap[dayIndex]?[period] ?? [];
                                   if (coursesInThisSlot.isEmpty) {
-                                    return Container(height: 70);
+                                    return _buildSlotCell(
+                                      dayKey: (dayIndex + 1).toString(),
+                                      periodKey: period,
+                                    );
                                   }
 
                                   if (coursesInThisSlot.length == 1) {
@@ -381,26 +391,34 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                                       cellHeight += 10.0;
                                     }
 
-                                    return Container(
-                                      height: cellHeight,
-                                      padding: const EdgeInsets.all(1.0),
-                                      child: _buildScheduleCell(c, titleFontSize, locationFontSize),
+                                    return _buildSlotCell(
+                                      dayKey: (dayIndex + 1).toString(),
+                                      periodKey: period,
+                                      child: Container(
+                                        height: cellHeight,
+                                        padding: const EdgeInsets.all(1.0),
+                                        child: _buildScheduleCell(c, titleFontSize, locationFontSize),
+                                      ),
                                     );
                                   }
 
-                                  return Container(
-                                    constraints: const BoxConstraints(minHeight: 70),
-                                    padding: const EdgeInsets.all(1.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: coursesInThisSlot.map((c) {
-                                        return Padding(
-                                          padding: const EdgeInsets.only(bottom: 2.0),
-                                          child: _buildScheduleCell(c, titleFontSize, locationFontSize),
-                                        );
-                                      }).toList(),
+                                  return _buildSlotCell(
+                                    dayKey: (dayIndex + 1).toString(),
+                                    periodKey: period,
+                                    child: Container(
+                                      constraints: const BoxConstraints(minHeight: 70),
+                                      padding: const EdgeInsets.all(1.0),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: coursesInThisSlot.map((c) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(bottom: 2.0),
+                                            child: _buildScheduleCell(c, titleFontSize, locationFontSize),
+                                          );
+                                        }).toList(),
+                                      ),
                                     ),
                                   );
                                 }),
@@ -417,6 +435,32 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
           ),
         ),
       ],
+    );
+  }
+
+  /// 為課表任一格（空堂或有課）包上一層可作為篩選配對的裝飾：
+  /// 整格點擊即切換篩選、已選取時繪製邊框 + 勾選角標。
+  /// [child] 為 null 代表空堂；非 null 則為有課格（本頁有課格沒有開詳情，整格同樣可點擊切換）。
+  Widget _buildSlotCell({
+    required String dayKey,
+    required String periodKey,
+    Widget? child,
+  }) {
+    // TableCell.intrinsicHeight：量測時貢獻本格自然高度（讓列高 = 最高那格，
+    // 不會塌成 0、也不會裁切較高的多課格）；佈局時再被拉伸到整列高度，
+    // 這樣已選取的邊框會涵蓋整個時段格，而不是只包到課程區塊的高度。
+    // 注意：不能用 fill —— fill 格在 RenderTable 量測列高時會 break 不貢獻高度，
+    // 若整列每格都是 fill（本頁時間欄也是 fill），rowHeight 會變 0、整列消失。
+    return TableCell(
+      verticalAlignment: TableCellVerticalAlignment.intrinsicHeight,
+      child: _SlotFilterableCell(
+        dayKey: dayKey,
+        periodKey: periodKey,
+        notifier: _slotFilterNotifier,
+        colorScheme: Theme.of(context).colorScheme,
+        onToggle: () => _slotFilterNotifier.toggle(dayKey, periodKey),
+        child: child,
+      ),
     );
   }
 
@@ -540,8 +584,11 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   Map<int, Map<String, List<CourseSelectionData>>> _parseCoursesToSchedule() {
     Map<int, Map<String, List<CourseSelectionData>>> map = {};
     for (var course in _myCourses) {
-      if (course.status.contains("退選") || course.status.contains("未選上"))
+      if (course.status.contains("退選") ||
+          course.status.contains("未選上") ||
+          course.status.contains("失敗")) {
         continue;
+      }
       if (course.timeRoom.isEmpty) continue;
       String rawTimeOnly = course.timeRoom.replaceAll(
         RegExp(r'[(\uff08].*?[)\uff09]'),
@@ -662,13 +709,16 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
               children: [
                 Row(
                   children: [
-                    IconButton(
+                    HoverIconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new_rounded,
                         size: 18,
                       ),
                       onPressed: () => Navigator.pop(context),
                       tooltip: "返回主選單",
+                      color: colorScheme.primaryText,
+                      iconSize: 18,
+                      padding: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -768,6 +818,143 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             child: const Text("我了解並同意，我會去官網檢查"),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 課表格的「可篩選」裝飾 Widget（整格點擊切換版）。
+///
+/// 在任意課表格（空堂或有課）上疊加：
+/// - 整格點擊即切換該 (星期, 節次) 配對為篩選條件。
+/// - 已選取時：2px 外框 + 勾選角標，疊在彩色課格上也清楚可見。
+/// - hover 時：淡色底（空堂）/ 細外框（有課）提示可點擊。
+///
+/// [child] 為 null 代表空堂；非 null 則為有課格內容（本頁有課格沒有開詳情需求，
+/// 整格同樣可點擊切換篩選）。
+class _SlotFilterableCell extends StatefulWidget {
+  final String dayKey;
+  final String periodKey;
+  final CourseSlotFilterNotifier notifier;
+  final ColorScheme colorScheme;
+  final VoidCallback onToggle;
+  final Widget? child;
+
+  const _SlotFilterableCell({
+    required this.dayKey,
+    required this.periodKey,
+    required this.notifier,
+    required this.colorScheme,
+    required this.onToggle,
+    this.child,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  State<_SlotFilterableCell> createState() => _SlotFilterableCellState();
+}
+
+class _SlotFilterableCellState extends State<_SlotFilterableCell> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    final accent = cs.accentBlue;
+    final isEmpty = widget.child == null;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedBuilder(
+        animation: widget.notifier,
+        builder: (context, _) {
+          final selected =
+              widget.notifier.isSelected(widget.dayKey, widget.periodKey);
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onToggle,
+            child: Stack(
+              children: [
+                // 非 positioned 子節點：決定 Stack 自然高度（供 Table 量測列高）。
+                // 空堂用透明 SizedBox(70)（不強制寬度，寬度由 Positioned.fill 填滿）；
+                // 有課格用課程區塊本身（真實高度）。
+                isEmpty ? const SizedBox(height: 70) : widget.child!,
+                // 空堂：整格底色（填滿整格，邊框涵蓋整個時段）。
+                if (isEmpty)
+                  Positioned.fill(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? accent.withValues(
+                                alpha: cs.isDark ? 0.18 : 0.10,
+                              )
+                            : _isHovered
+                                ? accent.withValues(
+                                    alpha: cs.isDark ? 0.08 : 0.05,
+                                  )
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                // hover 提示外框（未選取時，涵蓋整格）
+                if (_isHovered && !selected)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: accent.withValues(
+                              alpha: cs.isDark ? 0.55 : 0.45,
+                            ),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // 已選取：邊框 + 勾選角標（涵蓋整格，不攔截點擊）
+                if (selected)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: accent, width: 2),
+                        ),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: accent.withValues(
+                                  alpha: cs.isDark ? 0.18 : 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: accent, width: 1.5),
+                              ),
+                              child: Icon(
+                                Icons.check,
+                                size: 11,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

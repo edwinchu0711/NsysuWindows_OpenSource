@@ -162,7 +162,7 @@ class CourseSelectionService {
       }
 
       String firstLink = match.group(1) ?? "";
-      debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
+      // debugPrint("🔗 [偵錯] 抓到的第一個連結為: [$firstLink]");
 
       // --- 5. 判斷選課是否開放 ---
       // if (firstLink.contains("query/result.asp")) {
@@ -187,7 +187,7 @@ class CourseSelectionService {
         selectionRes.bodyBytes,
         allowMalformed: true,
       );
-      debugPrint("📄 [偵錯] 選課頁面回傳長度: ${selectionBody.length}");
+      // debugPrint("📄 [偵錯] 選課頁面回傳長度: ${selectionBody.length}");
 
       // --- 7. 檢查是否需要「預選確認」 ---
       if (selectionBody.contains('value="送出"') &&
@@ -238,7 +238,7 @@ class CourseSelectionService {
   // --- HTML 解析邏輯 (維持容錯模式) ---
   List<CourseSelectionData> _parseSelectionTable(String html) {
     List<CourseSelectionData> results = [];
-    debugPrint("🛠️ [解析] 啟動結果頁面解析 (slt_result 模式)...");
+    // debugPrint("🛠️ [解析] 啟動結果頁面解析 (slt_result 模式)...");
 
     // 1. 統一結尾標籤 (轉小寫方便切割)
     String processedHtml = html.replaceAll(
@@ -331,7 +331,7 @@ class CourseSelectionService {
         // 這裡將 "說明" 放進 note，如果需要也可以放進 remarks
         String remarks = note;
 
-        debugPrint("   -> ✅ 第 $validRowCount 筆: [$status] $name ($professor)");
+        //debugPrint("   -> ✅ 第 $validRowCount 筆: [$status] $name ($professor)");
 
         results.add(
           CourseSelectionData(

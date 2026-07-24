@@ -257,7 +257,7 @@ class ElearnService {
       _cookieJar.clear();
       await _login(username, password);
       _lastLoginTime = DateTime.now();
-      debugPrint("✅ E-learn 登入成功");
+      // debugPrint("✅ E-learn 登入成功");
     }
   }
 

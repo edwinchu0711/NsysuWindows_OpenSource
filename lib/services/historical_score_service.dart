@@ -39,6 +39,13 @@ class ScoreSummary {
   bool get isEmpty => average == "-" && rank == "-";
 }
 
+class LoginPasswordErrorException implements Exception {
+  final String message;
+  LoginPasswordErrorException(this.message);
+  @override
+  String toString() => message;
+}
+
 // --- Service 主體 ---
 class HistoricalScoreService {
   static final HistoricalScoreService instance =
@@ -72,6 +79,9 @@ class HistoricalScoreService {
     null,
   );
   final ValueNotifier<String?> syncErrorNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> previewErrorNotifier = ValueNotifier<String?>(
+    null,
+  );
 
   final ValueNotifier<bool> isLoadingNotifier = ValueNotifier(false);
   final ValueNotifier<String> statusMessageNotifier = ValueNotifier("");
@@ -91,6 +101,7 @@ class HistoricalScoreService {
     progressNotifier.value = 0.0;
     lastUpdatedNotifier.value = null;
     syncErrorNotifier.value = null;
+    previewErrorNotifier.value = null;
 
     try {
       await StorageService.instance.remove(CACHE_KEY);
@@ -186,6 +197,7 @@ class HistoricalScoreService {
     progressNotifier.value = 0.0;
     statusMessageNotifier.value = "檢查帳號資訊...";
     syncErrorNotifier.value = null;
+    previewErrorNotifier.value = null;
     final sw = Stopwatch()..start();
 
     try {
@@ -208,42 +220,16 @@ class HistoricalScoreService {
       int m = now.month;
       int d = now.day;
 
-      // 區間一：3/20 ~ 6/5
-      bool isSpringRange =
-          (m == 3 && d >= 20) || (m == 4) || (m == 5) || (m == 6 && d <= 5);
-
-      // 區間二：10/15 ~ 1/5 (跨年由 12月 和 1月 組成)
-      bool isFallRange =
-          (m == 10 && d >= 15) || (m == 11) || (m == 12) || (m == 1 && d <= 5);
+      // 開放日期為 5/25 ~ 10/10 和 12/25 ~ 3/20
+      bool inOpenPeriod1 = (m == 5 && d >= 25) || (m > 5 && m < 10) || (m == 10 && d <= 10);
+      bool inOpenPeriod2 = (m == 12 && d >= 25) || (m == 1 || m == 2) || (m == 3 && d <= 20);
+      bool isWithinOpenPeriods = inOpenPeriod1 || inOpenPeriod2;
 
       // 最終決定是否執行預覽抓取 (設定開啟 + 時間符合 + fetchPreview 參數為 true)
       bool shouldFetchPreview =
-          fetchPreview && isPreviewSettingOn && !(isSpringRange || isFallRange);
+          fetchPreview && isPreviewSettingOn && isWithinOpenPeriods;
 
-      // ===== 3. 準備學期任務 =====
       int x = now.year - 1911;
-      List<MapEntry<String, String>> tasks = [];
-
-      if (coursesNotifier.value.isEmpty || forceFullRefresh) {
-        statusMessageNotifier.value = "首次同步，抓取五年份資料...";
-        for (int i = 0; i < 5; i++) {
-          String year = (x - i).toString();
-          tasks.add(MapEntry(year, "1"));
-          tasks.add(MapEntry(year, "2"));
-          tasks.add(MapEntry(year, "3"));
-        }
-      } else {
-        if (m >= 1 && m <= 6) {
-          String targetYear = (x - 1).toString();
-          tasks.add(MapEntry(targetYear, "1"));
-          tasks.add(MapEntry(targetYear, "2"));
-          tasks.add(MapEntry(targetYear, "3"));
-        } else {
-          tasks.add(MapEntry((x - 1).toString(), "2"));
-          tasks.add(MapEntry((x - 1).toString(), "3"));
-          tasks.add(MapEntry(x.toString(), "1"));
-        }
-      }
 
       // 啟動預覽名次非同步抓取
       Future<Map<String, Map<String, String>>>? previewFuture;
@@ -261,9 +247,8 @@ class HistoricalScoreService {
       );
       Map<String, ScoreSummary> newSummary = Map.from(summaryNotifier.value);
 
-      int scoreTaskCount = tasks.length;
       bool hasAnyData = false;
-      const int maxFetchRetry = 7;
+      const int maxFetchRetry = 15;
 
       // ===== 4. 登入與抓取學期成績 (加入重試與重建 client 機制) =====
       for (int i = 1; i <= maxFetchRetry; i++) {
@@ -271,13 +256,17 @@ class HistoricalScoreService {
         _recreateClient();
 
         if (i > 1) {
+          // debugPrint("🔄 [重試] 開始第 $i 次/共 $maxFetchRetry 次抓取嘗試...");
           statusMessageNotifier.value = "連線重試中 ($i/$maxFetchRetry)...";
-          await Future.delayed(Duration(milliseconds: 800 * i));
+          int delayMs = 500 * i;
+          if (delayMs > 2500) delayMs = 2500;
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
 
         statusMessageNotifier.value = "正在登入系統 ($i/$maxFetchRetry)...";
         String? sessionCookie = await _loginToScoreSystem(username, password);
         if (sessionCookie == null) {
+          debugPrint("❌ [重試] 第 $i 次登入成績系統失敗。");
           continue;
         }
 
@@ -287,40 +276,214 @@ class HistoricalScoreService {
           await _warmUpSession(sessionCookie);
         } catch (_) {}
 
+        // 新增：僅在完整/首次同步時，訪問 sco_query.asp?action=1 並嘗試取得 STUID
+        int? entryYear;
+        String? parsedStuid = username;
+
+        final digitMatch = RegExp(r'\d{2}').firstMatch(username);
+        if (digitMatch != null) {
+          int? digits = int.tryParse(digitMatch.group(0)!);
+          if (digits != null) {
+            if (digits >= 80) {
+              entryYear = digits;
+            } else {
+              entryYear = 100 + digits;
+            }
+          }
+        }
+
+        bool isFullRefresh = coursesNotifier.value.isEmpty || forceFullRefresh;
+        bool shouldAbortAndRetryFromStuid = false;
+
+        if (isFullRefresh && entryYear == null) {
+          try {
+            final action1Url = Uri.parse(
+              "https://selcrs.nsysu.edu.tw/scoreqry/sco_query.asp?action=1",
+            );
+            final action1Response = await _client.get(
+              action1Url,
+              headers: {
+                "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Cookie": sessionCookie,
+              },
+            );
+
+            final bodyText = action1Response.body;
+            if (bodyText.contains(
+                  '&#30331;&#37636;&#23494;&#30908;&#37679;&#35492;&#65292;&#28961;&#27861;&#20351;&#29992;&#35531;&#37325;&#26032;&#30331;&#37636;&#65281;',
+                ) ||
+                bodyText.contains('登錄密碼錯誤，無法使用請重新登錄！')) {
+              // debugPrint("⚠️ [STUID 重試] 偵測到密碼錯誤！原始碼如下：\n$bodyText");
+              throw LoginPasswordErrorException("登錄密碼錯誤");
+            }
+
+            bool isLoginFailed =
+                bodyText.contains("不符") ||
+                bodyText.contains("錯誤") ||
+                bodyText.contains("SCO_QUERY.asp");
+
+            if (action1Response.statusCode != 200 || isLoginFailed) {
+              // debugPrint(
+              //   "⚠️ [STUID 重試] 狀態碼異常或偵測到失敗字眼。狀態碼: ${action1Response.statusCode}。原始碼：\n$bodyText",
+              // );
+              shouldAbortAndRetryFromStuid = true;
+            } else {
+              String content = utf8.decode(
+                action1Response.bodyBytes,
+                allowMalformed: true,
+              );
+              if (content.contains("請重新登入")) {
+                // debugPrint("⚠️ [STUID 重試] 偵測到 '請重新登入'。原始碼：\n$content");
+                shouldAbortAndRetryFromStuid = true;
+              } else {
+                final stuidMatch = RegExp(
+                  r'STUID=([A-Za-z0-9]+)',
+                  caseSensitive: false,
+                ).firstMatch(action1Response.body);
+
+                if (stuidMatch != null) {
+                  String stuid = stuidMatch.group(1)!;
+                  parsedStuid = stuid;
+                  final digitMatch = RegExp(r'\d{2}').firstMatch(stuid);
+                  if (digitMatch != null) {
+                    int? digits = int.tryParse(digitMatch.group(0)!);
+                    if (digits != null) {
+                      if (digits >= 80) {
+                        entryYear = digits;
+                      } else {
+                        entryYear = 100 + digits;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } on LoginPasswordErrorException catch (e) {
+            debugPrint("⚠️ [STUID 重試] 捕獲 LoginPasswordErrorException: $e");
+            shouldAbortAndRetryFromStuid = true;
+          } catch (e) {
+            debugPrint("❌ 取得 STUID 發生錯誤: $e");
+          }
+        }
+
+        if (shouldAbortAndRetryFromStuid) {
+          debugPrint("🔄 [STUID 觸發重試] 第 $i 次嘗試失敗，準備進行下一次重試。");
+          continue;
+        }
+
+        // 依據是否解析出 entryYear 來定義本輪抓取的 tasks 範圍
+        List<MapEntry<String, String>> localTasks = [];
+        if (coursesNotifier.value.isEmpty || forceFullRefresh) {
+          int startYear = x;
+          int endYear = (entryYear != null) ? entryYear : (x - 4);
+          if (endYear > startYear) endYear = startYear; // 防呆
+
+          for (int yearVal = startYear; yearVal >= endYear; yearVal--) {
+            String yearStr = yearVal.toString();
+            localTasks.add(MapEntry(yearStr, "0")); // 碩專暑
+            localTasks.add(MapEntry(yearStr, "1"));
+            localTasks.add(MapEntry(yearStr, "2"));
+            localTasks.add(MapEntry(yearStr, "3"));
+          }
+        } else {
+          if (m >= 1 && m <= 6) {
+            String targetYear = (x - 1).toString();
+            localTasks.add(MapEntry(targetYear, "0"));
+            if (m != 6) {
+              localTasks.add(MapEntry(targetYear, "1"));
+            }
+            localTasks.add(MapEntry(targetYear, "2"));
+            if (m != 6) {
+              localTasks.add(MapEntry(targetYear, "3"));
+            }
+          } else {
+            String lastYear = (x - 1).toString();
+            String thisYear = x.toString();
+            localTasks.add(MapEntry(lastYear, "0"));
+            if (m != 11 && m != 12) {
+              localTasks.add(MapEntry(lastYear, "2"));
+            }
+            localTasks.add(MapEntry(lastYear, "3"));
+            localTasks.add(MapEntry(thisYear, "0"));
+            if (m != 7) {
+              localTasks.add(MapEntry(thisYear, "1"));
+            }
+          }
+          // 排除小於入學年限的任務
+          if (entryYear != null) {
+            localTasks.removeWhere(
+              (task) => (int.tryParse(task.key) ?? 0) < entryYear!,
+            );
+          }
+        }
+
+        // 如果學號（帳號或解析出的 STUID）開頭為 'B' 或 'b'，則排除學期別為 "0" (碩專暑)
+        bool isUndergrad =
+            username.toUpperCase().startsWith('B') ||
+            (parsedStuid != null && parsedStuid.toUpperCase().startsWith('B'));
+        if (isUndergrad) {
+          localTasks.removeWhere((task) => task.value == "0");
+        }
+
         int completed = 0;
         hasAnyData = false;
+        bool shouldAbortAndRetry = false;
 
-        for (var task in tasks) {
+        for (int taskIdx = 0; taskIdx < localTasks.length; taskIdx++) {
+          var task = localTasks[taskIdx];
           String year = task.key;
           String sem = task.value;
           statusMessageNotifier.value = "同步中: $year-$sem ($i/$maxFetchRetry)";
 
-          final result = await _fetchSingleSemester(sessionCookie, year, sem);
-
-          if (result != null && result.courses.isNotEmpty) {
-            String key = "$year-$sem";
-            newCourses[key] = result.courses;
-            newSummary[key] = result.summary;
-            hasAnyData = true;
-
-            // 即時更新 Notifier，讓 UI 在同步過程中能先顯示已抓取的學期
-            _processAndNotifyFromMaps(
-              newCourses,
-              newSummary,
-              previewRanksNotifier.value,
+          try {
+            final result = await _fetchSingleSemester(
+              sessionCookie,
+              year,
+              sem,
+              debugPrintRawHtml: taskIdx == 0,
             );
+
+            if (result != null && result.courses.isNotEmpty) {
+              String key = "$year-$sem";
+              newCourses[key] = result.courses;
+              newSummary[key] = result.summary;
+              hasAnyData = true;
+
+              // 即時更新 Notifier，讓 UI 在同步過程中能先顯示已抓取的學期
+              _processAndNotifyFromMaps(
+                newCourses,
+                newSummary,
+                previewRanksNotifier.value,
+              );
+            }
+          } on LoginPasswordErrorException {
+            if (taskIdx == 0) {
+              debugPrint("⚠️ [學期重試] 第一學期捕獲到 LoginPasswordErrorException，觸發重試。");
+              // 第一個學期若出現登錄密碼錯誤，直接中斷目前迴圈並進行重試
+              shouldAbortAndRetry = true;
+              break;
+            }
           }
 
           completed++;
-          progressNotifier.value = scoreTaskCount > 0
-              ? (completed / scoreTaskCount) * 0.9
+          progressNotifier.value = localTasks.isNotEmpty
+              ? (completed / localTasks.length) * 0.9
               : 0.0;
           await Future.delayed(const Duration(milliseconds: 120));
         }
 
+        if (shouldAbortAndRetry) {
+          // debugPrint("🔄 [學期觸發重試] 第 $i 次嘗試失敗，準備進行下一次重試。");
+          continue;
+        }
+
         // 如果有抓到任何資料，視為正常並跳出重試
         if (hasAnyData) {
+          // debugPrint("✅ [同步成功] 第 $i 次嘗試成功取得資料，跳出重試迴圈。");
           break;
+        } else {
+          debugPrint("❌ [重試] 第 $i 次嘗試未取得任何成績資料。");
         }
       }
 
@@ -351,6 +514,9 @@ class HistoricalScoreService {
           _processAndNotifyFromMaps(newCourses, newSummary, newPreview);
         } catch (e) {
           // debugPrint("HistoricalScoreService: 合併預覽名次發生錯誤或逾時: $e");
+          if (e is TimeoutException) {
+            previewErrorNotifier.value = "預覽名次更新失敗，伺服器目前無法提供查詢服務，請稍後再試。";
+          }
         }
       }
 
@@ -422,6 +588,9 @@ class HistoricalScoreService {
         }).timeout(const Duration(seconds: 5));
       } catch (e) {
         // debugPrint("⚠️ 預覽名次身分驗證超時或失敗 (5秒)，跳過名次抓取: $e");
+        if (e is TimeoutException) {
+          previewErrorNotifier.value = "預覽名次更新失敗，伺服器目前無法提供查詢服務，請稍後再試。";
+        }
         return results;
       }
 
@@ -720,31 +889,70 @@ class HistoricalScoreService {
 
   // (原有) 抓取單一學期
   Future<({List<CourseScore> courses, ScoreSummary summary})?>
-  _fetchSingleSemester(String cookies, String year, String sem) async {
+  _fetchSingleSemester(
+    String cookies,
+    String year,
+    String sem, {
+    bool debugPrintRawHtml = false,
+  }) async {
     try {
       final queryUrl = Uri.parse(
         "https://selcrs.nsysu.edu.tw/scoreqry/sco_query.asp?ACTION=804&KIND=2&LANGS=cht",
       );
-      final response = await _client
-          .post(
-            queryUrl,
-            headers: {
-              "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Cookie": cookies,
-              "Referer": "https://selcrs.nsysu.edu.tw/scoreqry/sco_query.asp",
-            },
-            body: {"SYEAR": year, "SEM": sem},
-          )
-          .timeout(Duration(seconds: 15));
+      final response = await _client.post(
+        queryUrl,
+        headers: {
+          "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Cookie": cookies,
+          "Referer": "https://selcrs.nsysu.edu.tw/scoreqry/sco_query.asp",
+        },
+        body: {"SYEAR": year, "SEM": sem},
+      );
 
-      if (response.statusCode != 200) return null;
+      // 若出現登錄密碼錯誤的特定標籤與訊息，丟出特定 Exception
+      final bodyText = response.body;
+      if (bodyText.contains(
+            '&#30331;&#37636;&#23494;&#30908;&#37679;&#35492;&#65292;&#28961;&#27861;&#20351;&#29992;&#35531;&#37325;&#26032;&#30331;&#37636;&#65281;',
+          ) ||
+          bodyText.contains('登錄密碼錯誤，無法使用請重新登錄！')) {
+        if (debugPrintRawHtml) {
+          // debugPrint("⚠️ [學期重試] 第一學期抓取偵測到密碼錯誤！原始碼如下：\n$bodyText");
+        }
+        throw LoginPasswordErrorException("登錄密碼錯誤");
+      }
+
+      String? rawCookie = response.headers['set-cookie'];
+      // 檢查是否包含登入失敗的關鍵字 (考慮到 BIG5 亂碼，改用較保險的判斷)
+      bool isLoginFailed =
+          response.body.contains("不符") ||
+          response.body.contains("錯誤") ||
+          response.body.contains("SCO_QUERY.asp");
+
+      if (response.statusCode != 200 || isLoginFailed) {
+        if (debugPrintRawHtml) {
+          // debugPrint(
+          //   "⚠️ [學期重試] 第一學期抓取狀態碼異常或偵測到失敗字眼。狀態碼: ${response.statusCode}。原始碼：\n$bodyText",
+          // );
+        }
+        return null;
+      }
       String content = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (content.contains("請重新登入")) return null;
-      var parsed = _parseHtml(content);
+      if (content.contains("請重新登入")) {
+        if (debugPrintRawHtml) {
+          debugPrint("⚠️ [學期重試] 第一學期抓取偵測到 '請重新登入'。原始碼：\n$content");
+        }
+        return null;
+      }
+      final parsed = await _runParseHtml(content);
       return parsed.courses.isEmpty ? null : parsed;
+    } on LoginPasswordErrorException {
+      rethrow;
     } catch (e) {
+      if (debugPrintRawHtml) {
+        debugPrint("⚠️ [學期重試] 第一學期抓取發生異常: $e");
+      }
       return null;
     }
   }
@@ -820,7 +1028,7 @@ class HistoricalScoreService {
       if (value['previewRank'] != null) {
         pMap[key] = Map<String, String>.from(value['previewRank']);
       }
-      // // debugPrintpMap);
+      // // debugPrint(pMap);
     });
 
     _processAndNotifyFromMaps(cMap, sMap, pMap);
@@ -926,62 +1134,72 @@ class HistoricalScoreService {
     // debugPrint("====== 🏁 流程結束 ======\n");
   }
 
-  // (原有) 解析 HTML
-  ({List<CourseScore> courses, ScoreSummary summary}) _parseHtml(
-    String htmlContent,
-  ) {
-    var document = parser.parse(htmlContent);
-    List<CourseScore> courses = [];
-    ScoreSummary summary = ScoreSummary();
-
-    var rows = document.getElementsByTagName('tr');
-    for (var row in rows) {
-      var tds = row.getElementsByTagName('td');
-      var cols = tds.map((e) => e.text.trim()).toList();
-      if (cols.length >= 6) {
-        String possibleId = cols[2];
-        String possibleName = cols[3];
-        String credit = cols[4];
-        String score = cols[5];
-
-        if (int.tryParse(credit) == null && double.tryParse(credit) == null)
-          continue;
-        if (score.contains("成績") || possibleName.contains("科目名稱")) continue;
-
-        if (possibleId.length > 2) {
-          courses.add(
-            CourseScore(
-              id: possibleId,
-              name: possibleName,
-              credits: credit,
-              score: score,
-            ),
-          );
-        }
-      }
-    }
-
-    var allTds = document.getElementsByTagName('td');
-    for (var td in allTds) {
-      String text = td.text.trim();
-      if (text.startsWith("修習學分："))
-        summary.creditsTaken = text.replaceAll("修習學分：", "").trim();
-      else if (text.startsWith("平均分數："))
-        summary.average = text.replaceAll("平均分數：", "").trim();
-      else if (text.startsWith("本學期名次："))
-        summary.rank = text.replaceAll("本學期名次：", "").trim();
-      else if (text.startsWith("實得學分："))
-        summary.creditsEarned = text.replaceAll("實得學分：", "").trim();
-      else if (text.startsWith("全班人數："))
-        summary.classSize = text.replaceAll("全班人數：", "").trim();
-    }
-
-    return (courses: courses, summary: summary);
-  }
+  // HTML parsing is now offloaded to _parseHtmlInIsolate
 
   void dispose() {
     try {
       _client.close();
     } catch (_) {}
   }
+
+  static Future<({List<CourseScore> courses, ScoreSummary summary})>
+  _runParseHtml(String htmlContent) async {
+    return _parseHtmlInIsolate(htmlContent);
+  }
+}
+
+/// Private top-level helper functions for Isolate-based Grade HTML Parsing
+
+({List<CourseScore> courses, ScoreSummary summary}) _parseHtmlInIsolate(
+  String htmlContent,
+) {
+  var document = parser.parse(htmlContent);
+  List<CourseScore> courses = [];
+  ScoreSummary summary = ScoreSummary();
+
+  var rows = document.getElementsByTagName('tr');
+  for (var row in rows) {
+    var tds = row.getElementsByTagName('td');
+    var cols = tds.map((e) => e.text.trim()).toList();
+    if (cols.length >= 6) {
+      String possibleId = cols[2];
+      String possibleName = cols[3];
+      String credit = cols[4];
+      String score = cols[5];
+
+      if (int.tryParse(credit) == null && double.tryParse(credit) == null) {
+        continue;
+      }
+      if (score.contains("成績") || possibleName.contains("科目名稱")) continue;
+
+      if (possibleId.length > 2) {
+        courses.add(
+          CourseScore(
+            id: possibleId,
+            name: possibleName,
+            credits: credit,
+            score: score,
+          ),
+        );
+      }
+    }
+  }
+
+  var allTds = document.getElementsByTagName('td');
+  for (var td in allTds) {
+    String text = td.text.trim();
+    if (text.startsWith("修習學分：")) {
+      summary.creditsTaken = text.replaceAll("修習學分：", "").trim();
+    } else if (text.startsWith("平均分數：")) {
+      summary.average = text.replaceAll("平均分數：", "").trim();
+    } else if (text.startsWith("本學期名次：")) {
+      summary.rank = text.replaceAll("本學期名次：", "").trim();
+    } else if (text.startsWith("實得學分：")) {
+      summary.creditsEarned = text.replaceAll("實得學分：", "").trim();
+    } else if (text.startsWith("全班人數：")) {
+      summary.classSize = text.replaceAll("全班人數：", "").trim();
+    }
+  }
+
+  return (courses: courses, summary: summary);
 }

@@ -9,6 +9,7 @@ class ProgramService {
   ProgramService._internal();
 
   static const String CACHE_KEY = 'program_rules_v1';
+  static const String UPDATE_TIME_KEY = 'program_rules_last_update_time';
   static const String RULES_URL =
       'https://edwinchu0711.github.io/CourseSelectionDateUpdate/program/rules/rules.json';
 
@@ -61,8 +62,27 @@ class ProgramService {
   Future<void> _saveToCache(String rawJson) async {
     try {
       await StorageService.instance.save(CACHE_KEY, rawJson);
+      await StorageService.instance.save(
+        UPDATE_TIME_KEY,
+        DateTime.now().millisecondsSinceEpoch.toString(),
+      );
     } catch (e) {
       debugPrint('ProgramService: saveToCache error: $e');
     }
+  }
+
+  Future<DateTime?> getLastUpdateTime() async {
+    try {
+      final timeStr = await StorageService.instance.read(UPDATE_TIME_KEY);
+      if (timeStr != null) {
+        final ms = int.tryParse(timeStr);
+        if (ms != null) {
+          return DateTime.fromMillisecondsSinceEpoch(ms);
+        }
+      }
+    } catch (e) {
+      debugPrint('ProgramService: getLastUpdateTime error: $e');
+    }
+    return null;
   }
 }

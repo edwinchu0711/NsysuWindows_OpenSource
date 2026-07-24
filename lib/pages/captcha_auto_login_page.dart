@@ -173,13 +173,8 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
       final String base64md5Password = Utils.base64md5(password);
 
       final response = await dio.post(
-        'https://selcrs.nsysu.edu.tw/scoreqry/sco_query_prs_sso2.asp',
-        data: {
-          'SID': username.toUpperCase(),
-          'PASSWD': base64md5Password,
-          'ACTION': '0',
-          'INTYPE': '1',
-        },
+        'https://selcrs.nsysu.edu.tw/menu4/Studcheck_sso2.asp',
+        data: {'stuid': username.toUpperCase(), 'SPassword': base64md5Password},
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
           responseType: ResponseType.plain,
@@ -220,9 +215,9 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
   void _onLoginSuccess(String cookieString) async {
     await _saveCredentials();
     await StorageService.instance.saveSession(cookieString); // 持久化 Session
-    
+
     // 記錄啟動（不等待，不影響登入流程）
-    Utils.recordLaunch();
+    Utils.recordLaunch(_usernameController.text);
 
     getApplicationSupportDirectory().then((supportDir) {
       debugPrint('我的設定檔就藏在: ${supportDir.path}');
@@ -320,7 +315,7 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
                     style: TextStyle(color: colorScheme.primaryText),
                     inputFormatters: [
                       FilteringTextInputFormatter.deny(
-                        RegExp(r'[\u4e00-\u9fa5]'),
+                        RegExp(r'[\u4e00-\u9fa5\u3100-\u312f\u31a0-\u31bf]'),
                       ),
                     ],
                     decoration: InputDecoration(

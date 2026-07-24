@@ -391,7 +391,7 @@ class _MainMenuPageState extends ConsumerState<MainMenuPage> {
           context,
           icon: Icons.assistant_rounded,
           label: "選課助手",
-          subLabel: "模擬排課與課程評價搜尋",
+          subLabel: "模擬排課與分析功能",
           color: Colors.lightBlue,
           onTap: () => context.go('/assistant'),
         ),

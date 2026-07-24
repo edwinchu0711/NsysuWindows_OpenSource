@@ -1,3 +1,4 @@
+import 'dart:math';
 import '../models/program_model.dart';
 
 class EligibilityChecker {
@@ -700,7 +701,22 @@ class EligibilityChecker {
       );
     }
 
-    final totalMet = totalCreditsEarned >= version.requirements.totalMinCredits;
+    int groupDeficitsSum = 0;
+    for (final gr in groups) {
+      groupDeficitsSum += (gr.creditsRequired - gr.creditsEarned).clamp(
+        0,
+        999999,
+      );
+    }
+
+    final overallDeficit =
+        (version.requirements.totalMinCredits - totalCreditsEarned).clamp(
+          0,
+          999999,
+        );
+    final totalDeficit = max(overallDeficit, groupDeficitsSum);
+    final totalMet = totalDeficit == 0;
+
     final externalMet =
         totalExternalEarned >= version.requirements.externalCredits.min;
     final allGroupsMet = groups.every((g) => g.isMet);
@@ -714,10 +730,9 @@ class EligibilityChecker {
     CompletionRange completionRange;
     if (hasUnverified) {
       final minRate = version.requirements.totalMinCredits > 0
-          ? (totalCreditsEarned / version.requirements.totalMinCredits).clamp(
-              0.0,
-              1.0,
-            )
+          ? ((version.requirements.totalMinCredits - totalDeficit) /
+                    version.requirements.totalMinCredits)
+                .clamp(0.0, 1.0)
           : 0.0;
       int maxCredits = totalCreditsEarned;
       for (final v in allCrossDeptVerifications) {
@@ -735,16 +750,19 @@ class EligibilityChecker {
           }
         }
       }
+      final extraCredits = maxCredits - totalCreditsEarned;
       final maxRate = version.requirements.totalMinCredits > 0
-          ? (maxCredits / version.requirements.totalMinCredits).clamp(0.0, 1.0)
+          ? (((version.requirements.totalMinCredits - totalDeficit) +
+                        extraCredits) /
+                    version.requirements.totalMinCredits)
+                .clamp(0.0, 1.0)
           : 0.0;
       completionRange = CompletionRange(minRate: minRate, maxRate: maxRate);
     } else {
       final rate = version.requirements.totalMinCredits > 0
-          ? (totalCreditsEarned / version.requirements.totalMinCredits).clamp(
-              0.0,
-              1.0,
-            )
+          ? ((version.requirements.totalMinCredits - totalDeficit) /
+                    version.requirements.totalMinCredits)
+                .clamp(0.0, 1.0)
           : 0.0;
       completionRange = CompletionRange(minRate: rate, maxRate: rate);
     }
@@ -755,11 +773,22 @@ class EligibilityChecker {
       summary = '✅ 符合「${program.programName}」證書資格！';
     } else {
       final parts = <String>[];
-      if (!totalMet) {
-        final deficit =
-            version.requirements.totalMinCredits - totalCreditsEarned;
+      bool anyGroupDeficit = false;
+      for (final gr in groups) {
+        final groupDeficit = (gr.creditsRequired - gr.creditsEarned).clamp(
+          0,
+          999999,
+        );
+        if (groupDeficit > 0) {
+          anyGroupDeficit = true;
+          parts.add(
+            '${gr.label}不足 $groupDeficit 學分（已修 ${gr.creditsEarned}/${gr.creditsRequired}）',
+          );
+        }
+      }
+      if (!anyGroupDeficit && !totalMet) {
         parts.add(
-          '總學分不足 $deficit 學分（已修 $totalCreditsEarned/${version.requirements.totalMinCredits}）',
+          '總學分不足 $overallDeficit 學分（已修 $totalCreditsEarned/${version.requirements.totalMinCredits}）',
         );
       }
       if (!externalMet) {

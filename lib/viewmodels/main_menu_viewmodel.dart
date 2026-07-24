@@ -56,16 +56,28 @@ class MainMenuViewModel extends StateNotifier<MainMenuState> {
     final sw = Stopwatch()..start();
     try {
       // debugPrint('[BG] refreshAndCache 開始');
-      await _ref.read(courseServiceProvider).refreshAndCache();
-      // debugPrint('[BG] refreshAndCache 完成 (+${sw.elapsedMilliseconds}ms)');
-      if (isScoreReleaseSeason()) {
+      final task1 = _ref.read(courseServiceProvider).refreshAndCache();
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      Future<void>? task2;
+      final prefs = await SharedPreferences.getInstance();
+      final hasFetchedFirst =
+          prefs.getBool('has_done_first_open_score_fetch') ?? false;
+      if (isScoreReleaseSeason() || !hasFetchedFirst) {
         // debugPrint('[BG] fetchOpenScores 開始');
-        await _ref.read(openScoreServiceProvider).fetchOpenScores();
-        // debugPrint('[BG] fetchOpenScores 完成 (+${sw.elapsedMilliseconds}ms)');
+        task2 = _ref.read(openScoreServiceProvider).fetchOpenScores();
+        if (!hasFetchedFirst) {
+          await prefs.setBool('has_done_first_open_score_fetch', true);
+        }
       }
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
       // debugPrint('[BG] fetchAllData 開始');
-      await _ref.read(historicalScoreServiceProvider).fetchAllData();
-      // debugPrint('[BG] fetchAllData 完成 (+${sw.elapsedMilliseconds}ms)');
+      final task3 = _ref.read(historicalScoreServiceProvider).fetchAllData();
+
+      await Future.wait([task1, if (task2 != null) task2, task3]);
     } catch (e) {
       debugPrint("❌ 背景抓取發生錯誤: $e");
     }

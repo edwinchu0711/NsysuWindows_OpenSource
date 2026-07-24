@@ -468,13 +468,9 @@ class GroupCardWidget extends StatelessWidget {
             parts.add(alt);
           }
         }
-        alternativesText = parts.length > 3
-            ? '${parts.sublist(0, 3).join('、')} 等${parts.length}門'
-            : parts.join('、');
+        alternativesText = parts.join('、');
       } else {
-        alternativesText = s.alternatives!.length > 3
-            ? '${s.alternatives!.sublist(0, 3).join('、')} 等${s.alternatives!.length}門'
-            : s.alternatives!.join('、');
+        alternativesText = s.alternatives!.join('、');
       }
     } else {
       alternativesText = '—';

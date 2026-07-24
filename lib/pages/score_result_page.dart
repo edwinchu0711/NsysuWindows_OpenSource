@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/historical_score_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 class ScoreResultPage extends StatefulWidget {
   const ScoreResultPage({Key? key}) : super(key: key);
@@ -45,13 +46,16 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
                       children: [
                         Row(
                           children: [
-                            IconButton(
+                            HoverIconButton(
                               icon: const Icon(
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 18,
                               ),
                               onPressed: () => context.go('/home'),
                               tooltip: "返回主選單",
+                              color: colorScheme.primaryText,
+                              iconSize: 18,
+                              padding: 12,
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,16 +417,11 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
     final month = now.month;
     final day = now.day;
 
-    // 期間 1: 3/20 ~ 6/5
-    bool inPeriod1 =
-        (month == 3 && day >= 20) ||
-        (month > 3 && month < 6) ||
-        (month == 6 && day <= 5);
-    // 期間 2: 10/15 ~ 1/5 (跨年)
-    bool inPeriod2 =
-        (month == 10 && day >= 15) || (month > 10) || (month == 1 && day <= 5);
+    // 開放日期為 5/25 ~ 10/10 和 12/25 ~ 3/20
+    bool inOpenPeriod1 = (month == 5 && day >= 25) || (month > 5 && month < 10) || (month == 10 && day <= 10);
+    bool inOpenPeriod2 = (month == 12 && day >= 25) || (month == 1 || month == 2) || (month == 3 && day <= 20);
 
-    return inPeriod1 || inPeriod2;
+    return !(inOpenPeriod1 || inOpenPeriod2);
   }
 
   // ✅ 新增：常駐型預覽說明盒
@@ -478,13 +477,13 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
         if (isEnabledButInactive) statusTitle = "預覽名次：已開啟 (目前系統自動關閉中)";
 
         String description =
-            "目前沒有開啟預覽名次，抓取速度快。若是要看預覽名次，請到設定頁面去開啟。\n※ 注意：3/20~6/5 和 10/15~1/5 期間此功能會強制關閉，為了節省時間。";
+            "目前沒有開啟預覽名次，抓取速度快。若是要看預覽名次，請到設定頁面去開啟。\n※ 注意：僅在 5/25~10/10 和 12/25~3/20 期間開放此功能，其餘時間強制關閉以節省時間。";
         if (isCurrentlyActive) {
           description =
-              "現在有開啟預覽名次，每次抓取會比較久。若是已抓到要的資料，可以先去設定關閉以加快速度。\n※ 注意：1. 3/20~6/5 和 10/15~1/5 期間此功能會強制關閉。 2. 若寒暑假期間查無預覽資料，推測為系統更動，建議暫時關閉以維持效率。";
+              "現在有開啟預覽名次，每次抓取會比較久。若是已抓到要的資料，可以先去設定關閉以加快速度。\n※ 注意：1. 僅在 5/25~10/10 和 12/25~3/20 期間開放此功能。 2. 若寒暑假期間查無預覽資料，推測為系統更動，建議暫時關閉以維持效率。";
         } else if (isEnabledButInactive) {
           description =
-              "您已開啟預覽名次功能，但目前正處於系統自動關閉期間 (3/20~6/5 或 10/15~1/5)，因此目前不會有預覽效果且不影響抓取速度。\n待限制期間過後，功能將自動恢復運作。";
+              "您已開啟預覽名次功能，但目前非開放期間 (開放時間為 5/25~10/10 及 12/25~3/20)，因此目前不會有預覽效果且不影響抓取速度。\n待開放期間後，功能將自動恢復運作。";
         }
 
         return Container(
@@ -579,7 +578,64 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       }
     }
 
-    return _buildSummaryCard(finalSummary, type);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildSummaryCard(finalSummary, type),
+        if (type == SummaryType.preview) ...[
+          ValueListenableBuilder<String?>(
+            valueListenable:
+                HistoricalScoreService.instance.previewErrorNotifier,
+            builder: (context, previewError, _) {
+              if (previewError == null) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.isDark
+                        ? Colors.red[900]!.withOpacity(0.2)
+                        : Colors.red[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: Theme.of(context).colorScheme.isDark
+                            ? Colors.redAccent[100]
+                            : Colors.red[700],
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          previewError,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.isDark
+                                ? Colors.redAccent[100]
+                                : Colors.red[700],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
   }
 
   // ✅ 改名與簡化：右側課程清單
@@ -597,6 +653,16 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       );
     }
 
+    // 將有成績的排在前面，無成績的排在後面，並保持原有的相對順序 (穩定排序)
+    bool hasScore(CourseScore course) {
+      final s = course.score.trim();
+      return s.isNotEmpty && s != '-' && s != '--';
+    }
+
+    final withScores = courses.where((c) => hasScore(c)).toList();
+    final withoutScores = courses.where((c) => !hasScore(c)).toList();
+    final sortedCourses = [...withScores, ...withoutScores];
+
     return Column(
       children: [
         _buildTableHeader(),
@@ -604,8 +670,9 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.only(bottom: 40),
-            itemCount: courses.length,
-            itemBuilder: (context, index) => _buildCourseCard(courses[index]),
+            itemCount: sortedCourses.length,
+            itemBuilder: (context, index) =>
+                _buildCourseCard(sortedCourses[index]),
           ),
         ),
       ],

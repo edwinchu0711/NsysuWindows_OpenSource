@@ -41,6 +41,7 @@ class CourseJsonData {
   final int multipleCompulsory; // 0=必修, 1=選修
   final List<String> tags; // 標籤/學程
   final String description; // 備註
+  final bool compulsory; // true=必修, false=選修
 
   CourseJsonData({
     required this.id,
@@ -60,9 +61,21 @@ class CourseJsonData {
     required this.multipleCompulsory,
     required this.tags,
     required this.description,
-  });
+    bool? compulsory,
+  }) : this.compulsory = compulsory ?? (multipleCompulsory == 0);
 
   factory CourseJsonData.fromJson(Map<String, dynamic> json) {
+    bool compVal = false;
+    if (json['compulsory'] != null) {
+      if (json['compulsory'] is bool) {
+        compVal = json['compulsory'] as bool;
+      } else if (json['compulsory'] is num) {
+        compVal = (json['compulsory'] as num) == 1;
+      }
+    } else {
+      compVal = (json['multiple_compulsory'] ?? 0) == 0;
+    }
+
     return CourseJsonData(
       id: json['id'] ?? "",
       name: json['name'] ?? "",
@@ -81,6 +94,7 @@ class CourseJsonData {
       multipleCompulsory: json['multiple_compulsory'] ?? 0,
       tags: List<String>.from(json['tags'] ?? []),
       description: json['description'] ?? "",
+      compulsory: compVal,
     );
   }
 
@@ -103,6 +117,7 @@ class CourseJsonData {
       'multiple_compulsory': multipleCompulsory,
       'tags': tags,
       'description': description,
+      'compulsory': compulsory,
     };
   }
 }
@@ -121,6 +136,7 @@ class CourseQueryService {
 
   String get currentSemester => _currentSemester;
   List<CourseJsonData> get cachedCourses => List.unmodifiable(_cachedCourses);
+  bool get isUpdating => _isUpdating;
 
   /// 初始化：開啟 Isar（延遲載入課程資料）
   Future<void> init() async {
@@ -247,7 +263,7 @@ class CourseQueryService {
     }
   }
 
-  /// 從下載的 JSON 建立 courses.db (SQLite)
+  /// 從下載的 JSON 建立 courses.db (SQLite) (背景 Isolate 執行版)
   Future<void> _buildCoursesDb(List<dynamic> rawList, String semester) async {
     final dbPath = await Utils.getAppDbDirectory();
     final path = join(dbPath, "courses.db");
@@ -255,196 +271,21 @@ class CourseQueryService {
     // 先關閉 LocalCourseService 的 DB 連線，否則 Windows 會鎖定檔案無法刪除
     LocalCourseService.instance.reset();
 
-    // Delete existing DB first
-    final existingFile = File(path);
-    if (await existingFile.exists()) {
-      await existingFile.delete();
-    }
-
-    final db = await openDatabase(path);
-
     try {
-      // Create tables with the same schema as the Python script
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS courses (
-          id TEXT PRIMARY KEY,
-          url TEXT,
-          change TEXT,
-          change_description TEXT,
-          multiple_compulsory INTEGER NOT NULL DEFAULT 0,
-          department TEXT,
-          grade TEXT,
-          class_name TEXT,
-          name_zh_en TEXT,
-          credit REAL,
-          year_semester TEXT,
-          compulsory INTEGER NOT NULL DEFAULT 0,
-          restrict_count INTEGER,
-          select_count INTEGER,
-          selected_count INTEGER,
-          remaining_count INTEGER,
-          teacher TEXT,
-          room TEXT,
-          description TEXT,
-          english INTEGER NOT NULL DEFAULT 0
-        )
-      ''');
+      final args = {
+        'path': path,
+        'rawList': rawList,
+        'semester': semester,
+      };
+      // 呼叫背景 Isolate 執行
+      await Isolate.run(() => _buildCoursesDbInIsolate(args));
 
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS course_times (
-          course_id TEXT NOT NULL,
-          weekday INTEGER NOT NULL,
-          periods TEXT,
-          PRIMARY KEY (course_id, weekday),
-          FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
-        )
-      ''');
-
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS course_tags (
-          course_id TEXT NOT NULL,
-          tag TEXT NOT NULL,
-          PRIMARY KEY (course_id, tag),
-          FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
-        )
-      ''');
-
-      await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher)',
-      );
-      await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_course_tags_tag ON course_tags(tag)',
-      );
-
-      // Batch insert using transaction
-      await db.transaction((txn) async {
-        for (var c in rawList) {
-          // Insert course row
-          await txn.execute(
-            '''INSERT OR REPLACE INTO courses (
-              id, url, change, change_description, multiple_compulsory,
-              department, grade, class_name, name_zh_en, credit, year_semester,
-              compulsory, restrict_count, select_count, selected_count, remaining_count,
-              teacher, room, description, english
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            [
-              c['id']?.toString() ?? '',
-              c['url']?.toString() ?? '',
-              c['change']?.toString() ?? '',
-              c['changeDescription']?.toString() ??
-                  c['change_description']?.toString() ??
-                  '',
-              c['multiple_compulsory'] != null
-                  ? (c['multiple_compulsory'] is bool
-                        ? (c['multiple_compulsory'] ? 1 : 0)
-                        : (c['multiple_compulsory'] as int))
-                  : 0,
-              c['department']?.toString() ?? '',
-              c['grade']?.toString() ?? '',
-              c['class']?.toString() ?? c['class_name']?.toString() ?? '',
-              c['name']?.toString() ?? c['name_zh_en']?.toString() ?? '',
-              _toFloat(c['credit']),
-              semester,
-              c['compulsory'] != null
-                  ? (c['compulsory'] is bool
-                        ? (c['compulsory'] ? 1 : 0)
-                        : (c['compulsory'] as int))
-                  : 0,
-              _toInt(c['restrict']),
-              _toInt(c['select']),
-              _toInt(c['selected']),
-              _toInt(c['remaining']),
-              c['teacher']?.toString() ?? '',
-              c['room']?.toString() ?? '',
-              c['description']?.toString() ?? '',
-              c['english'] != null
-                  ? (c['english'] is bool
-                        ? (c['english'] ? 1 : 0)
-                        : (c['english'] as int))
-                  : 0,
-            ],
-          );
-
-          // Insert course_times
-          final classTime = c['classTime'];
-          if (classTime is List) {
-            // Delete old times for this course (safety)
-            await txn.delete(
-              'course_times',
-              where: 'course_id = ?',
-              whereArgs: [c['id']],
-            );
-
-            for (
-              int weekday = 0;
-              weekday < classTime.length && weekday < 7;
-              weekday++
-            ) {
-              final periods = classTime[weekday]?.toString() ?? '';
-              if (periods.isNotEmpty) {
-                await txn.execute(
-                  'INSERT OR REPLACE INTO course_times (course_id, weekday, periods) VALUES (?, ?, ?)',
-                  [c['id']?.toString() ?? '', weekday, periods],
-                );
-              }
-            }
-          }
-
-          // Insert course_tags
-          final tags = c['tags'];
-          if (tags is List) {
-            await txn.delete(
-              'course_tags',
-              where: 'course_id = ?',
-              whereArgs: [c['id']],
-            );
-            for (var tag in tags) {
-              if (tag != null) {
-                await txn.execute(
-                  'INSERT OR IGNORE INTO course_tags (course_id, tag) VALUES (?, ?)',
-                  [c['id']?.toString() ?? '', tag.toString()],
-                );
-              }
-            }
-          }
-        }
-      });
-
-      await db.close();
-
-      // Re-initialize LocalCourseService to use the new DB
-      LocalCourseService.instance.reset();
+      // 重新初始化 LocalCourseService 啟用連線
       await LocalCourseService.instance.init();
-
-      // debugPrint("✅ CourseQueryService: courses.db 建立完成 (${rawList.length} 筆課程)");
     } catch (e) {
       debugPrint("❌ CourseQueryService: courses.db 建立失敗: $e");
-      try {
-        await db.close();
-      } catch (_) {}
       rethrow;
     }
-  }
-
-  /// Helper: convert value to int safely
-  int? _toInt(dynamic v) {
-    if (v == null) return null;
-    if (v is int) return v;
-    if (v is double) return v.toInt();
-    final s = v.toString().trim();
-    if (s.isEmpty) return null;
-    return int.tryParse(s) ??
-        int.tryParse(double.tryParse(s)?.toStringAsFixed(0) ?? '');
-  }
-
-  /// Helper: convert value to double safely
-  double? _toFloat(dynamic v) {
-    if (v == null) return null;
-    if (v is double) return v;
-    if (v is int) return v.toDouble();
-    final s = v.toString().trim();
-    if (s.isEmpty) return null;
-    return double.tryParse(s);
   }
 
   /// 取得課程資料（對外 API 不變）
@@ -497,6 +338,7 @@ class CourseQueryService {
     List<String>? grades,
     List<String>? days,
     List<String>? periods,
+    List<String>? slots,
     String? classType,
     bool filterConflict = false,
     List<dynamic>? existingCourses,
@@ -536,10 +378,22 @@ class CourseQueryService {
     }
 
     final Set<String> seenIds = {};
-    final List<String> keywords = processedQuery
+    final List<String> rawKeywords = processedQuery
         .split(RegExp(r'\s+'))
         .where((s) => s.isNotEmpty)
         .toList();
+
+    bool? compulsoryFilter;
+    final List<String> keywords = [];
+    for (var kw in rawKeywords) {
+      if (kw == "必修" || kw == "必") {
+        compulsoryFilter = true;
+      } else if (kw == "選修" || kw == "選") {
+        compulsoryFilter = false;
+      } else {
+        keywords.add(kw);
+      }
+    }
 
     // 預先建立衝突檢查用的 Set (Day-Period)
     final Set<String> occupiedSlots = {};
@@ -569,6 +423,11 @@ class CourseQueryService {
 
     return _cachedCourses
         .where((course) {
+          // 0. 必修/選修 篩選 (若搜尋字包含 必/必修/選/選修)
+          if (compulsoryFilter != null) {
+            if (course.compulsory != compulsoryFilter) return false;
+          }
+
           // 1. 合併搜尋 (AND 邏輯)
           if (keywords.isNotEmpty) {
             for (var kw in keywords) {
@@ -620,6 +479,32 @@ class CourseQueryService {
               }
             }
             if (!timeMatched) return false;
+          }
+
+          // 4b. 指定 (星期, 節次) 配對篩選 (OR of pairs)
+          // 來自課表格子點擊，例如 ["4-2","5-1"]，課程只要佔用到任一配對即命中。
+          // 與 4. 的 days/periods 為獨立條件（兩者皆須通過）。
+          if (slots != null && slots.isNotEmpty) {
+            bool pairMatched = false;
+            for (final slot in slots) {
+              final dashIdx = slot.indexOf('-');
+              if (dashIdx <= 0 || dashIdx == slot.length - 1) continue;
+              final dayIdx = int.tryParse(slot.substring(0, dashIdx));
+              final p = slot.substring(dashIdx + 1);
+              if (dayIdx == null || dayIdx < 1 || dayIdx > 7 || p.isEmpty) {
+                continue;
+              }
+              final String courseDayPeriods = course.classTime[dayIdx - 1];
+              if (courseDayPeriods.isEmpty) continue;
+              final cleaned = courseDayPeriods
+                  .replaceAll(',', '')
+                  .replaceAll(' ', '');
+              if (cleaned.contains(p)) {
+                pairMatched = true;
+                break;
+              }
+            }
+            if (!pairMatched) return false;
           }
 
           // 5. 衝堂檢查 (若開啟)
@@ -689,10 +574,228 @@ class CourseQueryService {
     isar.select = json['select'] ?? 0;
     isar.selected = json['selected'] ?? 0;
     isar.remaining = json['remaining'] ?? 0;
-    isar.multipleCompulsory = json['multiple_compulsory'] ?? 0;
+    bool isCompulsory = false;
+    final rawCompulsory = json['compulsory'];
+    if (rawCompulsory != null) {
+      if (rawCompulsory is bool) {
+        isCompulsory = rawCompulsory;
+      } else if (rawCompulsory is num) {
+        isCompulsory = rawCompulsory == 1;
+      }
+    } else {
+      final rawMult = json['multiple_compulsory'] ?? json['multipleCompulsory'];
+      if (rawMult != null) {
+        if (rawMult is bool) {
+          isCompulsory = !rawMult;
+        } else if (rawMult is num) {
+          isCompulsory = rawMult == 0;
+        }
+      }
+    }
+    isar.multipleCompulsory = isCompulsory ? 0 : 1;
     isar.tags = List<String>.from(json['tags'] ?? []);
     isar.description = json['description'] ?? "";
     isar.semester = semester;
     return isar;
+  }
+}
+
+/// Helper: convert value to int safely
+int? _dbToInt(dynamic v) {
+  if (v == null) return null;
+  if (v is int) return v;
+  if (v is double) return v.toInt();
+  final s = v.toString().trim();
+  if (s.isEmpty) return null;
+  return int.tryParse(s) ??
+      int.tryParse(double.tryParse(s)?.toStringAsFixed(0) ?? '');
+}
+
+/// Helper: convert value to double safely
+double? _dbToFloat(dynamic v) {
+  if (v == null) return null;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  final s = v.toString().trim();
+  if (s.isEmpty) return null;
+  return double.tryParse(s);
+}
+
+/// 頂層函式：在背景 Isolate 中開啟 SQLite 並進行批次寫入
+Future<void> _buildCoursesDbInIsolate(Map<String, dynamic> args) async {
+  final String path = args['path'];
+  final List<dynamic> rawList = args['rawList'];
+  final String semester = args['semester'];
+
+  // 初始化背景 Isolate 的 SQLite Factory
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+
+  // 刪除既有資料庫檔案
+  final existingFile = File(path);
+  if (await existingFile.exists()) {
+    await existingFile.delete();
+  }
+
+  final db = await openDatabase(path);
+  try {
+    // 建立資料表與索引
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS courses (
+        id TEXT PRIMARY KEY,
+        url TEXT,
+        change TEXT,
+        change_description TEXT,
+        multiple_compulsory INTEGER NOT NULL DEFAULT 0,
+        department TEXT,
+        grade TEXT,
+        class_name TEXT,
+        name_zh_en TEXT,
+        credit REAL,
+        year_semester TEXT,
+        compulsory INTEGER NOT NULL DEFAULT 0,
+        restrict_count INTEGER,
+        select_count INTEGER,
+        selected_count INTEGER,
+        remaining_count INTEGER,
+        teacher TEXT,
+        room TEXT,
+        description TEXT,
+        english INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS course_times (
+        course_id TEXT NOT NULL,
+        weekday INTEGER NOT NULL,
+        periods TEXT,
+        PRIMARY KEY (course_id, weekday),
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS course_tags (
+        course_id TEXT NOT NULL,
+        tag TEXT NOT NULL,
+        PRIMARY KEY (course_id, tag),
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_course_tags_tag ON course_tags(tag)',
+    );
+
+    // 批次寫入
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (var c in rawList) {
+        bool isCompulsory = false;
+        final rawCompulsory = c['compulsory'];
+        if (rawCompulsory != null) {
+          if (rawCompulsory is bool) {
+            isCompulsory = rawCompulsory;
+          } else if (rawCompulsory is num) {
+            isCompulsory = rawCompulsory == 1;
+          }
+        } else {
+          final rawMult = c['multiple_compulsory'] ?? c['multipleCompulsory'];
+          if (rawMult != null) {
+            if (rawMult is bool) {
+              isCompulsory = !rawMult;
+            } else if (rawMult is num) {
+              isCompulsory = rawMult == 0;
+            }
+          }
+        }
+        final multipleCompulsoryVal = isCompulsory ? 0 : 1;
+        final compulsoryVal = isCompulsory ? 1 : 0;
+
+        batch.execute(
+          '''INSERT OR REPLACE INTO courses (
+            id, url, change, change_description, multiple_compulsory,
+            department, grade, class_name, name_zh_en, credit, year_semester,
+            compulsory, restrict_count, select_count, selected_count, remaining_count,
+            teacher, room, description, english
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          [
+            c['id']?.toString() ?? '',
+            c['url']?.toString() ?? '',
+            c['change']?.toString() ?? '',
+            c['changeDescription']?.toString() ??
+                c['change_description']?.toString() ??
+                '',
+            multipleCompulsoryVal,
+            c['department']?.toString() ?? '',
+            c['grade']?.toString() ?? '',
+            c['class']?.toString() ?? c['class_name']?.toString() ?? '',
+            c['name']?.toString() ?? c['name_zh_en']?.toString() ?? '',
+            _dbToFloat(c['credit']),
+            semester,
+            compulsoryVal,
+            _dbToInt(c['restrict']),
+            _dbToInt(c['select']),
+            _dbToInt(c['selected']),
+            _dbToInt(c['remaining']),
+            c['teacher']?.toString() ?? '',
+            c['room']?.toString() ?? '',
+            c['description']?.toString() ?? '',
+            c['english'] != null
+                ? (c['english'] is bool
+                    ? (c['english'] ? 1 : 0)
+                    : (c['english'] as int))
+                : 0,
+          ],
+        );
+
+        final classTime = c['classTime'];
+        if (classTime is List) {
+          batch.delete(
+            'course_times',
+            where: 'course_id = ?',
+            whereArgs: [c['id']],
+          );
+
+          for (
+            int weekday = 0;
+            weekday < classTime.length && weekday < 7;
+            weekday++
+          ) {
+            final periods = classTime[weekday]?.toString() ?? '';
+            if (periods.isNotEmpty) {
+              batch.execute(
+                'INSERT OR REPLACE INTO course_times (course_id, weekday, periods) VALUES (?, ?, ?)',
+                [c['id']?.toString() ?? '', weekday, periods],
+              );
+            }
+          }
+        }
+
+        final tags = c['tags'];
+        if (tags is List) {
+          batch.delete(
+            'course_tags',
+            where: 'course_id = ?',
+            whereArgs: [c['id']],
+          );
+          for (var tag in tags) {
+            if (tag != null) {
+              batch.execute(
+                'INSERT OR IGNORE INTO course_tags (course_id, tag) VALUES (?, ?)',
+                [c['id']?.toString() ?? '', tag.toString()],
+              );
+            }
+          }
+        }
+      }
+      await batch.commit(noResult: true);
+    });
+  } finally {
+    await db.close();
   }
 }

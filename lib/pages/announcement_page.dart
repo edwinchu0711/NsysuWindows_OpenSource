@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/elearn_bulletin_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_dropdown.dart';
+import '../widgets/hover_icon_button.dart';
 
 class AnnouncementPage extends StatefulWidget {
   const AnnouncementPage({Key? key}) : super(key: key);
@@ -122,13 +123,18 @@ class _AnnouncementPageState extends State<AnnouncementPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
+          HoverIconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
             onPressed: () => context.go('/home'),
+            tooltip: "返回主選單",
+            color: colorScheme.primaryText,
+            iconSize: 18,
+            padding: 12,
           ),
           const SizedBox(width: 10),
           Text(

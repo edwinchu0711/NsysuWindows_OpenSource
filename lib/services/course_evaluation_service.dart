@@ -12,6 +12,7 @@ class CourseEvaluationService {
 
   // 快取：key = "{year}-{semester}-{courseId}"
   final Map<String, List<String>> _cache = {};
+  final Map<String, Future<List<String>>> _futureCache = {};
 
   /// 抓取課程評分方式
   ///
@@ -19,6 +20,25 @@ class CourseEvaluationService {
   /// [semester] 學期，例如 "1", "2", "3"
   /// [courseId] 課程代碼
   Future<List<String>> fetchEvaluation({
+    required String year,
+    required String semester,
+    required String courseId,
+  }) {
+    final cacheKey = '$year-$semester-$courseId';
+    if (_futureCache.containsKey(cacheKey)) {
+      return _futureCache[cacheKey]!;
+    }
+
+    final future = _fetchEvaluationInternal(
+      year: year,
+      semester: semester,
+      courseId: courseId,
+    );
+    _futureCache[cacheKey] = future;
+    return future;
+  }
+
+  Future<List<String>> _fetchEvaluationInternal({
     required String year,
     required String semester,
     required String courseId,
@@ -54,11 +74,6 @@ class CourseEvaluationService {
       if (response.statusCode == 200) {
         String html = utf8.decode(response.bodyBytes, allowMalformed: true);
 
-        // Debug：印出 HTML 前 800 字元來診斷
-        // debugPrint('[CourseEvaluationService] URL: $url');
-        // debugPrint('[CourseEvaluationService] HTML preview:');
-        // debugPrinthtml.length > 800 ? html.substring(0, 800) : html);
-
         // 分別抓項目名稱 (SS4_*1) 和百分比 (SS4_*2)，按索引配對
         final nameExp = RegExp(
           r'<span[^>]*id="?SS4_(\d+)1"?[^>]*>([^<]*)</span>',
@@ -87,8 +102,6 @@ class CourseEvaluationService {
           }
         }
 
-        // debugPrint('[CourseEvaluationService] 抓到名稱: ${names.length} 個, 百分比: ${pcts.length} 個',);
-
         List<String> evals = [];
         int index = 1;
 
@@ -98,7 +111,6 @@ class CourseEvaluationService {
         for (var key in sortedKeys) {
           String name = names[key]!;
           String pct = pcts[key] ?? "0";
-          // 如果百分比為空，也顯示為 0%
           if (pct.isEmpty) pct = "0";
           evals.add('$index. $name：$pct%');
           index++;
@@ -109,9 +121,11 @@ class CourseEvaluationService {
         return evals;
       }
     } catch (e) {
+      _futureCache.remove(cacheKey); // Remove from future cache to allow retry
       debugPrint('[CourseEvaluationService] Error: $e');
       return ["載入失敗"];
     }
+    _futureCache.remove(cacheKey); // Remove if status was not 200 to allow retry
     return ["查無資料"];
   }
 
@@ -147,14 +161,26 @@ class CourseEvaluationService {
     return structured;
   }
 
+  /// 取得已快取的評分方式 (同步)
+  List<String>? getCachedEvaluation({
+    required String year,
+    required String semester,
+    required String courseId,
+  }) {
+    final cacheKey = '$year-$semester-$courseId';
+    return _cache[cacheKey];
+  }
+
   /// 清除特定快取
   void clearCache(String year, String semester, String courseId) {
     final cacheKey = '$year-$semester-$courseId';
     _cache.remove(cacheKey);
+    _futureCache.remove(cacheKey);
   }
 
   /// 清除所有快取
   void clearAllCache() {
     _cache.clear();
+    _futureCache.clear();
   }
 }

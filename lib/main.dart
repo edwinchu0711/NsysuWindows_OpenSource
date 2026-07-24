@@ -9,8 +9,6 @@ Licensed under the MIT License.
 */
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'services/pdf_rule_service.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -18,10 +16,9 @@ import 'package:window_manager/window_manager.dart';
 import 'widgets/custom_title_bar.dart';
 import 'services/storage_service.dart';
 import 'services/historical_score_service.dart';
-import 'services/course_service.dart';
 import 'services/course_query_service.dart';
 import 'services/local_course_service.dart';
-import 'services/database_embedding_service.dart';
+import 'services/course_service.dart';
 import 'router.dart';
 
 import 'theme/app_theme.dart';
@@ -59,11 +56,6 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  // 臨時加入：清除舊的選課須知快取
-  await PdfRuleService.instance.fetchAndCache(); // 確保實例加載
-  PdfRuleService.instance.clearCache();
-  debugPrint("[DEBUG] 已清除選課須知舊快取文字");
-
   final sw = Stopwatch()..start();
 
   // 初始化安全存儲與遷移
@@ -93,12 +85,6 @@ void main() async {
   // debugPrint("[INIT] LocalCourseService 開始");
   await LocalCourseService.instance.init();
   // debugPrint("[INIT] LocalCourseService 完成 (+${sw.elapsedMilliseconds}ms)");
-
-  // 初始化 embedding 資料庫，完成後背景檢查更新
-  // debugPrint("[INIT] DatabaseEmbeddingService 開始");
-  await DatabaseEmbeddingService.instance.init();
-  // debugPrint("[INIT] DatabaseEmbeddingService 完成 (+${sw.elapsedMilliseconds}ms)",);
-  DatabaseEmbeddingService.instance.checkForAutoUpdate();
 
   // ★★★ 新增：初始化 desktop 視窗大小設定 ★★★
   // debugPrint("[INIT] windowManager 開始");

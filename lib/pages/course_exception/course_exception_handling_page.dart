@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../services/storage_service.dart';
 import '../../utils/utils.dart'; // 請確保此路徑能正確引入包含 base64md5 的 Utils 類別
 import '../../theme/app_theme.dart';
+import '../../widgets/hover_icon_button.dart';
 import 'course_search_picker_page.dart'; // 確保路徑正確引入課程搜尋頁面
 import 'course_exception_download_page.dart';
 
@@ -83,6 +84,9 @@ class _CourseExceptionHandlingPageState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showNoticeDialog();
+    });
     _fetchAbnormalData();
   }
 
@@ -348,6 +352,7 @@ class _CourseExceptionHandlingPageState
   }
 
   Widget _buildHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       color: Colors.transparent,
@@ -362,10 +367,16 @@ class _CourseExceptionHandlingPageState
             ),
             child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                HoverIconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                  ),
                   onPressed: () => Navigator.pop(context),
                   tooltip: "返回",
+                  color: colorScheme.primaryText,
+                  iconSize: 18,
+                  padding: 12,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -941,6 +952,60 @@ class _CourseExceptionHandlingPageState
   void _showSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.red[600]),
+    );
+  }
+
+  void _showNoticeDialog() {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          backgroundColor: colorScheme.cardBackground,
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.amber[800] ?? Colors.amber,
+                size: 28,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "重要提醒",
+                style: TextStyle(
+                  color: colorScheme.primaryText,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            "此部分功能僅供產出「異常處理申請表」的 PDF 檔案以供下載列印，並非線上直接完成異常處理的登錄與辦理。請在生成 PDF 之後，務必按照學校規定的流程進行後續辦理。",
+            style: TextStyle(
+              color: colorScheme.bodyText,
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                "我知道了",
+                style: TextStyle(
+                  color: colorScheme.accentBlue,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

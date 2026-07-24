@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
+import '../widgets/hover_icon_button.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({Key? key}) : super(key: key);
@@ -72,17 +73,6 @@ class _InfoPageState extends State<InfoPage> {
     },
     {
       "id": 14,
-      "title": "AI 模型使用限制",
-      "content": "使用 AI 模型時請務必留意請求頻率。若您使用自定義 API 金鑰，請自行注意用量以免產生額外費用。",
-    },
-    {
-      "id": 15,
-      "title": "AI 隱私與安全",
-      "content":
-          "與模型對話時，系統不會主動傳送您的個人隱私資料。然而，您自行輸入的對話內容仍會傳送至 AI 服務商，請避免在對話中提供敏感個資。",
-    },
-    {
-      "id": 16,
       "title": "學程進度說明",
       "content":
           "本功能學程規則由 AI 自動解析，數據可能存在誤差；部分跨院認定較為複雜，系統無法涵蓋所有情況；進度百分比為系統估算值，僅供選課參考，不代表最終審核結果。建議同學與系辦再次確認。",
@@ -404,7 +394,7 @@ class _InfoPageState extends State<InfoPage> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      "Steven",
+                      "Daniel",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -438,6 +428,29 @@ class _InfoPageState extends State<InfoPage> {
                               color: colorScheme.bodyText,
                               height: 1.5,
                               fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Divider(
+                            color: colorScheme.borderColor.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "如有問題或版權疑慮，歡迎來信詢問：",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.subtitleText,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            "nsysu.review.prude496@slmails.com",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.accentBlue,
+                              fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -736,16 +749,18 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Theme.of(context).colorScheme.primaryText,
-            ),
+          HoverIconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
             onPressed: () => context.go('/home'),
+            tooltip: "返回主選單",
+            color: colorScheme.primaryText,
+            iconSize: 18,
+            padding: 12,
           ),
           const SizedBox(width: 10),
           Text(

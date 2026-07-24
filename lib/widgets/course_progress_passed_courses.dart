@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/ai_personalization_service.dart';
+import '../services/course_history_sync_service.dart';
 import '../theme/app_theme.dart';
 import 'hover_icon_button.dart';
 
@@ -21,7 +21,7 @@ class CourseProgressPassedCoursesPanel extends StatefulWidget {
 class _CourseProgressPassedCoursesPanelState
     extends State<CourseProgressPassedCoursesPanel> {
   final _searchQueryNotifier = ValueNotifier<String>('');
-  final _courseService = AiPersonalizationService.instance;
+  final _courseService = CourseHistorySyncService.instance;
 
   @override
   void dispose() {
@@ -443,7 +443,7 @@ class CourseProgressPassedCoursesBottomSheet extends StatefulWidget {
 class _CourseProgressPassedCoursesBottomSheetState
     extends State<CourseProgressPassedCoursesBottomSheet> {
   final _searchQueryNotifier = ValueNotifier<String>('');
-  final _courseService = AiPersonalizationService.instance;
+  final _courseService = CourseHistorySyncService.instance;
 
   @override
   void dispose() {

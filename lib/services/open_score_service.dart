@@ -6,6 +6,13 @@ import 'package:html/parser.dart' as parser;
 import '../utils/utils.dart';
 import 'storage_service.dart';
 
+class LoginPasswordErrorException implements Exception {
+  final String message;
+  LoginPasswordErrorException(this.message);
+  @override
+  String toString() => message;
+}
+
 class OpenScoreService {
   // 單例模式
   static final OpenScoreService instance = OpenScoreService._internal();
@@ -148,8 +155,9 @@ class OpenScoreService {
         return;
       }
 
-      const int maxFetchRetry = 7;
+      const int maxFetchRetry = 15;
       bool success = false;
+      bool hasPasswordError = false;
 
       for (int i = 1; i <= maxFetchRetry; i++) {
         debugPrint("開放成績抓資料（第 $i 次嘗試）");
@@ -159,36 +167,57 @@ class OpenScoreService {
 
         if (i > 1) {
           statusMessageNotifier.value = "連線重試中 ($i/$maxFetchRetry)...";
-          await Future.delayed(Duration(milliseconds: 800 * i));
+          int delayMs = 500 * i;
+          if (delayMs > 2500) delayMs = 2500;
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
 
         statusMessageNotifier.value = "正在登入成績系統 ($i/$maxFetchRetry)...";
-        String? cookies = await _loginToScoreSystem(username, password);
-        if (cookies == null) {
-          debugPrint("❌ 第 $i 次登入失敗");
-          continue;
-        }
 
-        debugPrint("開放成績-第 $i 次登入成功，開始暖機與抓取");
-        await Future.delayed(const Duration(milliseconds: 800));
-
-        // 暖機請求
         try {
-          await _warmUpSession(cookies);
-          // debugPrint("🔥 warm-up 完成");
-        } catch (_) {}
+          String? cookies = await _loginToScoreSystem(username, password);
+          if (cookies == null) {
+            debugPrint("❌ 第 $i 次登入失敗");
+            if (!hasPasswordError && i >= 15) {
+              debugPrint("一般登入失敗且已嘗試 $i 次，停止重試");
+              break;
+            }
+            continue;
+          }
 
-        bool ok = await _startLinearFetchingProcess(
-          cookies,
-          clearIfEmpty: false,
-        );
+          debugPrint("開放成績-第 $i 次登入成功，開始暖機與抓取");
+          await Future.delayed(const Duration(milliseconds: 800));
 
-        final count = resultsNotifier.value.length;
-        // debugPrint("📊 筆數: $count");
+          // 暖機請求
+          try {
+            await _warmUpSession(cookies);
+            // debugPrint("🔥 warm-up 完成");
+          } catch (_) {}
 
-        if (ok && count > 0) {
-          success = true;
-          break;
+          bool ok = await _startLinearFetchingProcess(
+            cookies,
+            clearIfEmpty: false,
+          );
+
+          final count = resultsNotifier.value.length;
+          // debugPrint("📊 筆數: $count");
+
+          if (ok && count > 0) {
+            success = true;
+            break;
+          }
+
+          if (!hasPasswordError && i >= 15) {
+            debugPrint("一般抓取失敗且已嘗試 $i 次，停止重試");
+            break;
+          }
+        } on LoginPasswordErrorException {
+          hasPasswordError = true;
+          debugPrint("偵測到密碼錯誤代碼，允許最多重試 15 次");
+          if (i >= 15) {
+            break;
+          }
+          continue;
         }
 
         debugPrint("開放成績失敗 - 第 $i 次嘗試失敗或資料未 ready");
@@ -238,12 +267,22 @@ class OpenScoreService {
           )
           .timeout(const Duration(seconds: 15));
 
+      final bodyText = response.body;
+      if (bodyText.contains(
+            '&#30331;&#37636;&#23494;&#30908;&#37679;&#35492;&#65292;&#28961;&#27861;&#20351;&#29992;&#35531;&#37325;&#26032;&#30331;&#37636;&#65281;',
+          ) ||
+          bodyText.contains('登錄密碼錯誤，無法使用請重新登錄！')) {
+        throw LoginPasswordErrorException("登錄密碼錯誤");
+      }
+
       String? rawCookie = response.headers['set-cookie'];
-      if (rawCookie != null && !response.body.contains("不符")) {
+      if (rawCookie != null && !bodyText.contains("不符")) {
         return rawCookie;
       } else {
         lastRawHtmlNotifier.value = "【登入失敗，伺服器回應】";
       }
+    } on LoginPasswordErrorException {
+      rethrow;
     } catch (e) {
       debugPrint("Login Network Error: $e");
       lastRawHtmlNotifier.value = "【登入網路錯誤】\n$e";
@@ -274,6 +313,13 @@ class OpenScoreService {
       allowMalformed: true,
     );
     lastRawHtmlNotifier.value = listContent;
+
+    if (listContent.contains(
+          '&#30331;&#37636;&#23494;&#30908;&#37679;&#35492;&#65292;&#28961;&#27861;&#20351;&#29992;&#35531;&#37325;&#26032;&#30331;&#37636;&#65281;',
+        ) ||
+        listContent.contains('登錄密碼錯誤，無法使用請重新登錄！')) {
+      throw LoginPasswordErrorException("登錄密碼錯誤");
+    }
 
     var listSoup = parser.parse(listContent);
     var rows = listSoup.getElementsByTagName('tr');

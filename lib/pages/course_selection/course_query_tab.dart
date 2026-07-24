@@ -10,16 +10,62 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../theme/app_theme.dart';
 
+/// 外部（課表空白格）用來通知 CourseQueryTab 切換星期+節次篩選的 ChangeNotifier
+///
+/// 以 (星期, 節次) **配對**為單位保存，而非把星期與節次拆成兩個獨立集合。
+/// 否則點擊「星期四第2節」與「星期五第1節」會變成 days={4,5} × periods={1,2}
+/// 的笛卡兒積，錯誤地命中 (四,1)(五,2) 等沒被點的格子。
+class CourseSlotFilterNotifier extends ChangeNotifier {
+  /// 已選的 "day-period" 配對，例如 {"4-2", "5-1"}。
+  Set<String> _slots = {};
+
+  Set<String> get slots => _slots;
+
+  /// 為了顯示方便提供的 union 視圖（僅供 UI 提示，搜尋比對請用 [slots]）。
+  Set<String> get days =>
+      _slots.map((s) => s.split('-').first).toSet();
+  Set<String> get periods =>
+      _slots.map((s) => s.split('-').last).toSet();
+
+  /// 某個 (day, period) 配對目前是否被選中。
+  bool isSelected(String dayKey, String periodKey) =>
+      _slots.contains("$dayKey-$periodKey");
+
+  /// 切換一個 (day, period) 配對；已選則取消，未選則加入。
+  void toggle(String dayKey, String periodKey) {
+    final key = "$dayKey-$periodKey";
+    _slots = Set.from(_slots);
+    if (_slots.contains(key)) {
+      _slots.remove(key);
+    } else {
+      _slots.add(key);
+    }
+    notifyListeners();
+  }
+
+  /// 清除所有篩選
+  void clear() {
+    _slots = {};
+    notifyListeners();
+  }
+}
+
 class CourseQueryTab extends StatefulWidget {
   final List<CourseSelectionData> currentCourses;
   final VoidCallback onRequestRefresh;
   final bool isLoading;
+  /// 外部課表注入的槽位篩選器（可選），不傳則無法被外部觸發篩選
+  final CourseSlotFilterNotifier? slotFilterNotifier;
+  /// 當星期/節次篩選變動時的回呼，參數為目前選中的 (days, periods)
+  final void Function(Set<String> days, Set<String> periods)? onFilterChanged;
 
   const CourseQueryTab({
     Key? key,
     required this.currentCourses,
     required this.onRequestRefresh,
     this.isLoading = false,
+    this.slotFilterNotifier,
+    this.onFilterChanged,
   }) : super(key: key);
 
   @override
@@ -47,6 +93,18 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   String? _selectedClass;
   Set<String> _selectedDays = {};
   Set<String> _selectedPeriods = {};
+  /// 來自課表格子點擊的 (day-period) 配對篩選，與下拉的星期/節次互相獨立。
+  Set<String> _selectedSlots = {};
+
+  void _onSlotFilterChanged() {
+    final notifier = widget.slotFilterNotifier;
+    if (notifier == null) return;
+    setState(() {
+      // 格子點擊以配對為單位，獨立於下拉的星期/節次篩選，不混入 _selectedDays/_selectedPeriods
+      _selectedSlots = Set.from(notifier.slots);
+    });
+    _performSearch();
+  }
 
   Timer? _debounceTimer;
   int _searchSessionId = 0;
@@ -84,6 +142,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
       _hasCheckedExported = true;
       _checkExportedCourses();
     }
+    widget.slotFilterNotifier?.addListener(_onSlotFilterChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _performSearch();
@@ -94,6 +153,10 @@ class _CourseQueryTabState extends State<CourseQueryTab>
   @override
   void didUpdateWidget(covariant CourseQueryTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.slotFilterNotifier != widget.slotFilterNotifier) {
+      oldWidget.slotFilterNotifier?.removeListener(_onSlotFilterChanged);
+      widget.slotFilterNotifier?.addListener(_onSlotFilterChanged);
+    }
     if (!_hasCheckedExported && !widget.isLoading) {
       _hasCheckedExported = true;
       _checkExportedCourses();
@@ -105,6 +168,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
 
   @override
   void dispose() {
+    widget.slotFilterNotifier?.removeListener(_onSlotFilterChanged);
     _mergedQueryCtrl.removeListener(_onQueryChanged);
     _mergedQueryCtrl.dispose();
     _debounceTimer?.cancel();
@@ -431,193 +495,198 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               backgroundColor: colorScheme.secondaryCardBackground.withOpacity(
                 0.5,
               ),
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            title: Text(
-              course.name.split('\n')[0],
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: colorScheme.primaryText,
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
               ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  _buildMiniInfoChip(
-                    Icons.person_outline_rounded,
-                    course.teacher,
-                  ),
-                  _buildMiniInfoChip(Icons.tag_rounded, course.id),
-                  _buildMiniInfoChip(
-                    Icons.account_balance_rounded,
-                    course.department,
-                  ),
-                  _buildMiniInfoChip(
-                    Icons.room_outlined,
-                    _extractRoomLocation(course.room),
-                  ),
-                  if (course.english)
+              title: Text(
+                course.name.split('\n')[0],
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: colorScheme.primaryText,
+                ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _buildMiniInfoChip(
+                      Icons.person_outline_rounded,
+                      course.teacher,
+                    ),
+                    _buildMiniInfoChip(Icons.tag_rounded, course.id),
+                    _buildMiniInfoChip(
+                      Icons.assignment_outlined,
+                      course.compulsory ? "必修" : "選修",
+                    ),
+                    _buildMiniInfoChip(
+                      Icons.account_balance_rounded,
+                      course.department,
+                    ),
+                    _buildMiniInfoChip(
+                      Icons.room_outlined,
+                      _extractRoomLocation(course.room),
+                    ),
+                    if (course.english)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.secondaryCardBackground,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          "英語授課",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.blueGrey,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.secondaryCardBackground,
+                        color: colorScheme.isDark
+                            ? Colors.orange[900]!.withOpacity(0.3)
+                            : Colors.orange[50],
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        "英語授課",
+                      child: Text(
+                        "機率: ${_calculateProbability(course)}",
                         style: TextStyle(
                           fontSize: 10,
-                          color: Colors.blueGrey,
+                          color: colorScheme.isDark
+                              ? Colors.orange[200]
+                              : Colors.orange[800],
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.isDark
-                          ? Colors.orange[900]!.withOpacity(0.3)
-                          : Colors.orange[50],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      "機率: ${_calculateProbability(course)}",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: colorScheme.isDark
-                            ? Colors.orange[200]
-                            : Colors.orange[800],
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            trailing: isAlreadySelected
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colorScheme.isDark
-                          ? Colors.green[900]!.withOpacity(0.3)
-                          : Colors.green[50],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      "已在課表中",
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  )
-                : isAdded
-                ? const Icon(
-                    Icons.check_circle_rounded,
-                    color: Colors.green,
-                    size: 28,
-                  )
-                : ElevatedButton(
-                    onPressed: () => _addToPendingList(course),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[700],
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      minimumSize: const Size(60, 36),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    child: const Text(
-                      "加選",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-            children: [
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildDetailCol("課程資訊", [
-                            "學分: ${course.credit} 學分",
-                            "名額: ${course.restrict} 人",
-                            "已選: ${course.selected} 人 (餘 ${course.remaining})",
-                            "地點: ${course.room.isEmpty ? "地點不明" : _extractRoomLocation(course.room)}",
-                          ]),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: _buildDetailCol(
-                            "對應學程",
-                            course.tags.isEmpty ? ["無"] : course.tags,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    if (course.description.isNotEmpty) ...[
-                      const Text(
-                        "課程備註",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.blueAccent, // 更醒目的顏色
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        course.description,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: colorScheme.subtitleText,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    Text(
-                      "評分比例",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: colorScheme.subtitleText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _CourseEvaluationView(
-                      onLoad: () => _getCourseEvaluation(course.id),
                     ),
                   ],
                 ),
               ),
-            ],
+              trailing: isAlreadySelected
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.isDark
+                            ? Colors.green[900]!.withOpacity(0.3)
+                            : Colors.green[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        "已在課表中",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    )
+                  : isAdded
+                  ? const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.green,
+                      size: 28,
+                    )
+                  : ElevatedButton(
+                      onPressed: () => _addToPendingList(course),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        minimumSize: const Size(60, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: const Text(
+                        "加選",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+              children: [
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _buildDetailCol("課程資訊", [
+                              "學分: ${course.credit} 學分",
+                              "名額: ${course.restrict} 人",
+                              "已選: ${course.selected} 人 (餘 ${course.remaining})",
+                              "地點: ${course.room.isEmpty ? "地點不明" : _extractRoomLocation(course.room)}",
+                            ]),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: _buildDetailCol(
+                              "對應學程",
+                              course.tags.isEmpty ? ["無"] : course.tags,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (course.description.isNotEmpty) ...[
+                        const Text(
+                          "課程備註",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.blueAccent, // 更醒目的顏色
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          course.description,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.subtitleText,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      Text(
+                        "評分比例",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: colorScheme.subtitleText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _CourseEvaluationView(
+                        onLoad: () => _getCourseEvaluation(course.id),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ));
+        );
       },
     );
   }
@@ -758,7 +827,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
                                       ),
                                     ),
                                     TextSpan(
-                                      text: " / ${item.id}",
+                                      text: " / ${item.courseNo}",
                                       style: TextStyle(
                                         fontSize: 13,
                                         color: colorScheme.subtitleText,
@@ -933,6 +1002,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         grades: _selectedGrades.toList(),
         days: _selectedDays.toList(),
         periods: _selectedPeriods.toList(),
+        slots: _selectedSlots.toList(),
         classType: _selectedClass,
         filterConflict: _filterConflict,
         existingCourses: _parseSelectedCoursesForConflict(),
@@ -1071,7 +1141,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
               setState(() {
                 _pendingItems.add(
                   PendingTransaction(
-                    id: course.courseNo,
+                    id: course.code,
                     courseNo: course.courseNo,
                     name: course.name,
                     type: TransactionType.drop,
@@ -1174,7 +1244,7 @@ class _CourseQueryTabState extends State<CourseQueryTab>
         uiItem,
       ) {
         return submit_service.PendingTransaction(
-          id: uiItem.id,
+          id: uiItem.type == TransactionType.drop ? uiItem.courseNo : uiItem.id,
           name: uiItem.name,
           type: uiItem.type == TransactionType.add
               ? submit_service.TransactionType.add
@@ -2021,7 +2091,8 @@ class _HoverableMultiSelectOptionState
 
 class _CourseEvaluationView extends StatefulWidget {
   final Future<List<String>> Function() onLoad;
-  const _CourseEvaluationView({Key? key, required this.onLoad}) : super(key: key);
+  const _CourseEvaluationView({Key? key, required this.onLoad})
+    : super(key: key);
 
   @override
   State<_CourseEvaluationView> createState() => _CourseEvaluationViewState();
@@ -2052,10 +2123,7 @@ class _CourseEvaluationViewState extends State<_CourseEvaluationView> {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Text(
             "尚無評分細節",
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.subtitleText,
-            ),
+            style: TextStyle(fontSize: 13, color: colorScheme.subtitleText),
           );
         }
         return Column(

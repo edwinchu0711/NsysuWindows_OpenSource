@@ -178,7 +178,7 @@ class CourseSelectionSubmitService {
         }
 
         refererUrlStr = backup['GET_link']!;
-        
+
         // 若備用網址本身沒帶 ?，且我們前面成功解析了參數，則主動補上
         if (!refererUrlStr.contains('?') && finalParams.isNotEmpty) {
           String query = Uri(queryParameters: finalParams).query;

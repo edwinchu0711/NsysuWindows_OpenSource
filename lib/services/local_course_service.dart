@@ -33,6 +33,7 @@ class LocalCourseService {
 
   /// Get the actual course count from the database
   Future<int> getCourseCount() async {
+    if (CourseQueryService.instance.isUpdating) return 0;
     if (!_initialized) await init();
     if (!_initialized || _db == null) return 0;
     try {
@@ -148,12 +149,14 @@ class LocalCourseService {
       multipleCompulsory: row['multiple_compulsory'] as int? ?? 0,
       tags: tags,
       description: row['description']?.toString() ?? "",
+      compulsory: row['compulsory'] != null ? (row['compulsory'] as int) == 1 : null,
     );
   }
 
   /// Finds matching courses to recommendation logic. Strips brackets to check.
   /// Uses LLM for uncertain professor name matches.
   Future<List<CourseJsonData>> findMatchingCourses(String courseName, String professor) async {
+    if (CourseQueryService.instance.isUpdating) return [];
     if (!_initialized) await init();
     if (!_initialized) return [];
 
@@ -190,6 +193,7 @@ class LocalCourseService {
     String? grade,
     int? compulsory, // 0=必修, 1=選修, null=不篩選
   }) async {
+    if (CourseQueryService.instance.isUpdating) return [];
     if (!_initialized) await init();
     if (!_initialized) return [];
 
