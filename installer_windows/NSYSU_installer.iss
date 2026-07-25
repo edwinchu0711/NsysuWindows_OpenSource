@@ -6,8 +6,7 @@
 #ifndef MyAppVersion
 #define MyAppVersion "6.1.0"
 #endif
-#define MyAppPublisher "Edwin"
-#define MyAppURL "https://github.com/edwinchu0711"
+#define MyAppPublisher "Daniel"
 #define MyAppExeName "NSYSU.exe"
 
 [Setup]
