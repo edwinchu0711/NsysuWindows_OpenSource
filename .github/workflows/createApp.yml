@@ -158,5 +158,5 @@ jobs:
             * **macOS 安裝檔**: `NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg`
 
             ---
-            *NSYSU Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
+            *Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
             *Commit: ${{ github.sha }}*
