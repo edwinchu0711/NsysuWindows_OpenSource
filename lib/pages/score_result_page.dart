@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/historical_score_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/hover_icon_button.dart';
 
@@ -18,6 +19,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
   String? _selectedYear;
   String? _selectedSem;
   bool _hasInitializedSelection = false;
+  String _studentId = "";
 
   @override
   Widget build(BuildContext context) {
@@ -418,8 +420,14 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
     final day = now.day;
 
     // 開放日期為 5/25 ~ 10/10 和 12/25 ~ 3/20
-    bool inOpenPeriod1 = (month == 5 && day >= 25) || (month > 5 && month < 10) || (month == 10 && day <= 10);
-    bool inOpenPeriod2 = (month == 12 && day >= 25) || (month == 1 || month == 2) || (month == 3 && day <= 20);
+    bool inOpenPeriod1 =
+        (month == 5 && day >= 25) ||
+        (month > 5 && month < 10) ||
+        (month == 10 && day <= 10);
+    bool inOpenPeriod2 =
+        (month == 12 && day >= 25) ||
+        (month == 1 || month == 2) ||
+        (month == 3 && day <= 20);
 
     return !(inOpenPeriod1 || inOpenPeriod2);
   }
@@ -696,7 +704,7 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       "C": 2.0,
       "C-": 1.7,
       "D": 1.0,
-      "E": 0.0,
+      "E": 0.8,
       "F": 0.0,
       "X": 0.0,
     };
@@ -708,13 +716,74 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
       if (score.contains("抵免")) continue;
       creditsTaken += credit;
 
-      if (score != "E" && score != "F" && score != "X" && score != "") {
+      bool isGraduate = _studentId.startsWith(RegExp(r'^[MNDP]'));
+      double passThreshold = isGraduate ? 70.0 : 60.0;
+
+      bool isPass = false;
+      double? scoreVal = double.tryParse(score);
+      if (scoreVal != null) {
+        isPass = scoreVal >= passThreshold;
+      } else {
+        if (isGraduate) {
+          isPass =
+              score != "C+" &&
+              score != "C" &&
+              score != "C-" &&
+              score != "D" &&
+              score != "E" &&
+              score != "F" &&
+              score != "X" &&
+              score != "(F)" &&
+              score.isNotEmpty;
+        } else {
+          isPass =
+              score != "D" &&
+              score != "E" &&
+              score != "F" &&
+              score != "X" &&
+              score != "(F)" &&
+              score.isNotEmpty;
+        }
+      }
+
+      if (isPass) {
         creditsEarned += credit;
       }
 
-      if (score != "(P)" && gradePoints.containsKey(score)) {
+      double? gp;
+      if (gradePoints.containsKey(score)) {
+        gp = gradePoints[score];
+      } else if (scoreVal != null) {
+        if (scoreVal >= 90) {
+          gp = 4.3;
+        } else if (scoreVal >= 85) {
+          gp = 4.0;
+        } else if (scoreVal >= 80) {
+          gp = 3.7;
+        } else if (scoreVal >= 77) {
+          gp = 3.3;
+        } else if (scoreVal >= 73) {
+          gp = 3.0;
+        } else if (scoreVal >= 70) {
+          gp = 2.7;
+        } else if (scoreVal >= 67) {
+          gp = 2.3;
+        } else if (scoreVal >= 63) {
+          gp = 2.0;
+        } else if (scoreVal >= 60) {
+          gp = 1.7;
+        } else if (scoreVal >= 50) {
+          gp = 1.0;
+        } else if (scoreVal >= 40) {
+          gp = 0.8;
+        } else {
+          gp = 0.0;
+        }
+      }
+
+      if (score != "(P)" && gp != null) {
         gpaCredits += credit;
-        totalWeightedPoints += (credit * gradePoints[score]!);
+        totalWeightedPoints += (credit * gp);
       }
     }
 
@@ -732,10 +801,21 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
   @override
   void initState() {
     super.initState();
+    _loadStudentId();
     _autoSelectSemester();
     HistoricalScoreService.instance.summaryNotifier.addListener(
       _autoSelectSemester,
     );
+  }
+
+  Future<void> _loadStudentId() async {
+    final creds = await StorageService.instance.getCredentials();
+    final username = creds['username']?.trim();
+    if (username != null && username.isNotEmpty && mounted) {
+      setState(() {
+        _studentId = username.toUpperCase();
+      });
+    }
   }
 
   @override
@@ -857,7 +937,8 @@ class _ScoreResultPageState extends State<ScoreResultPage> {
   Widget _buildCourseCard(CourseScore course) {
     final colorScheme = Theme.of(context).colorScheme;
     double scoreVal = double.tryParse(course.score) ?? 0;
-    bool isPass = scoreVal >= 60;
+    bool isGraduate = _studentId.startsWith(RegExp(r'^[MNDP]'));
+    bool isPass = scoreVal >= (isGraduate ? 70 : 60);
     bool isNumber = RegExp(r'^\d+$').hasMatch(course.score);
     Color scoreColor;
     if (isNumber) {
