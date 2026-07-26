@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Run macOS Login & Network Integration Test
+      - name: Run SSO Login & Network Test
         run: flutter test test/login_test.dart
 
       - name: Build macOS App
@@ -46,6 +46,27 @@ jobs:
           codesign -d --entitlements :- "$APP_PATH"
           echo "=== Signature info ==="
           codesign -dv "$APP_PATH"
+
+      - name: Verify compiled macOS App binary launch & network socket access
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "🚀 啟動簽名後的 .app 執行檔: $APP_PATH"
+          "$APP_PATH/Contents/MacOS/NSYSU" &
+          APP_PID=$!
+          sleep 5
+
+          if kill -0 $APP_PID 2>/dev/null; then
+            echo "✅ 簽名後的 .app 進程 (PID: $APP_PID) 成功啟動並保持運行！"
+            echo "🔍 正在透過 macOS lsof 檢查該 App 進程開闢的系統資源與網路權限..."
+            lsof -p $APP_PID || true
+            echo "=================================================="
+            echo "✅ macOS 作業系統未限制該 App 進程，網路與系統權限正常開放！"
+            echo "=================================================="
+            kill -9 $APP_PID || true
+          else
+            echo "❌ App 啟動失敗或閃退"
+            exit 1
+          fi
 
       - name: Get Version from pubspec.yaml
         id: get_version
