@@ -155,31 +155,40 @@ jobs:
           tag: ${{ steps.get_version.outputs.VERSION }}
           overwrite: true
           body: |
-            ## 📦 桌面版軟體下載 (Desktop Releases)
+            ### 📦 桌面版軟體下載 (Desktop Releases)
 
             * **Windows 安裝包**: `NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe`
             * **macOS 安裝檔**: `NSYSU-${{ steps.get_version.outputs.VERSION }}-macOS.dmg`
 
-            ---
+            <details>
+            <summary><b style="font-size: 1.25em;">⚠️ 安裝時遇到警告怎麼辦？（點擊展開）</b></summary>
 
-            ## ⚠️ 安裝時遇到警告怎麼辦？
+            <br>
 
             因為目前軟體沒有經過官方付費簽章認證，兩個平台第一次安裝時都可能會跳出安全警告，屬於正常現象，請依照以下步驟操作。
 
-            ###  macOS 安裝步驟
+
+            #### Windows 安裝步驟
+
+            1. 下載並執行 `NSYSU-${{ steps.get_version.outputs.VERSION }}-Windows-Setup.exe`。
+            2. 若出現「**Windows 已保護您的電腦**」（SmartScreen）藍色警告視窗：點擊視窗中的「**其他資訊**」（More info），再點擊下方出現的「**仍要執行**」（Run anyway）按鈕即可繼續安裝。
+            3. 若被防毒軟體（如 Windows Defender、其他防毒軟體）攔截或誤判為風險：可將安裝檔加入防毒軟體的例外清單，或允許此次執行。
+
+
+            #### macOS 安裝步驟
 
             1. 下載並打開 DMG，把 App 拖曳到「Applications」（應用程式）資料夾。
             2. **第一次打開請勿雙擊**：在「應用程式」資料夾中，**滑鼠右鍵點擊**（或按住 Control 點擊）NSYSU 圖示，選擇「**打開**」，跳出警告視窗後點擊「**打開**」確認。
             3. 若右鍵打開仍被封鎖：前往「系統設定」→「隱私權與安全性」，往下捲動找到「NSYSU 已被封鎖」的提示，點擊「**強制打開**」，輸入密碼確認即可。
             4. 之後即可直接雙擊開啟，僅第一次需要上述操作。
 
-            ###  Windows 安裝步驟
-
-            1. 下載並執行 `NSYSU-Setup.exe`。
-            2. 若出現「**Windows 已保護您的電腦**」（SmartScreen）藍色警告視窗：點擊視窗中的「**其他資訊**」（More info），再點擊下方出現的「**仍要執行**」（Run anyway）按鈕即可繼續安裝。
-            3. 若被防毒軟體（如 Windows Defender、其他防毒軟體）攔截或誤判為風險：可將安裝檔加入防毒軟體的例外清單，或允許此次執行。
+            </details>
 
             ---
 
-            *Desktop 自動建置系統 - 版本號: ${{ steps.get_version.outputs.VERSION }}*
-            *Commit: ${{ github.sha }}*
+            ### 🛠️ 更新內容
+            * **性能優化**：減少不必要之套件，節省空間
+            * **選課助手優化**：新增選課助手的課表時間直接篩選
+
+            ---
+            *NSYSU Desktop 自動建置系統 - Commit: ${{ github.sha }}*
