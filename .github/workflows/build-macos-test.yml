@@ -1,0 +1,69 @@
+name: Build macOS Test Artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-macos:
+    name: Build macOS DMG (Artifact Only)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: 'stable'
+
+      - name: Enable macOS Desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run macOS Login & Network Integration Test
+        run: flutter test test/login_test.dart
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
+      - name: Sign app with entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "App path: $APP_PATH"
+          codesign --force --deep --sign - --entitlements macos/Runner/Release.entitlements "$APP_PATH"
+
+      - name: Verify entitlements
+        run: |
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          echo "=== Entitlements ==="
+          codesign -d --entitlements :- "$APP_PATH"
+          echo "=== Signature info ==="
+          codesign -dv "$APP_PATH"
+
+      - name: Get Version from pubspec.yaml
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version: ' pubspec.yaml | cut -d ' ' -f 2 | cut -d '+' -f 1)
+          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.get_version.outputs.VERSION }}"
+          APP_PATH=$(find build/macos/Build/Products/Release -name "*.app" -maxdepth 1 | head -1)
+          mkdir -p dist
+          hdiutil create -format UDZO -srcfolder "$APP_PATH" "dist/NSYSU-${VERSION}-macOS-Test.dmg"
+
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-dmg
+          path: dist/NSYSU-*-macOS-Test.dmg
+          if-no-files-found: error

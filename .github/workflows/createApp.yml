@@ -83,6 +83,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Run macOS Login & Network Integration Test
+        run: flutter test test/login_test.dart
+
       - name: Build macOS App
         run: flutter build macos --release
 

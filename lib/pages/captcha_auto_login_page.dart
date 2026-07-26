@@ -165,6 +165,7 @@ class _CaptchaAutoLoginPageState extends ConsumerState<CaptchaAutoLoginPage> {
       final dio = Dio(
         BaseOptions(
           connectTimeout: Duration(seconds: 10),
+          receiveTimeout: Duration(seconds: 10),
           followRedirects: false,
           validateStatus: (status) => status! < 500,
         ),
