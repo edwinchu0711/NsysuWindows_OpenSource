@@ -535,7 +535,7 @@ class _InfoPageState extends State<InfoPage> {
             colorScheme,
             title: "ClearGrad. 畢經之路",
             subtitle:
-                "本專案部分創意靈感源於「© 2026 ClearGrad. 畢經之路」（由 葉峻銓 創作，邱俊博 搭配色彩）。並特別感謝 葉峻銓 為本專案提供寶貴的想法與功能建議。",
+                "本專案部分創意靈感源於「© 2026 ClearGrad. 畢經之路」（由 葉峻銓 創作，邱俊博 負責品牌 Logo 與視覺設計）。並特別感謝 葉峻銓 為本專案提供寶貴的想法與功能建議。",
             icon: Icons.palette_outlined,
           ),
           const Padding(
