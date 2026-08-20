@@ -775,6 +775,7 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
   }
 
   void _showDisclaimerDialog() {
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -788,8 +789,44 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("本功能僅為提供選課之便利，請勿過度依賴。", style: TextStyle(fontSize: 16)),
-              SizedBox(height: 16),
+              const Text("本功能僅為提供選課之便利，請勿過度依賴。", style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(
+                    alpha: colorScheme.isDark ? 0.2 : 0.08,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "重要提醒：請務必先在「學校選課系統官網」完成「預選課程確認」，才可使用本程式進行選課操作。",
+                        style: TextStyle(
+                          color: colorScheme.isDark ? Colors.red[300] : Colors.red[800],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               Text(
                 "⚠️ 注意事項：",
                 style: TextStyle(
@@ -797,10 +834,10 @@ class _CourseSelectionPageState extends State<CourseSelectionPage>
                   color: Colors.orange[800],
                 ),
               ),
-              SizedBox(height: 4),
-              Text("1. 選完課後，請務必前往「學校官網」確認最終結果。"),
-              Text("2. 若本程式顯示結果與學校系統不一致，請以學校官方為準。"),
-              Text("3. 開發者不負擔因系統時間落差或操作導致之選課風險。"),
+              const SizedBox(height: 4),
+              const Text("1. 選完課後，請務必前往「學校官網」確認最終結果。"),
+              const Text("2. 若本程式顯示結果與學校系統不一致，請以學校官方為準。"),
+              const Text("3. 開發者不負擔因系統時間落差或操作導致之選課風險。"),
             ],
           ),
         ),
